@@ -22,6 +22,7 @@
   "common.playing": "Afspiller",
   "common.prev": "Forrige nummer",
   "common.next": "Næste nummer",
+  "keys.space": "Mellemrum",
   "common.cover": "Cover til {album}",
   "common.rescan": "Scan igen",
 

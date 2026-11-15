@@ -22,6 +22,7 @@
   "common.playing": "Çalıyor",
   "common.prev": "Önceki parça",
   "common.next": "Sonraki parça",
+  "keys.space": "Boşluk",
   "common.cover": "Albüm kapağı: {album}",
   "common.rescan": "Yeniden tara",
 

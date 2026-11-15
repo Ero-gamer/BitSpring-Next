@@ -22,6 +22,7 @@
   "common.playing": "Παίζει",
   "common.prev": "Προηγούμενο κομμάτι",
   "common.next": "Επόμενο κομμάτι",
+  "keys.space": "Διάστημα",
   "common.cover": "Εξώφυλλο του άλμπουμ {album}",
   "common.rescan": "Νέα σάρωση",
 

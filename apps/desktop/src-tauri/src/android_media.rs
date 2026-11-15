@@ -4,7 +4,7 @@
 //!   keys come back here as [`Java_dev_local_hifi_PlaybackService_nativeCommand`];
 //! - the music folders and the moment storage permission is granted (library rescan).
 //!
-//! Same shape as `ios_media.rs`, so `lib.rs` drives both the same way.
+//! Same shape as `apple_media.rs` and `windows_media.rs`, so `lib.rs` drives both the same way.
 
 use std::sync::Mutex;
 use std::time::Instant;

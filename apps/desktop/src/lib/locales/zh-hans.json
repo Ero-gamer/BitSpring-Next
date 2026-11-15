@@ -22,6 +22,7 @@
   "common.playing": "正在播放",
   "common.prev": "上一首",
   "common.next": "下一首",
+  "keys.space": "空格键",
   "common.cover": "{album} 的封面",
   "common.rescan": "重新扫描",
 

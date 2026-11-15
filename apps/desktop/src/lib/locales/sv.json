@@ -22,6 +22,7 @@
   "common.playing": "Spelas",
   "common.prev": "Föregående låt",
   "common.next": "Nästa låt",
+  "keys.space": "Mellanslag",
   "common.cover": "Omslag till {album}",
   "common.rescan": "Skanna om",
 

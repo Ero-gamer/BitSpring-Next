@@ -22,6 +22,7 @@
   "common.playing": "Hraje",
   "common.prev": "Předchozí skladba",
   "common.next": "Další skladba",
+  "keys.space": "Mezerník",
   "common.cover": "Obal alba {album}",
   "common.rescan": "Znovu prohledat",
 

@@ -22,6 +22,7 @@
   "common.playing": "In riproduzione",
   "common.prev": "Brano precedente",
   "common.next": "Brano successivo",
+  "keys.space": "Spazio",
   "common.cover": "Copertina di {album}",
   "common.rescan": "Ripeti scansione",
 

@@ -22,6 +22,7 @@
   "common.playing": "Se redă",
   "common.prev": "Piesa anterioară",
   "common.next": "Piesa următoare",
+  "keys.space": "Spațiu",
   "common.cover": "Coperta albumului {album}",
   "common.rescan": "Rescanează",
 
