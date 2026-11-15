@@ -66,6 +66,11 @@
   let error = $state<string | null>(null);
   let loading = $state(false);
   let testing = $state(false);
+  // Desktop: the transport buttons' tooltips name their keyboard shortcuts.
+  const modKey = isMac ? "⌘" : "Ctrl+";
+  function hint(label: string, keys: string): string | undefined {
+    return isIOS || isAndroid ? undefined : `${label} (${keys})`;
+  }
   let dragOver = $state(false);
   let sweepKey = $state(0);
   let advancing = false;
@@ -368,9 +373,21 @@
     // Handled already (an EQ band moved by the arrow keys), or typing in a field.
     if (e.defaultPrevented || t.tagName === "SELECT" || t.tagName === "TEXTAREA") return;
     if (t.tagName === "INPUT" && (t as HTMLInputElement).type !== "range") return;
+    // ⌘ on the Mac, Ctrl elsewhere — as in Music and most players.
+    const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
     if (e.code === "Space") {
       e.preventDefault();
-      togglePause();
+      // Held down, the key repeats: one press, one toggle.
+      if (!e.repeat) togglePause();
+    } else if (mod && !e.altKey && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      // Next / previous track (the buttons' own rules: previous restarts past 3 s).
+      e.preventDefault();
+      if (e.repeat || testing) return;
+      if (e.key === "ArrowRight") next();
+      else if (now) prev();
+    } else if (e.metaKey || e.ctrlKey) {
+      // Leave the system's and the menu's shortcuts alone.
+      return;
     } else if (e.key === "ArrowRight" && status.active) {
       api.seek(Math.min(status.position + 10, status.duration));
     } else if (e.key === "ArrowLeft" && status.active) {
@@ -565,17 +582,17 @@
 
     <!-- transport keys keep their tape direction in right-to-left languages -->
     <div class="keys" dir="ltr">
-      <button class="key" onclick={prev} aria-label={t("common.prev")} disabled={!now || testing}>
+      <button class="key" onclick={prev} aria-label={t("common.prev")} title={hint(t("common.prev"), `${modKey}←`)} disabled={!now || testing}>
         <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M6 4v14M18 4L8 11l10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
       </button>
-      <button class="play" onclick={togglePause} aria-label={t(status.active && !status.paused ? "common.pause" : "common.play")} disabled={loading || (!now && !queue.length)}>
+      <button class="play" onclick={togglePause} aria-label={t(status.active && !status.paused ? "common.pause" : "common.play")} title={hint(t(status.active && !status.paused ? "common.pause" : "common.play"), t("keys.space"))} disabled={loading || (!now && !queue.length)}>
         {#if status.active && !status.paused}
           <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><rect x="6" y="5" width="5" height="16" rx="1" fill="currentColor" /><rect x="15" y="5" width="5" height="16" rx="1" fill="currentColor" /></svg>
         {:else}
           <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M8 4.5v17l14-8.5z" fill="currentColor" /></svg>
         {/if}
       </button>
-      <button class="key" onclick={next} aria-label={t("common.next")} disabled={testing || index >= queue.length - 1}>
+      <button class="key" onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || index >= queue.length - 1}>
         <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M16 4v14M4 4l10 7-10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
       </button>
       <button
@@ -621,17 +638,17 @@
         <i aria-hidden="true"></i>{t(now.signal.bitPerfect ? "signal.bitPerfect" : "signal.processing")}{t("list.sep")}{#if now.signal.dop && now.signal.dsdRate}{dsdName(now.signal.dsdRate)} DoP{:else}{khz(now.signal.deviceRate)} {t("unit.khz")}{/if}
       </span>
       <div class="mini-keys" dir="ltr">
-        <button onclick={prev} aria-label={t("common.prev")} disabled={testing}>
+        <button onclick={prev} aria-label={t("common.prev")} title={hint(t("common.prev"), `${modKey}←`)} disabled={testing}>
           <svg width="14" height="14" viewBox="0 0 22 22" aria-hidden="true"><path d="M6 4v14M18 4L8 11l10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
         </button>
-        <button class="mini-play" onclick={togglePause} aria-label={t(status.active && !status.paused ? "common.pause" : "common.play")}>
+        <button class="mini-play" onclick={togglePause} aria-label={t(status.active && !status.paused ? "common.pause" : "common.play")} title={hint(t(status.active && !status.paused ? "common.pause" : "common.play"), t("keys.space"))}>
           {#if status.active && !status.paused}
             <svg width="16" height="16" viewBox="0 0 26 26" aria-hidden="true"><rect x="6" y="5" width="5" height="16" rx="1" fill="currentColor" /><rect x="15" y="5" width="5" height="16" rx="1" fill="currentColor" /></svg>
           {:else}
             <svg width="16" height="16" viewBox="0 0 26 26" aria-hidden="true"><path d="M8 4.5v17l14-8.5z" fill="currentColor" /></svg>
           {/if}
         </button>
-        <button onclick={next} aria-label={t("common.next")} disabled={testing || index >= queue.length - 1}>
+        <button onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || index >= queue.length - 1}>
           <svg width="14" height="14" viewBox="0 0 22 22" aria-hidden="true"><path d="M16 4v14M4 4l10 7-10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
         </button>
       </div>

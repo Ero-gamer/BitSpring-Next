@@ -22,6 +22,7 @@
   "common.playing": "Speelt",
   "common.prev": "Vorig nummer",
   "common.next": "Volgend nummer",
+  "keys.space": "Spatie",
   "common.cover": "Hoes van {album}",
   "common.rescan": "Opnieuw scannen",
 

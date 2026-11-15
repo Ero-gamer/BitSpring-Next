@@ -36,7 +36,7 @@
 		358557A33ED7F4262524267D /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		42D85BAB60ABD56D06782A13 /* bookmarks.rs */ = {isa = PBXFileReference; path = bookmarks.rs; sourceTree = "<group>"; };
 		44690E05C08A64DC3AC41245 /* eq.rs */ = {isa = PBXFileReference; path = eq.rs; sourceTree = "<group>"; };
-		4A6656ED9879DA0CB6EC4EE2 /* ios_media.rs */ = {isa = PBXFileReference; path = ios_media.rs; sourceTree = "<group>"; };
+		4A6656ED9879DA0CB6EC4EE2 /* apple_media.rs */ = {isa = PBXFileReference; path = apple_media.rs; sourceTree = "<group>"; };
 		643108E444010BE2A75B3AE7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6FE72201F9E3ECC881DB4DDA /* AVFAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFAudio.framework; path = System/Library/Frameworks/AVFAudio.framework; sourceTree = SDKROOT; };
 		848E6A84A033CC03A7A80B16 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -122,7 +122,7 @@
 				E47F63D442B53F60BEBE844A /* android_media.rs */,
 				42D85BAB60ABD56D06782A13 /* bookmarks.rs */,
 				44690E05C08A64DC3AC41245 /* eq.rs */,
-				4A6656ED9879DA0CB6EC4EE2 /* ios_media.rs */,
+				4A6656ED9879DA0CB6EC4EE2 /* apple_media.rs */,
 				FD82BE19DE2532ED948A8D32 /* lib.rs */,
 				9B447D0568EA44F2704BD121 /* library.rs */,
 				F0C1A756685FF87A245FC48F /* main.rs */,

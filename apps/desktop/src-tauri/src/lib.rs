@@ -5,8 +5,10 @@
 
 #[cfg(target_os = "android")]
 mod android_media;
-#[cfg(target_os = "ios")]
-mod ios_media;
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+mod apple_media;
+#[cfg(windows)]
+mod windows_media;
 mod bookmarks;
 mod eq;
 mod library;
@@ -22,11 +24,14 @@ mod stream;
 #[cfg_attr(all(feature = "updater", not(target_os = "ios")), path = "update_on.rs")]
 #[cfg_attr(not(all(feature = "updater", not(target_os = "ios"))), path = "update_off.rs")]
 mod update;
-/// Lock screen / notification player and remote controls, per phone OS.
+/// The system's player (lock screen, notification, Control Center, media keys) and the remote
+/// controls that come from it, per OS. `cfg(system_media)` (set in build.rs) where there is one.
 #[cfg(target_os = "android")]
 use android_media as media;
-#[cfg(target_os = "ios")]
-use ios_media as media;
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+use apple_media as media;
+#[cfg(windows)]
+use windows_media as media;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -151,6 +156,14 @@ type CmdResult<T> = Result<T, UserError>;
 
 /// The app, for code that runs outside a command (system media controls).
 static APP: std::sync::OnceLock<tauri::AppHandle> = std::sync::OnceLock::new();
+
+/// Hand a playback command (`toggle`, `next`, `prev`) to the window, which carries it out as
+/// its own buttons would — the path the phone remote takes. Used by the desktop media keys.
+#[cfg(desktop)]
+pub(crate) fn remote_command(app: &tauri::AppHandle, kind: &str) {
+    use tauri::Emitter;
+    let _ = app.emit("remote", serde_json::json!({ "kind": kind }));
+}
 
 fn err(e: impl Into<anyhow::Error>) -> UserError {
     UserError::of(&e.into())
@@ -610,7 +623,7 @@ fn record_now(state: &AppState, current: Current, device_name: String, signal: S
     let (track, file) = (current.track.clone(), current.path.clone());
     let meta = track.meta.clone();
     let (channels, duration) = (track.channels, track.duration_secs());
-    #[cfg(mobile)]
+    #[cfg(system_media)]
     let lock_screen = media::TrackInfo {
         title: meta.title.clone().unwrap_or_else(|| file.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()),
         artist: meta.artist.clone(),
@@ -641,7 +654,7 @@ fn record_now(state: &AppState, current: Current, device_name: String, signal: S
     *state.advance_error.lock().unwrap() = None;
     // Under play_lock: nobody else bumps it between the load above and here.
     state.now_rev.store(rev, Ordering::Release);
-    #[cfg(mobile)]
+    #[cfg(system_media)]
     if let Some(app) = APP.get() {
         media::set_track(app, rev, lock_screen);
     }
@@ -1047,7 +1060,7 @@ fn stop(state: State<'_, AppState>) {
     state.lined_up.lock().unwrap().clear();
     *state.current.lock().unwrap() = None;
     *state.now.lock().unwrap() = None;
-    #[cfg(mobile)]
+    #[cfg(system_media)]
     if let Some(app) = APP.get() {
         media::clear(app);
     }
@@ -1235,7 +1248,7 @@ pub fn run() {
                 let _ = w.with_webview(|wv| ios_edge_to_edge(wv.inner()));
             }
             let _ = APP.set(app.handle().clone());
-            #[cfg(mobile)]
+            #[cfg(system_media)]
             media::install(app.handle());
             let handle = app.handle().clone();
             std::thread::Builder::new().name("hifi-queue".into()).spawn(move || {
@@ -1253,7 +1266,7 @@ pub fn run() {
                     } else {
                         ended = None;
                     }
-                    #[cfg(mobile)]
+                    #[cfg(system_media)]
                     {
                         let rev = state.now_rev.load(Ordering::Acquire);
                         let now = state.player.lock().unwrap().as_ref().map(|p| (p.position_secs(), p.is_paused() || p.is_finished()));

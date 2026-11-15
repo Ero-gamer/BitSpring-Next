@@ -22,6 +22,7 @@
   "common.playing": "Soi",
   "common.prev": "Edellinen kappale",
   "common.next": "Seuraava kappale",
+  "keys.space": "Välilyönti",
   "common.cover": "Albumin {album} kansikuva",
   "common.rescan": "Skannaa uudelleen",
 

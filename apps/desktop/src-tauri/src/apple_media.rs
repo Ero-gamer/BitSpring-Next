@@ -1,8 +1,12 @@
-//! iPhone system integration: the lock screen / Control Center player ("Now Playing") and the
-//! remote commands that come from it, from headphone buttons and from CarPlay or a watch.
+//! iPhone and Mac system integration: the "Now Playing" player (lock screen and Control Center
+//! on the iPhone, Control Center and the menu bar on the Mac) and the remote commands that come
+//! from it, from headphone buttons, from CarPlay or a watch — and, on the Mac, from the
+//! keyboard's media keys (⏮ ⏯ ⏭), which macOS sends to whichever app is Now Playing.
 //!
-//! The commands act on the same state as the UI's buttons, so the UI just sees the change on
-//! its next status poll.
+//! iPhone: the commands act on the same state as the UI's buttons, so the UI just sees the
+//! change on its next status poll (the page may be suspended under the lock screen).
+//! Mac: track changes go to the window, like the phone remote's, so they behave exactly as its
+//! buttons do (the queue there may hold streaming tracks).
 
 use std::ptr::NonNull;
 use std::sync::Mutex;
@@ -77,14 +81,26 @@ fn string(s: &str) -> Retained<AnyObject> {
 
 fn artwork(bytes: &[u8]) -> Option<Retained<AnyObject>> {
     let data = NSData::with_bytes(bytes);
-    let class = AnyClass::get(c"UIImage")?;
-    // SAFETY: +[UIImage imageWithData:] returns an autoreleased image or nil.
-    let image: Option<Retained<AnyObject>> = unsafe { msg_send![class, imageWithData: &*data] };
+    #[cfg(target_os = "ios")]
+    let image: Option<Retained<AnyObject>> = {
+        let class = AnyClass::get(c"UIImage")?;
+        // SAFETY: +[UIImage imageWithData:] returns an autoreleased image or nil.
+        unsafe { msg_send![class, imageWithData: &*data] }
+    };
+    #[cfg(target_os = "macos")]
+    let image: Option<Retained<AnyObject>> = {
+        let class = AnyClass::get(c"NSImage")?;
+        // SAFETY: -[NSImage initWithData:] on a fresh allocation returns the image or nil.
+        unsafe {
+            let fresh: objc2::rc::Allocated<AnyObject> = msg_send![class, alloc];
+            msg_send![fresh, initWithData: &*data]
+        }
+    };
     let image = image?;
-    // SAFETY: plain property read on a live UIImage.
+    // SAFETY: plain property read on a live UIImage / NSImage (NSSize is CGSize).
     let size: CGSize = unsafe { msg_send![&*image, size] };
     let handler = RcBlock::new(move |_: CGSize| -> NonNull<AnyObject> { NonNull::from(&*image) });
-    // SAFETY: -[MPMediaItemArtwork initWithBoundsSize:requestHandler:] (iOS 10+); the block
+    // SAFETY: -[MPMediaItemArtwork initWithBoundsSize:requestHandler:] (iOS 10+, macOS 10.13.2+); the block
     // keeps the image alive and returns it for any requested size.
     let art: Retained<MPMediaItemArtwork> =
         unsafe { msg_send![MPMediaItemArtwork::alloc(), initWithBoundsSize: size, requestHandler: &*handler] };
@@ -119,8 +135,13 @@ pub fn set_track(app: &AppHandle, rev: u64, t: TrackInfo) {
 pub fn clear(app: &AppHandle) {
     on_main(app, || {
         *PUBLISHED.lock().unwrap() = None;
-        // SAFETY: plain property write on the shared center.
-        unsafe { MPNowPlayingInfoCenter::defaultCenter().setNowPlayingInfo(None) };
+        // SAFETY: plain property writes on the shared center.
+        unsafe {
+            let center = MPNowPlayingInfoCenter::defaultCenter();
+            center.setNowPlayingInfo(None);
+            #[cfg(target_os = "macos")]
+            center.setPlaybackState(objc2_media_player::MPNowPlayingPlaybackState::Stopped);
+        }
     });
 }
 
@@ -129,7 +150,16 @@ fn publish(p: &Published) {
     unsafe {
         p.info.insert(MPNowPlayingInfoPropertyElapsedPlaybackTime, &*number(p.position));
         p.info.insert(MPNowPlayingInfoPropertyPlaybackRate, &*number(if p.paused { 0.0 } else { 1.0 }));
-        MPNowPlayingInfoCenter::defaultCenter().setNowPlayingInfo(Some(&p.info));
+        let center = MPNowPlayingInfoCenter::defaultCenter();
+        center.setNowPlayingInfo(Some(&p.info));
+        // The Mac has no audio session to tell it whether we play: it must be told, or the
+        // media keys go to another app.
+        #[cfg(target_os = "macos")]
+        center.setPlaybackState(if p.paused {
+            objc2_media_player::MPNowPlayingPlaybackState::Paused
+        } else {
+            objc2_media_player::MPNowPlayingPlaybackState::Playing
+        });
     }
 }
 
@@ -171,15 +201,29 @@ fn handler(app: &AppHandle, f: impl Fn(&AppHandle, &MPRemoteCommandEvent) + 'sta
 pub fn install(app: &AppHandle) {
     let paused = |app: &AppHandle, value: Option<bool>| {
         let state = app.state::<AppState>();
-        if let Some(p) = state.player.lock().unwrap().as_ref() {
-            p.set_paused(value.unwrap_or(!p.is_paused()));
+        let loaded = match state.player.lock().unwrap().as_ref() {
+            Some(p) => {
+                p.set_paused(value.unwrap_or(!p.is_paused()));
+                true
+            }
+            None => false,
+        };
+        // Mac: nothing loaded — "play" starts the window's queue, as its own play button does.
+        #[cfg(target_os = "macos")]
+        if !loaded && value != Some(true) {
+            crate::remote_command(app, "toggle");
         }
+        #[cfg(not(target_os = "macos"))]
+        let _ = loaded;
     };
-    // Track changes open files: off the main thread.
+    // iPhone: track changes open files, off the main thread.
+    #[cfg(target_os = "ios")]
     let jump = |app: &AppHandle, delta: i64| {
         let app = app.clone();
         std::thread::spawn(move || crate::jump(&app.state::<AppState>(), delta));
     };
+    #[cfg(target_os = "macos")]
+    let jump = |app: &AppHandle, delta: i64| crate::remote_command(app, if delta > 0 { "next" } else { "prev" });
     // SAFETY: the shared command center is a singleton; handlers are retained by it.
     unsafe {
         let c = MPRemoteCommandCenter::sharedCommandCenter();

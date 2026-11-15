@@ -22,6 +22,7 @@
   "common.playing": "Läuft",
   "common.prev": "Vorheriger Titel",
   "common.next": "Nächster Titel",
+  "keys.space": "Leertaste",
   "common.cover": "Cover von {album}",
   "common.rescan": "Neu scannen",
 

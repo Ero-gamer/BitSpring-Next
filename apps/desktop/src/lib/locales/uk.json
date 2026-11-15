@@ -22,6 +22,7 @@
   "common.playing": "Грає",
   "common.prev": "Попередній трек",
   "common.next": "Наступний трек",
+  "keys.space": "Пробіл",
   "common.cover": "Обкладинка альбому {album}",
   "common.rescan": "Пересканувати",
 

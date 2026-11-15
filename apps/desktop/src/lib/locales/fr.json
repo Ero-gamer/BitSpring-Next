@@ -22,6 +22,7 @@
   "common.playing": "En lecture",
   "common.prev": "Morceau précédent",
   "common.next": "Morceau suivant",
+  "keys.space": "Espace",
   "common.cover": "Pochette de {album}",
   "common.rescan": "Réanalyser",
 

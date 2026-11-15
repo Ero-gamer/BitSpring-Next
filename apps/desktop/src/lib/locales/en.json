@@ -22,6 +22,7 @@
   "common.playing": "Playing",
   "common.prev": "Previous track",
   "common.next": "Next track",
+  "keys.space": "Space",
   "common.cover": "Cover of {album}",
   "common.rescan": "Rescan",
 

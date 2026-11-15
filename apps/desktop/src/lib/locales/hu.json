@@ -22,6 +22,7 @@
   "common.playing": "Szól",
   "common.prev": "Előző szám",
   "common.next": "Következő szám",
+  "keys.space": "Szóköz",
   "common.cover": "Borító: {album}",
   "common.rescan": "Újraolvasás",
 
