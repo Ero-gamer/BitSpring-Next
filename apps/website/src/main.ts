@@ -25,7 +25,7 @@ const $$ = <T extends Element = HTMLElement>(sel: string, root: ParentNode = doc
 // ---- download buttons ------------------------------------------------------------------------
 // The main button offers the build for the visitor's device: an iPhone goes straight to the
 // App Store, Windows gets the installer, a Mac goes to the download page to choose between the
-// App Store and a .dmg. "Other platforms" always leads to that page.
+// App Store and a .dmg, Linux to choose between the AppImage and a .deb. "Other platforms" always leads to that page.
 
 const platform: Platform = detectPlatform();
 
@@ -40,6 +40,9 @@ function primaryDownload(p: Platform): { href: string; label: string; direct: bo
       return LINKS.android ? { href: LINKS.android, label: t("cta.android"), direct: true } : soon("cta.android_soon");
     case "mac":
       return { href: downloadUrl, label: t(isAvailable("mac") ? "cta.mac" : "cta.mac_soon"), direct: false };
+    // Two formats (AppImage, .deb): the download page explains which.
+    case "linux":
+      return { href: downloadUrl, label: t(isAvailable("linux") ? "cta.linux" : "cta.linux_soon"), direct: false };
     default:
       return { href: downloadUrl, label: t("cta.all_platforms"), direct: false };
   }

@@ -62,7 +62,7 @@ function structuredData(
         inLanguage: locale.tag,
         applicationCategory: "MultimediaApplication",
         applicationSubCategory: "Music player",
-        operatingSystem: "macOS, Windows, Android",
+        operatingSystem: "macOS, Windows, Linux, Android",
         downloadUrl: abs(site, localeUrl(locale) + "download/"),
         image: abs(site, "/og.png"),
         screenshot: abs(site, "/screens/player-classic.webp"),
