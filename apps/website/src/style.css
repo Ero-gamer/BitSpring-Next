@@ -862,6 +862,14 @@ main,
   display: none;
 }
 
+/* On a computer the demo loads by itself (main.ts): no button, no shade over the screenshot. */
+@media (min-width: 900px) {
+  .demo-start,
+  .app-frame:not(.is-live)::after {
+    display: none;
+  }
+}
+
 .demo-note {
   margin-block-start: 16px;
   color: var(--mist-dim);

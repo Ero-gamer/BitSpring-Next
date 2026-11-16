@@ -399,10 +399,13 @@ for (const b of lookButtons) {
 }
 
 // The live demo: the app's UI on its mock backend, playing Haydn (apps/desktop/src/lib/demo.ts).
-// Loaded only when asked for. A computer gets it in place of the screenshot; a phone opens it
-// full screen, where the app's own phone layout fits.
+// On a computer it takes the screenshot's place by itself, a little before the section scrolls
+// into view, so everything in the window is clickable (its sound loads only on Play). A phone is
+// too narrow for the desktop window: there the button opens the demo full screen, in the app's
+// own phone layout.
 const DEMO_URL = import.meta.env.DEV ? "http://127.0.0.1:1420/?demo&" : "/demo/?";
 const DEMO_WIDTH = 1120;
+const wide = matchMedia("(min-width: 900px)");
 const frame = $("[data-demo-frame]");
 let demoFrame: HTMLIFrameElement | null = null;
 
@@ -411,24 +414,33 @@ function demoSrc() {
   return `${DEMO_URL}lang=${encodeURIComponent(lang)}&look=${appShot.dataset.look ?? "glass"}`;
 }
 
-$("[data-demo-start]").addEventListener("click", () => {
-  if (window.innerWidth < 900) {
-    location.href = demoSrc();
-    return;
-  }
+function embedDemo() {
+  if (demoFrame) return;
   demoFrame = document.createElement("iframe");
   demoFrame.className = "demo-frame";
   demoFrame.title = t("app.demo_title");
   demoFrame.allow = "autoplay";
   demoFrame.src = demoSrc();
-  demoFrame.addEventListener("load", () => {
-    frame.classList.add("is-live");
-    demoFrame?.focus({ preventScroll: true });
-  });
+  // The page arrives before the app has drawn itself: give it a moment, then fade it in.
+  demoFrame.addEventListener("load", () => setTimeout(() => frame.classList.add("is-live"), 350));
   const fit = () => frame.style.setProperty("--demo-scale", String(frame.clientWidth / DEMO_WIDTH));
   fit();
   new ResizeObserver(fit).observe(frame);
   frame.append(demoFrame);
+}
+
+new IntersectionObserver(
+  (entries, observer) => {
+    if (!entries.some((e) => e.isIntersecting) || !wide.matches) return;
+    observer.disconnect();
+    embedDemo();
+  },
+  { rootMargin: "800px 0px" },
+).observe(frame);
+
+$("[data-demo-start]").addEventListener("click", () => {
+  if (wide.matches) embedDemo();
+  else location.href = demoSrc();
 });
 
 // Download: back to the opening view, back to brass.
