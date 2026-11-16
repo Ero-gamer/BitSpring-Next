@@ -526,6 +526,8 @@
   }
   .toolbar {
     display: flex;
+    /* Russian or Greek labels don't fit one row in a narrow window: the rest moves down a line. */
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     padding: 14px 24px;

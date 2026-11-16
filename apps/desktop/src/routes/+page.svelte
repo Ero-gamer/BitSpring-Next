@@ -18,6 +18,7 @@
   import { look } from "$lib/look.svelte";
   import { fade } from "svelte/transition";
   import { liquidPill } from "$lib/liquid";
+  import { fitRow } from "$lib/fitRow";
 
   // --- persisted preferences (per machine) ---
   function load<T>(key: string, fallback: T): T {
@@ -481,7 +482,9 @@
 {/if}
 
 <div class="app" class:drag-over={dragOver} class:sig-bp={signalState === "bp"} class:sig-dsp={signalState === "dsp"}>
-  <header data-tauri-drag-region class:mac={isMac} class:chrome-right={isMac && i18n.system.dir === "rtl"}>
+  <!-- Translations differ by up to ~150px here: when the row doesn't fit, the wordmark goes
+       first, then the enhancers' state; the device name ellipsizes last. -->
+  <header data-tauri-drag-region class:mac={isMac} class:chrome-right={isMac && i18n.system.dir === "rtl"} use:fitRow={["no-wordmark", "no-enh-state"]}>
     <span class="wordmark" data-tauri-drag-region>BitSpring</span>
     <nav class="tabs" aria-label={t("nav.screens")} use:liquidPill={screen}>
       <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} onclick={() => (screen = "player")}>{t("nav.player")}</button>
@@ -722,18 +725,21 @@
     padding-right: 88px;
   }
   .wordmark {
+    flex: none;
     font-family: var(--font-display);
     font-weight: 600;
     font-size: var(--t-lg);
     letter-spacing: 0.04em;
   }
   .tabs {
+    flex: none;
     display: flex;
     gap: 4px;
     margin-inline-start: 28px;
     margin-inline-end: auto;
   }
   .tabs button {
+    white-space: nowrap;
     padding: 6px 12px;
     border-radius: var(--r-md);
     font-size: var(--t-sm);
@@ -874,6 +880,26 @@
     display: flex;
     gap: 10px;
     align-items: center;
+    min-width: 0;
+  }
+  /* What the row still lacks after fitRow comes out of the device name (it ellipsizes). */
+  header :global(.picker),
+  header :global(.picker .trigger) {
+    min-width: 0;
+  }
+  /* (classes set by fitRow, hence :global) */
+  header:global(.no-wordmark) .wordmark {
+    display: none;
+  }
+  header:global(.no-wordmark) .tabs {
+    margin-inline-start: 0;
+  }
+  header:global(.no-enh-state) :global(.enh .state) {
+    display: none;
+  }
+  /* fitRow measures the row at its natural width: nothing shrinks while it does. */
+  header:global(.fit-measure) :global(*) {
+    flex-shrink: 0 !important;
   }
 
   /* --- queue --- */

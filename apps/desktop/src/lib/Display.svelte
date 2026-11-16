@@ -542,8 +542,13 @@
   }
 
   @media (max-width: 700px), (max-height: 500px) {
+    /* "Hovedtelefoner", "celočíselně, přímo": two short lines (hyphenated in the UI's language)
+       rather than a cut word */
     .node {
       max-width: 84px;
+      white-space: normal;
+      hyphens: auto;
+      line-height: 1.25;
     }
     .link {
       margin: 0 6px;

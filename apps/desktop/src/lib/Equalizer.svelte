@@ -1266,6 +1266,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    /* The table needs ~520px; in a narrow window it scrolls on its own instead of widening the page. */
+    overflow-x: auto;
   }
   .layer {
     display: flex;
