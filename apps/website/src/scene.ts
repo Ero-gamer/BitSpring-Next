@@ -129,33 +129,31 @@ export interface Field {
   resize(): void;
 }
 
-/** Not every browser honours failIfMajorPerformanceCaveat, so also ask the driver's name. */
-function isSoftwareRenderer(gl: WebGLRenderingContext | WebGL2RenderingContext): boolean {
+/**
+ * Whether this browser draws WebGL on a real GPU. With failIfMajorPerformanceCaveat there is no
+ * context when it would draw on the CPU instead (blocklisted drivers, VMs, remote desktops,
+ * headless test machines); not every browser honours that, so the driver's name is asked too.
+ * Drawing this field in software takes most of every frame and leaves the page stuttering.
+ * Probed on a throwaway canvas: three.js logs an error when it can't get a context, this doesn't.
+ */
+function hasHardwareWebGL(): boolean {
+  const gl = document.createElement("canvas").getContext("webgl2", { failIfMajorPerformanceCaveat: true });
+  if (!gl) return false;
   const info = gl.getExtension("WEBGL_debug_renderer_info");
   const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? "");
-  return /swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(name);
+  gl.getExtension("WEBGL_lose_context")?.loseContext();
+  return !/swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(name);
 }
 
 /** `mirror`: right-to-left pages put the copy on the right, so the camera swings the other way. */
 export function createField(canvas: HTMLCanvasElement, opts: { mirror?: boolean } = {}): Field | null {
   const flip = opts.mirror ? -1 : 1;
+  // No WebGL, or only a software one: the page reads fine on its own background.
+  if (!hasHardwareWebGL()) return null;
   let renderer: THREE.WebGLRenderer;
   try {
-    // failIfMajorPerformanceCaveat: no context when the browser would draw on the CPU instead
-    // of a GPU (blocklisted drivers, VMs, remote desktops, headless test machines). Drawing this
-    // field in software takes most of every frame and leaves the page itself stuttering.
-    renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      powerPreference: "high-performance",
-      failIfMajorPerformanceCaveat: true,
-    });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   } catch {
-    return null; // No WebGL: the page reads fine on its own background.
-  }
-  if (isSoftwareRenderer(renderer.getContext())) {
-    renderer.dispose();
-    renderer.forceContextLoss();
     return null;
   }
   renderer.setClearColor(BG, 1);
