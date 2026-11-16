@@ -23,7 +23,9 @@ build's (identifier `app.bitspring.player`, and MSIX keeps each package's AppDat
 4. **Package.** Download the `BitSpring-msix-x64` artifact from the workflow run and upload the
    `.msix` under Packages. Each new submission needs a higher version: the workflow takes it
    from tauri.conf.json (0.18.0 → 0.18.0.0).
-5. **Listing, age rating, pricing** as below, then submit. Certification takes up to three
+5. **Listing, age rating, pricing** as below. Submission options asks why the app needs
+   runFullTrust (500 characters at most): it runs as a normal desktop process for WASAPI exclusive
+   mode, any music folder, media keys and network players. Then submit. Certification takes up to three
    business days.
 
 Before submitting, check the workflow's **App Certification Kit** step and `wack-report`
@@ -105,10 +107,12 @@ Free and open source: no account, no ads, no tracking
 
 ### Notes for certification
 
-```
-BitSpring is a music player for the user's own audio files. It has no account and no in-app purchases. Its only internet use is the equalizer's headphone profiles: when the user opens them, it downloads a public catalog of AutoEQ headphone corrections from the BitSpring website, at most once a month. On the local network it finds UPnP/DLNA and Google Cast players and streams the user's music to them; the phone remote (off by default) serves a small control page to phones on the same network.
+Goes in Additional testing info (left menu), not in the listing's license terms, which customers see.
 
-To try it: press "Add folder" and pick any folder with music (FLAC, WAV, MP3 or AAC). A USB DAC is not required: it plays through any output device, and the indicator shows the path the signal takes.
+```
+BitSpring is a music player for the user's own audio files. It has no account and no in-app purchases. It uses the internet in two places only: the equalizer's headphone profiles (a public catalog of AutoEQ corrections from the BitSpring website, fetched at most once a month when the user opens them) and, if the user turns it on in Settings (off by default), song lyrics from LRCLIB for the playing track. On the local network it finds UPnP/DLNA and Google Cast players and streams the user's music to them; the phone remote (off by default) serves a small control page to phones on the same network.
+
+To try it: press "Add files" and pick some music files (FLAC, WAV, MP3 or AAC), or drop an album folder onto the window. A USB DAC is not required: it plays through any output device, and the indicator shows the path the signal takes.
 ```
 
 ### Images
