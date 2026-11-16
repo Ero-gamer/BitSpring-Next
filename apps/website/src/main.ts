@@ -429,12 +429,16 @@ async function render() {
   appShot.dataset.eq = view.eq ? "on" : "off";
   const src = srcOf(view.look, view.screen, view.eq);
   const cur = shots[showing];
-  if (cur.getAttribute("src") === src) return;
+  // currentSrc: the first shot's src attribute is the desktop fallback, its srcset chose the file.
+  if (cur.currentSrc && new URL(cur.currentSrc).pathname === src) return;
+  if (!cur.currentSrc && cur.getAttribute("src") === src) return;
   const next = shots[1 - showing];
+  // A srcset would override src.
+  next.removeAttribute("srcset");
+  next.removeAttribute("sizes");
   next.src = src;
-  try {
-    await next.decode();
-  } catch {}
+  // Decoding can stall while the page isn't being drawn (a background tab): don't wait forever.
+  await Promise.race([next.decode().catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
   if (next.getAttribute("src") !== src) return; // a later click won
   next.alt = ALT[view.screen === "player" && view.eq ? "processing" : view.screen];
   cur.alt = "";
@@ -451,13 +455,10 @@ function sizeShots() {
     s.height = h;
   }
 }
-// The first shot comes with a srcset (index.html; an inline script there switches it to the
-// Android file on Android) so the browser fetches the right one before any module runs; from
-// here on render() sets plain src, which a srcset would override.
+// The first shot arrives with a srcset that already picked desktop, iPhone or Android
+// (index.html). It's left alone until render() reuses that element: touching it now would make
+// the browser load it at once instead of when it scrolls near.
 sizeShots();
-shots[0].src = srcOf(view.look, view.screen, view.eq);
-shots[0].removeAttribute("srcset");
-shots[0].removeAttribute("sizes");
 phoneShots.addEventListener("change", () => {
   sizeShots();
   render();
