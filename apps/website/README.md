@@ -47,23 +47,8 @@ no settings. Deploys are skipped when a commit doesn't touch `apps/website`.
 - Store and file links: `LINKS` in `src/config.ts` (until set, buttons read "Coming …").
 - Site origin: `SITE_URL` in `src/config.ts`, for absolute hreflang/canonical/og URLs.
 
-`public/app-glass.webp` and `public/app-classic.webp` are screenshots of the desktop UI in its two
-looks (mock data, 1120×740 @2x), behind the Glass / Classic switch on the home page. To retake
-them: `npm run dev` in `apps/desktop`, `node scripts/site-screenshots.mjs`, then
-`cwebp -q 82 public/app-<look>.png -o public/app-<look>.webp` and delete the PNGs.
-
-## Live demo
-
-The home page's "Try it live" button loads the real desktop UI (`apps/desktop`, on its mock
-backend) at `/demo/`: in place of the screenshot on a computer, full screen on a phone (where the
-app's phone layout fits). `npm run build` builds it too (`build:demo`: the desktop app's
-`VITE_DEMO=1` build, written to `dist/demo`), so Vercel installs both apps. The demo keeps its
-settings in memory, takes the page's language and Glass / Classic look, and plays real sound
-through Web Audio, with the active EQ preset's filters and the meters taken from the signal
-(`apps/desktop/src/lib/demo.ts`). In development, open `http://127.0.0.1:1420/?demo` with this
-site's dev server running (the audio comes from it).
-
-`public/demo-audio/1–4.m4a`: excerpts (45 and 40 s, AAC 160 kbps) of Haydn's String Quartet
-Op. 64 No. 5 "Lark", from the Musopen Lossless DVD on archive.org (`musopen-lossless-dvd`),
-released under the Public Domain Mark 1.0.
-
+`public/screens/<screen>-<look>.webp` are screenshots of the desktop UI (mock data, 1120×740 @2x)
+behind the home page's tabs: `player` (bit-perfect), `processing` (the same with the equalizer
+on, shown by the switch under Now Playing), `library` and `eq`, each in `glass` and `classic`.
+To retake them: `npm run dev` in `apps/desktop`, `node scripts/site-screenshots.mjs <url> <dir>`,
+then `cwebp -q 82 <dir>/<name>.png -o public/screens/<name>.webp` for each.

@@ -1,8 +1,5 @@
 // The app's look: the classic anodised panel, or glass (translucent layers over an ambient
 // backdrop made from the playing album's cover). Kept per machine, like the language.
-// The website demo keeps settings in memory: that swap must come before the reads below.
-import "./demo";
-
 export const LOOKS = ["classic", "glass"] as const;
 export type Look = (typeof LOOKS)[number];
 

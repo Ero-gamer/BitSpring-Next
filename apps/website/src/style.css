@@ -696,6 +696,7 @@ main,
   margin: 0 auto;
   padding: clamp(80px, 14vh, 160px) var(--gutter);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 48px;
 }
 
@@ -710,18 +711,28 @@ main,
   color: var(--mist);
 }
 
-.app-aside {
+.app-shot {
+  margin: 0;
   display: grid;
-  gap: 20px;
-  justify-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  perspective: 1600px;
 }
 
-/* Glass | Classic: the app's own two looks. The pill slides under the chosen one. */
-.look-switch {
+/* Above the window: which screen (tabs) and which look. Both are the same sliding-pill control. */
+.app-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 24px;
+}
+
+.seg {
   position: relative;
-  display: inline-grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
   padding: 4px;
   border-radius: 999px;
   border: 1px solid var(--slate-600);
@@ -730,11 +741,12 @@ main,
   backdrop-filter: blur(12px);
 }
 
-.look-switch button {
+.seg button {
   position: relative;
   z-index: 1;
+  flex: none;
   min-height: 40px;
-  padding: 0 20px;
+  padding: 0 18px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -747,38 +759,45 @@ main,
   transition: color 0.3s var(--ease);
 }
 
-.look-switch button:hover,
-.look-switch button[aria-checked="true"] {
+.seg button:hover,
+.seg button[aria-checked="true"],
+.seg button[aria-selected="true"] {
   color: var(--porcelain);
 }
 
-.look-switch button:focus-visible {
+.seg button:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
 
-.look-pill {
+/* Sized and placed under the chosen button by main.ts (labels differ in width per language). */
+.seg-pill {
   position: absolute;
   inset-block: 4px;
-  inset-inline-start: 4px;
-  width: calc((100% - 8px) / 2);
+  left: 0;
+  width: var(--w, 0);
   border-radius: 999px;
   background: rgba(232, 237, 234, 0.12);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: transform 0.45s var(--ease);
+  transform: translateX(var(--x, 0));
+  transition:
+    transform 0.45s var(--ease),
+    width 0.45s var(--ease);
 }
 
-.look-switch:has([data-look="classic"][aria-checked="true"]) .look-pill {
-  transform: translateX(100%);
+/* No slide on the first placement, only when a choice moves it. */
+.seg:not(.is-placed) .seg-pill {
+  transition: none;
 }
 
-[dir="rtl"] .look-switch:has([data-look="classic"][aria-checked="true"]) .look-pill {
-  transform: translateX(-100%);
+/* A phone may be narrower than the three tabs in some languages: the row scrolls sideways. */
+.seg[data-screen-tabs] {
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-.app-shot {
-  margin: 0;
-  perspective: 1600px;
+.seg[data-screen-tabs]::-webkit-scrollbar {
+  display: none;
 }
 
 .app-frame {
@@ -794,96 +813,147 @@ main,
   overflow: hidden;
 }
 
-/* Both screenshots in the same cell; the chosen one fades in over the other. */
-.app-frame img {
+/* Two layers in one cell: the next screen decodes in the hidden one, then fades in. */
+.shot {
   grid-area: 1 / 1;
   display: block;
   width: 100%;
   height: auto;
-  transition: opacity 0.6s var(--ease);
-}
-
-.app-shot[data-look="glass"] .is-classic,
-.app-shot[data-look="classic"] .is-glass {
   opacity: 0;
+  transition: opacity 0.45s var(--ease);
 }
 
-/* The live demo: the app's own UI at its 1120×740 design size, scaled to the frame (main.ts sets
-   --demo-scale). The screenshots stay underneath until it has loaded. */
-/* A soft shade under the button, so it reads over the busy screenshot. */
-.app-frame:not(.is-live)::after {
-  content: "";
-  grid-area: 1 / 1;
-  z-index: 1;
-  background: radial-gradient(closest-side, rgba(14, 23, 28, 0.55), transparent);
-  pointer-events: none;
-}
-
-.demo-start {
-  grid-area: 1 / 1;
-  place-self: center;
-  z-index: 2;
-  gap: 10px;
-  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.75);
-}
-
-.demo-start svg {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-}
-
-[dir="rtl"] .demo-start svg {
-  transform: scaleX(-1);
-}
-
-.demo-frame {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-start: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  transform: scale(var(--demo-scale, 1));
-  transform-origin: 0 0;
-  opacity: 0;
-  transition: opacity 0.5s var(--ease);
-}
-
-[dir="rtl"] .demo-frame {
-  transform-origin: 100% 0;
-}
-
-.app-frame.is-live .demo-frame {
+.shot.is-on {
   opacity: 1;
 }
 
-.app-frame.is-live .demo-start {
-  display: none;
-}
-
-/* Under the live demo the screenshots only hold the frame's size. */
-.app-frame.is-live img {
+.shot:not([src]) {
   visibility: hidden;
 }
 
-.app-shot.is-flat {
-  perspective: none;
+/* Over the tabs drawn in the screenshot (the same place in every shot and both looks). */
+.hotspot {
+  position: absolute;
+  top: 0.6%;
+  height: 5.6%;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
 }
 
-/* On a computer the demo loads by itself (main.ts): no button, no shade over the screenshot. */
-@media (min-width: 900px) {
-  .demo-start,
-  .app-frame:not(.is-live)::after {
-    display: none;
-  }
+.hotspot[data-screen="player"] {
+  left: 10.2%;
+  width: 8.6%;
 }
 
-.demo-note {
-  margin-block-start: 16px;
-  color: var(--mist-dim);
+.hotspot[data-screen="library"] {
+  left: 18.8%;
+  width: 6%;
+}
+
+.hotspot[data-screen="eq"] {
+  left: 24.8%;
+  width: 7%;
+}
+
+/* Under Now Playing: the equalizer on or off, and what that does to the indicator. */
+.eq-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  min-height: 40px;
+  color: var(--mist);
   font-size: var(--t-sm);
-  max-width: 62ch;
+}
+
+.app-shot:not([data-screen="player"]) .eq-row {
+  visibility: hidden;
+}
+
+.eq-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--porcelain);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.eq-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.eq-track {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--slate-600);
+  background: rgba(22, 35, 42, 0.8);
+  transition:
+    background-color 0.3s var(--ease),
+    border-color 0.3s var(--ease);
+}
+
+.eq-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--mist);
+  transition:
+    transform 0.3s var(--ease),
+    background-color 0.3s var(--ease);
+}
+
+.eq-switch input:checked + .eq-track {
+  background: rgba(140, 122, 230, 0.28);
+  border-color: var(--violet);
+}
+
+.eq-switch input:checked + .eq-track::after {
+  background: var(--violet);
+  transform: translateX(18px);
+}
+
+[dir="rtl"] .eq-switch input:checked + .eq-track::after {
+  transform: translateX(-18px);
+}
+
+.eq-switch input:focus-visible + .eq-track {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+/* The indicator's own colours: brass untouched, violet processed. */
+.eq-state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.eq-state::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+  transform: translateY(-1px);
+}
+
+.app-shot[data-eq="on"] .eq-state::before {
+  background: var(--violet);
 }
 
 /* ---- download ---------------------------------------------------------------------------- */

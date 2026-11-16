@@ -13,7 +13,7 @@ import { DEFAULT_LOCALE, LOCALES, localeUrl, type Locale } from "./locales";
 type Dict = Record<string, string>;
 
 /** Strings main.ts needs at runtime; shipped inline so there is no extra request. */
-const RUNTIME_KEYS = /^(cta\.|dl\.|rates\.|app\.demo_title$)/;
+const RUNTIME_KEYS = /^(cta\.|dl\.|rates\.|app\.(alt_|state_))/;
 
 const dir = fileURLToPath(new URL("./locales/", import.meta.url));
 

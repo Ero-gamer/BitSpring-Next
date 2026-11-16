@@ -157,25 +157,38 @@
       <section class="app" id="app" aria-labelledby="app-title">
         <div class="app-head">
           <h2 class="section-title" id="app-title">{{app.title}}</h2>
-          <div class="app-aside">
-            <p>{{app.lede}}</p>
-            <div class="look-switch" role="radiogroup" aria-label="{{app.look}}" data-look-switch>
-              <span class="look-pill" aria-hidden="true"></span>
+          <p>{{app.lede}}</p>
+        </div>
+        <figure class="app-shot" data-look="glass" data-screen="player" data-eq="off">
+          <div class="app-bar">
+            <div class="seg" role="tablist" aria-label="{{app.screens}}" data-screen-tabs>
+              <span class="seg-pill" aria-hidden="true"></span>
+              <button type="button" role="tab" id="app-tab-player" aria-selected="true" aria-controls="app-view" data-screen="player">{{app.tab_player}}</button>
+              <button type="button" role="tab" id="app-tab-library" aria-selected="false" aria-controls="app-view" data-screen="library">{{app.tab_library}}</button>
+              <button type="button" role="tab" id="app-tab-eq" aria-selected="false" aria-controls="app-view" data-screen="eq">{{app.tab_eq}}</button>
+            </div>
+            <div class="seg" role="radiogroup" aria-label="{{app.look}}" data-look-switch>
+              <span class="seg-pill" aria-hidden="true"></span>
               <button type="button" role="radio" aria-checked="true" data-look="glass">{{app.look_glass}}</button>
               <button type="button" role="radio" aria-checked="false" data-look="classic">{{app.look_classic}}</button>
             </div>
           </div>
-        </div>
-        <figure class="app-shot" data-look="glass">
-          <div class="app-frame" data-demo-frame>
-            <img class="is-glass" src="/app-glass.webp" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
-            <img class="is-classic" src="/app-classic.webp" width="2240" height="1480" alt="" loading="lazy" decoding="async" />
-            <button type="button" class="btn btn-primary demo-start" data-demo-start>
-              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z" /></svg>
-              {{app.demo_start}}
-            </button>
+          <div class="app-frame" id="app-view" role="tabpanel" aria-labelledby="app-tab-player">
+            <img class="shot is-on" src="/screens/player-glass.webp" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
+            <img class="shot" width="2240" height="1480" alt="" decoding="async" />
+            <!-- The tabs drawn in the screenshot answer clicks too (the real ones are above). -->
+            <button type="button" class="hotspot" tabindex="-1" aria-hidden="true" data-screen="player"></button>
+            <button type="button" class="hotspot" tabindex="-1" aria-hidden="true" data-screen="library"></button>
+            <button type="button" class="hotspot" tabindex="-1" aria-hidden="true" data-screen="eq"></button>
           </div>
-          <figcaption class="demo-note">{{app.demo_note}}</figcaption>
+          <figcaption class="eq-row">
+            <label class="eq-switch">
+              <input type="checkbox" role="switch" data-eq-toggle />
+              <span class="eq-track" aria-hidden="true"></span>
+              <span>{{app.eq_switch}}</span>
+            </label>
+            <span class="eq-state" aria-live="polite" data-eq-state>{{app.state_bitperfect}}</span>
+          </figcaption>
         </figure>
       </section>
 

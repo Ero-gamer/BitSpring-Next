@@ -1,17 +1,8 @@
-# Vercel only needs the website: upload nothing else from the repo (engine, test audio).
+# Vercel only needs the website: upload nothing else from the repo (engine, apps, test audio).
 /*
 !/vercel.json
 !/apps
 /apps/*
 !/apps/website
-# …and the desktop UI, which the website build turns into its live demo (/demo/).
-!/apps/desktop
-/apps/desktop/node_modules
-/apps/desktop/src-tauri
-/apps/desktop/store
-/apps/desktop/scripts
-/apps/desktop/build
-/apps/desktop/build-demo
-/apps/desktop/.svelte-kit
 /apps/website/node_modules
 /apps/website/dist

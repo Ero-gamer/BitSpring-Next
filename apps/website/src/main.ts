@@ -10,7 +10,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 
 import { LINKS } from "./config";
-import { currentLocale, downloadUrl, fontGroup, fontsReady, isRtl, numberLocale, t } from "./i18n/runtime";
+import { downloadUrl, fontGroup, fontsReady, isRtl, numberLocale, t } from "./i18n/runtime";
 import { detectPlatform, isAvailable, type Platform } from "./platform";
 import { createField, HERO, type FieldState } from "./scene";
 
@@ -358,108 +358,140 @@ for (const li of $$(".enhance-list li")) {
 
 // App: dim the field behind the screenshot; the window tilts upright as it arrives.
 travel(".app", APP, "top bottom", "top 30%");
-const tilt = reduceMotion
-  ? null
-  : gsap.fromTo(
-      ".app-frame",
-      { rotateX: 22, scale: 0.9, y: 60 },
-      {
-        rotateX: 0,
-        scale: 1,
-        y: 0,
-        ease: "none",
-        scrollTrigger: { trigger: ".app-shot", start: "top 95%", end: "top 25%", scrub: 1 },
-      },
-    );
+if (!reduceMotion) {
+  gsap.fromTo(
+    ".app-frame",
+    { rotateX: 22, scale: 0.9, y: 60 },
+    {
+      rotateX: 0,
+      scale: 1,
+      y: 0,
+      ease: "none",
+      scrollTrigger: { trigger: ".app-shot", start: "top 95%", end: "top 25%", scrub: 1 },
+    },
+  );
+}
 
-// Glass | Classic: the same moment in the app, in either look. Arrow keys move between the two,
-// like any radio group.
-const lookSwitch = $("[data-look-switch]");
+// The app's screens: tabs for Now Playing, Library and Equalizer (the ones drawn in the screenshot
+// answer clicks too), the equalizer switch under Now Playing (brass bit-perfect ↔ violet
+// processing), and Glass | Classic for all of them. One screenshot per screen and look
+// (public/screens, from apps/desktop/scripts/site-screenshots.mjs).
+type Screen = "player" | "library" | "eq";
+type Look = "glass" | "classic";
 const appShot = $(".app-shot");
-const lookButtons = $$<HTMLButtonElement>("button[data-look]", lookSwitch);
-function pickLook(button: HTMLButtonElement) {
-  for (const b of lookButtons) {
-    const on = b === button;
-    b.setAttribute("aria-checked", String(on));
-    b.tabIndex = on ? 0 : -1;
-  }
-  appShot.dataset.look = button.dataset.look;
-  demoFrame?.contentWindow?.postMessage({ type: "bitspring-look", look: button.dataset.look }, "*");
-}
-for (const b of lookButtons) {
-  b.tabIndex = b.getAttribute("aria-checked") === "true" ? 0 : -1;
-  b.addEventListener("click", () => pickLook(b));
-  b.addEventListener("keydown", (e) => {
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
-    e.preventDefault();
-    const next = lookButtons[(lookButtons.indexOf(b) + 1) % lookButtons.length];
-    pickLook(next);
-    next.focus();
-  });
-}
+const shots = $$<HTMLImageElement>(".shot", appShot);
+const view = { screen: "player" as Screen, look: "glass" as Look, eq: false };
+const ALT: Record<string, string> = {
+  player: shots[0].alt,
+  processing: t("app.alt_processing"),
+  library: t("app.alt_library"),
+  eq: t("app.alt_eq"),
+};
+const fileOf = (look: Look, screen: Screen, eq: boolean) => (screen === "player" && eq ? "processing" : screen) + "-" + look;
+const srcOf = (look: Look, screen: Screen, eq: boolean) => `/screens/${fileOf(look, screen, eq)}.webp`;
 
-// The live demo: the app's UI on its mock backend, playing Haydn (apps/desktop/src/lib/demo.ts).
-// On a computer it takes the screenshot's place by itself, a little before the section scrolls
-// into view, so everything in the window is clickable (its sound loads only on Play). A phone is
-// too narrow for the desktop window: there the button opens the demo full screen, in the app's
-// own phone layout.
-const DEMO_URL = import.meta.env.DEV ? "http://127.0.0.1:1420/?demo&" : "/demo/?";
-/** The size the app's window needs here (the screenshots' 1120×740): a wider frame gets the app
-    at its own size, a narrower one this size scaled down, so nothing is cut off at the bottom. */
-const DEMO_MIN_WIDTH = 1120;
-const wide = matchMedia("(min-width: 900px)");
-const frame = $("[data-demo-frame]");
-let demoFrame: HTMLIFrameElement | null = null;
-
-function demoSrc() {
-  const lang = currentLocale.path || "en";
-  return `${DEMO_URL}lang=${encodeURIComponent(lang)}&look=${appShot.dataset.look ?? "glass"}`;
+/** Crossfade: the next shot decodes in the hidden layer, then takes over. */
+let showing = 0;
+async function render() {
+  appShot.dataset.screen = view.screen;
+  appShot.dataset.look = view.look;
+  appShot.dataset.eq = view.eq ? "on" : "off";
+  const src = srcOf(view.look, view.screen, view.eq);
+  const cur = shots[showing];
+  if (cur.getAttribute("src") === src) return;
+  const next = shots[1 - showing];
+  next.src = src;
+  try {
+    await next.decode();
+  } catch {}
+  if (next.getAttribute("src") !== src) return; // a later click won
+  next.alt = ALT[view.screen === "player" && view.eq ? "processing" : view.screen];
+  cur.alt = "";
+  next.classList.add("is-on");
+  cur.classList.remove("is-on");
+  showing = 1 - showing;
 }
 
-function embedDemo() {
-  if (demoFrame) return;
-  demoFrame = document.createElement("iframe");
-  demoFrame.className = "demo-frame";
-  demoFrame.title = t("app.demo_title");
-  demoFrame.allow = "autoplay";
-  demoFrame.src = demoSrc();
-  // The page arrives before the app has drawn itself: give it a moment, then fade it in.
-  demoFrame.addEventListener("load", () => setTimeout(() => frame.classList.add("is-live"), 350));
-  // A live window with frosted glass is costly to redraw: it sits still (no scroll tilt), at its
-  // own size rather than scaled when there is room, and the field behind it stops drawing while
-  // it is on screen.
-  tilt?.scrollTrigger?.kill();
-  tilt?.kill();
-  gsap.set(frame, { clearProps: "transform" });
-  appShot.classList.add("is-flat");
-  const fit = () => {
-    const w = frame.clientWidth;
-    const h = frame.clientHeight;
-    const scale = Math.min(1, w / DEMO_MIN_WIDTH);
-    demoFrame!.style.width = `${w / scale}px`;
-    demoFrame!.style.height = `${h / scale}px`;
-    frame.style.setProperty("--demo-scale", String(scale));
-  };
-  fit();
-  if (field) {
-    new IntersectionObserver(([e]) => field.setRunning(e.intersectionRatio < 0.4), { threshold: [0, 0.4] }).observe(frame);
-  }
-  new ResizeObserver(fit).observe(frame);
-  frame.append(demoFrame);
+/** Fetch the current look's other screens ahead of time, so switching is instant. */
+const fetched = new Set<string>();
+function prefetch() {
+  for (const screen of ["player", "library", "eq"] as Screen[])
+    for (const eq of screen === "player" ? [false, true] : [false]) {
+      const src = srcOf(view.look, screen, eq);
+      if (fetched.has(src)) continue;
+      fetched.add(src);
+      new Image().src = src;
+    }
 }
-
 new IntersectionObserver(
-  (entries, observer) => {
-    if (!entries.some((e) => e.isIntersecting) || !wide.matches) return;
-    observer.disconnect();
-    embedDemo();
+  (entries, o) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    o.disconnect();
+    prefetch();
   },
-  { rootMargin: "800px 0px" },
-).observe(frame);
+  { rootMargin: "600px 0px" },
+).observe(appShot);
 
-$("[data-demo-start]").addEventListener("click", () => {
-  if (wide.matches) embedDemo();
-  else location.href = demoSrc();
+/** A segmented control (tabs or radios) with the sliding pill; arrow keys move like in any. */
+function segmented(root: HTMLElement, attr: "aria-selected" | "aria-checked", onPick: (b: HTMLButtonElement) => void) {
+  const buttons = $$<HTMLButtonElement>("button", root);
+  const place = () => {
+    const b = buttons.find((x) => x.getAttribute(attr) === "true")!;
+    root.style.setProperty("--x", `${b.offsetLeft}px`);
+    root.style.setProperty("--w", `${b.offsetWidth}px`);
+    if (!root.classList.contains("is-placed")) requestAnimationFrame(() => root.classList.add("is-placed"));
+  };
+  const pick = (b: HTMLButtonElement) => {
+    for (const x of buttons) {
+      const on = x === b;
+      x.setAttribute(attr, String(on));
+      x.tabIndex = on ? 0 : -1;
+    }
+    place();
+    b.scrollIntoView({ block: "nearest", inline: "nearest" });
+    onPick(b);
+  };
+  // Labels change width as fonts arrive and when the window resizes.
+  new ResizeObserver(place).observe(root);
+  fontsReady.then(() => document.fonts?.ready).then(place);
+  buttons.forEach((b, i) => {
+    b.tabIndex = b.getAttribute(attr) === "true" ? 0 : -1;
+    b.addEventListener("click", () => pick(b));
+    b.addEventListener("keydown", (e) => {
+      let step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
+      if (!step) return;
+      e.preventDefault();
+      // Right-to-left pages lay the options out from the right: left/right swap meaning.
+      if (isRtl && (e.key === "ArrowLeft" || e.key === "ArrowRight")) step = -step;
+      const next = buttons[(i + step + buttons.length) % buttons.length];
+      pick(next);
+      next.focus();
+    });
+  });
+  return pick;
+}
+
+const tabs = $("[data-screen-tabs]");
+const pickTab = segmented(tabs, "aria-selected", (b) => {
+  view.screen = b.dataset.screen as Screen;
+  $("#app-view").setAttribute("aria-labelledby", b.id);
+  render();
+});
+segmented($("[data-look-switch]"), "aria-checked", (b) => {
+  view.look = b.dataset.look as Look;
+  render();
+  prefetch();
+});
+for (const h of $$<HTMLButtonElement>(".hotspot", appShot)) {
+  h.addEventListener("click", () => pickTab($<HTMLButtonElement>(`button[data-screen="${h.dataset.screen}"]`, tabs)));
+}
+
+const eqToggle = $<HTMLInputElement>("[data-eq-toggle]");
+const eqState = $("[data-eq-state]");
+eqToggle.addEventListener("change", () => {
+  view.eq = eqToggle.checked;
+  eqState.textContent = t(view.eq ? "app.state_processing" : "app.state_bitperfect");
+  render();
 });
 
 // Download: back to the opening view, back to brass.
