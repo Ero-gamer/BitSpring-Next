@@ -311,6 +311,7 @@ main,
 .hero {
   min-height: 100svh;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: end;
   gap: clamp(28px, 4vw, 48px);
   padding: 120px var(--gutter) clamp(40px, 7vh, 88px);
@@ -735,12 +736,15 @@ main,
   margin: 0 auto;
   padding: 140px var(--gutter) 80px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: center;
   gap: 32px;
 }
 
+/* Its letters are split for the rise-in, so the word can't hyphenate: the size alone has to fit
+   the longest one, Ukrainian "Безкоштовно" (~5.9em), from a 320px phone to the 1360px column. */
 .download-title {
-  font-size: clamp(4rem, 14vw, 14rem);
+  font-size: clamp(2.75rem, 14vw, 13rem);
   font-weight: 300;
   letter-spacing: -0.035em;
   line-height: 0.88;
@@ -1202,6 +1206,11 @@ a.dl-option[href]:active {
 }
 
 @media (max-width: 520px) {
+  /* Logo, language and a long "Download" (Завантажити, ダウンロード) must share 320px. */
+  .nav {
+    gap: 16px;
+  }
+
   .cta-row .btn {
     flex: 1 1 100%;
   }
@@ -1214,6 +1223,13 @@ a.dl-option[href]:active {
 
   .dial-tick.is-major.is-on span {
     opacity: 1;
+  }
+}
+
+/* 320px phones: the mark alone (the link keeps its aria-label), or "Завантажити" runs off screen. */
+@media (max-width: 359px) {
+  .nav-logo-word {
+    display: none;
   }
 }
 
