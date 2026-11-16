@@ -832,8 +832,11 @@ main,
   color: var(--mist);
 }
 
+/* Smaller than the download page's title: in some languages this is one long word
+   ("Конфиденциальность", "Confidențialitate") that has to fit a text column, not the page. */
 .prose .dl-title {
   margin-bottom: 20px;
+  font-size: clamp(2.4rem, 7.5vw, 6rem);
 }
 
 .prose .prose-lead {
@@ -865,6 +868,8 @@ main,
   margin: 0 auto;
   padding: clamp(120px, 18vh, 180px) var(--gutter) 96px;
   display: grid;
+  /* minmax(0, …): an unbreakable word must not widen the column and drag the text off screen. */
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 40px;
 }
@@ -875,6 +880,9 @@ main,
   letter-spacing: -0.03em;
   line-height: 0.92;
   margin-inline-start: -0.04em;
+  /* A word longer than the line breaks (with a hyphen where the browser knows the language). */
+  hyphens: auto;
+  overflow-wrap: break-word;
 }
 
 .dl-redirect {
