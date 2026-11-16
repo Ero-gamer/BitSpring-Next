@@ -1217,7 +1217,10 @@ fn ios_edge_to_edge(webview: *mut std::ffi::c_void) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        // The website link in Settings opens in the browser (capabilities allow bitspring.app only).
+        .plugin(tauri_plugin_opener::init());
     #[cfg(all(feature = "updater", desktop))]
     let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     builder

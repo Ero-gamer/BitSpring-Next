@@ -1,10 +1,20 @@
 <script lang="ts">
   import { i18n, LOCALES, t } from "./i18n.svelte";
   import { checkUpdates, updates } from "./updates.svelte";
-  import { api, isAndroid, isIOS, type RemoteStatus } from "./api";
+  import { api, inTauri, isAndroid, isIOS, type RemoteStatus } from "./api";
   import { look, LOOKS } from "./look.svelte";
   import { lyricsPrefs } from "./lyricsPrefs.svelte";
   import { liquidPill } from "./liquid";
+  import { openUrl } from "@tauri-apps/plugin-opener";
+
+  const SITE = "https://bitspring.app";
+  // In the browser, not in the app's own webview. Outside Tauri (the mock in a browser) the
+  // plain link does the job.
+  function openSite(e: MouseEvent) {
+    if (!inTauri) return;
+    e.preventDefault();
+    openUrl(SITE).catch(() => {});
+  }
 
   let open = $state(false);
   let root: HTMLElement;
@@ -106,6 +116,11 @@
           {#if updates.error && !updates.update}<p class="note err">{updates.error}</p>{/if}
         </div>
       {/if}
+      <!-- Store builds have no update section, so the version shows here instead. -->
+      <p class="about">
+        {#if !updates.enabled && updates.current}<span>BitSpring {updates.current}</span>{/if}
+        <a href={SITE} onclick={openSite}>bitspring.app</a>
+      </p>
     </div>
   {/if}
 </div>
@@ -240,6 +255,24 @@
     color: var(--porcelain);
     user-select: all;
     word-break: break-all;
+  }
+  .about {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 16px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--slate-600);
+    font-size: var(--t-sm);
+    color: var(--mist);
+  }
+  .about a {
+    margin-inline-start: auto;
+    color: var(--porcelain);
+    text-decoration: none;
+  }
+  .about a:hover {
+    text-decoration: underline;
   }
   select {
     font: inherit;

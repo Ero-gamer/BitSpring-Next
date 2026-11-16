@@ -46,7 +46,7 @@ fn agent() -> ureq::Agent {
         .timeout_connect(Some(Duration::from_secs(10)))
         .timeout_global(Some(Duration::from_secs(20)))
         // LRCLIB asks apps to name themselves.
-        .user_agent(concat!("BitSpring/", env!("CARGO_PKG_VERSION"), " (https://github.com/crash2bash/bitspring)"))
+        .user_agent(concat!("BitSpring/", env!("CARGO_PKG_VERSION"), " (https://bitspring.app)"))
         .http_status_as_error(false)
         .build()
         .into()

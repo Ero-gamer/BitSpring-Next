@@ -30,6 +30,7 @@ base64 = "0.23.1"
 sys-locale = "0.3"
 # AutoEQ's headphone catalog, and Android updates (latest.json and the APK).
 ureq = "3"
+tauri-plugin-opener = "2"
 
 # Now Playing and its remote commands (iPhone lock screen, Mac media keys), and on the Mac
 # security-scoped bookmarks: the sandboxed Mac App Store build keeps its music folders.
