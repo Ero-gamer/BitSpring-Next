@@ -33,6 +33,8 @@ pub mod wasapi_out;
 pub mod ios_out;
 #[cfg(target_os = "android")]
 pub mod android_out;
+#[cfg(target_os = "linux")]
+pub mod linux_out;
 
 pub use error::UserError;
 pub use decode::{DsdSource, Track, TrackMeta, load_track, open_source, open_stream, open_range_at, open_track, open_track_at};

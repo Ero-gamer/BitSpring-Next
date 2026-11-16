@@ -7,7 +7,7 @@ fn main() {
     // `system_media`: the OS has a system player (lock screen, Control Center, media keys)
     // that `media::` drives — every platform we ship on.
     println!("cargo::rustc-check-cfg=cfg(system_media)");
-    if matches!(os.as_str(), "ios" | "android" | "macos" | "windows") {
+    if matches!(os.as_str(), "ios" | "android" | "macos" | "windows" | "linux") {
         println!("cargo:rustc-cfg=system_media");
     }
     // Android 15+ devices with 16 KB memory pages load only libraries aligned to them, and

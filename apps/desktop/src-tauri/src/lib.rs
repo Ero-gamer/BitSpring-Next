@@ -9,10 +9,14 @@ mod android_media;
 mod apple_media;
 #[cfg(windows)]
 mod windows_media;
+#[cfg(target_os = "linux")]
+mod linux_media;
 mod bookmarks;
 mod eq;
 mod library;
 mod lyrics;
+#[cfg(target_os = "linux")]
+mod pad;
 mod playlists;
 mod quality;
 mod remote;
@@ -32,6 +36,8 @@ use android_media as media;
 use apple_media as media;
 #[cfg(windows)]
 use windows_media as media;
+#[cfg(target_os = "linux")]
+use linux_media as media;
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -1253,6 +1259,8 @@ pub fn run() {
             let _ = APP.set(app.handle().clone());
             #[cfg(system_media)]
             media::install(app.handle());
+            #[cfg(target_os = "linux")]
+            pad::install(app.handle());
             let handle = app.handle().clone();
             std::thread::Builder::new().name("hifi-queue".into()).spawn(move || {
                 let mut ended: Option<std::time::Instant> = None;
