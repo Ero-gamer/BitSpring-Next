@@ -858,6 +858,37 @@ main,
   width: 7%;
 }
 
+/* Phones: the iPhone app's screens (main.ts swaps them in) in a phone-shaped frame, and the
+   hotspots over its tab bar at the bottom. */
+@media (max-width: 700px) {
+  .app-frame {
+    justify-self: center;
+    width: min(100%, 300px);
+    border: 7px solid #05090b;
+    border-radius: 46px;
+  }
+
+  .hotspot {
+    top: 90%;
+    height: 7%;
+  }
+
+  .hotspot[data-screen="player"] {
+    left: 6%;
+    width: 22%;
+  }
+
+  .hotspot[data-screen="library"] {
+    left: 29%;
+    width: 22%;
+  }
+
+  .hotspot[data-screen="eq"] {
+    left: 52%;
+    width: 21%;
+  }
+}
+
 /* Under Now Playing: the equalizer on or off, and what that does to the indicator. */
 .eq-row {
   display: flex;

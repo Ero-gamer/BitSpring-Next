@@ -174,7 +174,9 @@
             </div>
           </div>
           <div class="app-frame" id="app-view" role="tabpanel" aria-labelledby="app-tab-player">
-            <img class="shot is-on" src="/screens/player-glass.webp" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
+            <!-- Phones (≤700px, the frame's breakpoint) pick the iPhone screen: 300px wide there, while the
+                 2300px "size" elsewhere always lands on the desktop shot. main.ts takes over from here. -->
+            <img class="shot is-on" src="/screens/player-glass.webp" srcset="/screens/player-glass-phone.webp 1179w, /screens/player-glass.webp 2240w" sizes="(max-width: 700px) 300px, 2300px" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
             <img class="shot" width="2240" height="1480" alt="" decoding="async" />
             <!-- The tabs drawn in the screenshot answer clicks too (the real ones are above). -->
             <button type="button" class="hotspot" tabindex="-1" aria-hidden="true" data-screen="player"></button>

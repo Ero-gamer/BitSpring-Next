@@ -52,3 +52,5 @@ behind the home page's tabs: `player` (bit-perfect), `processing` (the same with
 on, shown by the switch under Now Playing), `library` and `eq`, each in `glass` and `classic`.
 To retake them: `npm run dev` in `apps/desktop`, `node scripts/site-screenshots.mjs <url> <dir>`,
 then `cwebp -q 82 <dir>/<name>.png -o public/screens/<name>.webp` for each.
+Phones (≤700px wide) get the iPhone app's screens instead, `<screen>-<look>-phone.webp`
+(393×852 @3x with the iOS status bar and home indicator drawn in): the same script with `--phone`.

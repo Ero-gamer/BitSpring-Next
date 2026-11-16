@@ -408,7 +408,11 @@ const ALT: Record<string, string> = {
   library: t("app.alt_library"),
   eq: t("app.alt_eq"),
 };
-const fileOf = (look: Look, screen: Screen, eq: boolean) => (screen === "player" && eq ? "processing" : screen) + "-" + look;
+// Phones get the iPhone app's screens (<name>-phone.webp, 1179×2556) in a phone-shaped frame;
+// the width matches the frame's breakpoint in style.css.
+const phoneShots = matchMedia("(max-width: 700px)");
+const fileOf = (look: Look, screen: Screen, eq: boolean) =>
+  (screen === "player" && eq ? "processing" : screen) + "-" + look + (phoneShots.matches ? "-phone" : "");
 const srcOf = (look: Look, screen: Screen, eq: boolean) => `/screens/${fileOf(look, screen, eq)}.webp`;
 
 /** Crossfade: the next shot decodes in the hidden layer, then takes over. */
@@ -432,6 +436,26 @@ async function render() {
   cur.classList.remove("is-on");
   showing = 1 - showing;
 }
+
+/** Width and height for the shots' aspect ratio before they load. */
+function sizeShots() {
+  const [w, h] = phoneShots.matches ? [1179, 2556] : [2240, 1480];
+  for (const s of shots) {
+    s.width = w;
+    s.height = h;
+  }
+}
+// The first shot comes with a srcset (index.html) so the browser fetches the right one before
+// any script runs; from here on render() sets plain src, which a srcset would override.
+sizeShots();
+shots[0].src = srcOf(view.look, view.screen, view.eq);
+shots[0].removeAttribute("srcset");
+shots[0].removeAttribute("sizes");
+phoneShots.addEventListener("change", () => {
+  sizeShots();
+  render();
+  prefetch();
+});
 
 /** Fetch the current look's other screens ahead of time, so switching is instant. */
 const fetched = new Set<string>();
