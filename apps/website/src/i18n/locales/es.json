@@ -111,14 +111,14 @@
   "footer.privacy": "Privacidad",
   "footer.support": "Soporte",
   "privacy.meta_title": "Política de privacidad de BitSpring",
-  "privacy.meta_description": "BitSpring no recopila nada: sin cuenta, sin analíticas, sin anuncios, sin seguimiento.",
+  "privacy.meta_description": "La app BitSpring no recopila nada: ni cuenta, ni analíticas, ni anuncios, ni rastreo. El sitio web solo cuenta las visitas, sin cookies.",
   "privacy.title": "Privacidad",
-  "privacy.lead": "BitSpring no recopila nada sobre ti. No hay cuenta, ni analíticas, ni publicidad, ni seguimiento.",
+  "privacy.lead": "La app BitSpring no recopila nada sobre ti. No tiene cuenta, ni analíticas, ni publicidad, ni rastreo.",
   "privacy.device": "Tu música, tus listas de reproducción, tus ajustes preestablecidos del ecualizador y tus ajustes se quedan en tu dispositivo. La app no sube ninguno de ellos.",
   "privacy.network": "La app solo se conecta a internet para lo que tú le pides. La versión de este sitio web consulta a GitHub si hay una actualización y la descarga; GitHub ve lo que muestra cualquier descarga, tu dirección IP y la versión de la app. Si inicias sesión en Qobuz o TIDAL, la app habla únicamente con ese servicio, y tu inicio de sesión se queda en tu dispositivo. Cuando abres los perfiles de auriculares en el ecualizador, la app descarga su catálogo desde este sitio, como mucho una vez al mes; Vercel, que lo aloja, ve tu dirección IP. Si activas la búsqueda de letras en línea, la app pide a LRCLIB (lrclib.net) la letra de una pista que no tiene la suya; LRCLIB recibe el título, el artista, el álbum y la duración de la pista, y tu dirección IP. Son las únicas dos cosas para las que las versiones de la App Store se conectan a internet.",
-  "privacy.site": "Este sitio web no usa cookies ni analíticas. Tu navegador recuerda el idioma que elegiste, y eso nunca sale de él. Como cualquier servidor web, Vercel guarda registros estándar del servidor.",
+  "privacy.site": "Este sitio web cuenta las visitas con Vercel Web Analytics. En cada página vista registra la página, el sitio del que vienes, tu ubicación aproximada (país, región, ciudad) y tu navegador, sistema y tipo de dispositivo. No usa cookies ni guarda tu dirección IP: los visitantes se distinguen por un código generado a partir de la solicitud, que se descarta a las 24 horas, así que nadie puede seguirte a otros sitios ni de un día para otro. Tu navegador recuerda el idioma que elegiste, y ese dato nunca sale de él. Como cualquier alojamiento web, Vercel guarda registros estándar del servidor.",
   "privacy.open": "BitSpring es de código abierto, así que cualquiera puede comprobar todo esto en su código.",
   "privacy.contact": "¿Preguntas?",
   "privacy.contact_link": "Pregunta en GitHub",
-  "privacy.updated": "Última actualización: 13 de noviembre de 2026."
+  "privacy.updated": "Última actualización: 16 de noviembre de 2026."
 }

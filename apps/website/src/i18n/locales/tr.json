@@ -111,14 +111,14 @@
   "footer.privacy": "Gizlilik",
   "footer.support": "Destek",
   "privacy.meta_title": "BitSpring gizlilik politikası",
-  "privacy.meta_description": "BitSpring hiçbir şey toplamaz: hesap yok, analiz yok, reklam yok, izleme yok.",
+  "privacy.meta_description": "BitSpring uygulaması hiçbir şey toplamaz: hesap yok, analiz yok, reklam yok, takip yok. Web sitesi yalnızca ziyaretleri çerezsiz sayar.",
   "privacy.title": "Gizlilik",
-  "privacy.lead": "BitSpring hakkında seni ilgilendiren hiçbir şey toplamaz. Hesap, analiz, reklam ve izleme yoktur.",
+  "privacy.lead": "BitSpring uygulaması seninle ilgili hiçbir şey toplamaz. Hesap, analiz, reklam ve takip yoktur.",
   "privacy.device": "Müziğin, çalma listelerin, ekolayzır ön ayarların ve ayarların cihazında kalır. Uygulama bunların hiçbirini yüklemez.",
   "privacy.network": "Uygulama yalnızca senin ondan istediğin şey için internete bağlanır. Bu web sitesinden indirilen sürüm GitHub'a güncelleme olup olmadığını sorar ve indirir; GitHub her indirmenin gösterdiğini görür: IP adresini ve uygulama sürümünü. Qobuz veya TIDAL'da oturum açarsan uygulama yalnızca o hizmetle konuşur ve oturum bilgilerin cihazında kalır. Ekolayzerde kulaklık profillerini açtığınızda uygulama, kataloglarını bu siteden en fazla ayda bir indirir; siteyi barındıran Vercel IP adresinizi görür. Şarkı sözlerini internette aramayı açarsanız uygulama, kendi sözleri olmayan bir parçanın sözlerini LRCLIB’den (lrclib.net) ister; LRCLIB parçanın adını, sanatçısını, albümünü ve süresini ve IP adresinizi alır. App Store sürümleri yalnızca bu ikisi için internete bağlanır.",
-  "privacy.site": "Bu web sitesi çerez ayarlamaz ve analiz çalıştırmaz. Tarayıcın seçtiğin dili hatırlar ve bu bilgi tarayıcından asla çıkmaz. Her web barındırıcısı gibi Vercel de standart sunucu günlükleri tutar.",
+  "privacy.site": "Bu web sitesi ziyaretleri Vercel Web Analytics ile sayar. Her sayfa görüntülemesinde sayfayı, geldiğin siteyi, yaklaşık konumunu (ülke, bölge, şehir) ve tarayıcını, sistemini ve cihaz türünü kaydeder. Çerez kullanmaz ve IP adresi saklamaz: ziyaretçiler, istekten üretilen ve 24 saat sonra silinen bir kodla ayırt edilir; bu yüzden kimse seni başka sitelerde ya da bir günden ötekine izleyemez. Tarayıcın seçtiğin dili hatırlar ve bu bilgi tarayıcından hiç çıkmaz. Her web barındırıcısı gibi Vercel de standart sunucu günlükleri tutar.",
   "privacy.open": "BitSpring açık kaynaklıdır, bu yüzden bunların hepsini herkes kodundan kontrol edebilir.",
   "privacy.contact": "Sorun mu var?",
   "privacy.contact_link": "GitHub'da sor",
-  "privacy.updated": "Son güncelleme: 13 Kasım 2026."
+  "privacy.updated": "Son güncelleme: 16 Kasım 2026."
 }

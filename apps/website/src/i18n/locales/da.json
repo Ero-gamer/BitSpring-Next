@@ -111,14 +111,14 @@
   "footer.privacy": "Privatliv",
   "footer.support": "Support",
   "privacy.meta_title": "BitSprings privatlivspolitik",
-  "privacy.meta_description": "BitSpring indsamler ingenting: ingen konto, ingen analyse, ingen reklamer, ingen sporing.",
+  "privacy.meta_description": "BitSpring-appen indsamler intet: ingen konto, ingen analyse, ingen reklamer, ingen sporing. Hjemmesiden tæller kun besøg, uden cookies.",
   "privacy.title": "Privatliv",
-  "privacy.lead": "BitSpring indsamler intet om dig. Der er ingen konto, ingen analyse, ingen reklamer og ingen sporing.",
+  "privacy.lead": "BitSpring-appen indsamler intet om dig. Der er ingen konto, ingen analyse, ingen reklame og ingen sporing.",
   "privacy.device": "Din musik, dine playlister, dine equalizer-forudindstillinger og dine indstillinger bliver på din enhed. Appen uploader ingen af dem.",
   "privacy.network": "Appen går kun online til det, du beder den om. Versionen fra dette websted spørger GitHub, om der er en opdatering, og henter den; GitHub ser det, enhver download viser, din IP-adresse og appversionen. Hvis du logger ind på Qobuz eller TIDAL, taler appen kun med den tjeneste, og dit login bliver på din enhed. Når du åbner hovedtelefonprofilerne i equalizeren, henter appen kataloget fra dette websted, højst én gang om måneden; Vercel, der hoster det, ser din IP-adresse. Hvis du slår søgning efter sangtekster online til, beder appen LRCLIB (lrclib.net) om teksten til et nummer, der ikke har sin egen; LRCLIB får nummerets titel, kunstner, album og længde samt din IP-adresse. Det er de eneste ting, App Store-versionerne går online for.",
-  "privacy.site": "Dette websted sætter ingen cookies og kører ingen analyse. Din browser husker det sprog, du valgte, og det forlader aldrig browseren. Som enhver webhost gemmer Vercel almindelige serverlogs.",
+  "privacy.site": "Denne hjemmeside tæller besøg med Vercel Web Analytics. For hver sidevisning registreres siden, det websted, du kom fra, din omtrentlige placering (land, region, by) samt din browser, dit system og din enhedstype. Den sætter ingen cookies og gemmer ingen IP-adresse: besøgende skelnes ved en kode dannet ud fra forespørgslen, som kasseres efter 24 timer, så ingen kan følge dig til andre websteder eller fra den ene dag til den næste. Din browser husker det sprog, du valgte, og det forlader den aldrig. Som enhver webhost fører Vercel almindelige serverlogs.",
   "privacy.open": "BitSpring er open source, så alle kan tjekke alt dette i koden.",
   "privacy.contact": "Spørgsmål?",
   "privacy.contact_link": "Spørg på GitHub",
-  "privacy.updated": "Sidst opdateret den 13. november 2026."
+  "privacy.updated": "Sidst opdateret den 16. november 2026."
 }

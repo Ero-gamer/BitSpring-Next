@@ -2,7 +2,13 @@
 // The page itself arrives already translated (see render.ts); only strings that JS writes at
 // runtime come from the inline dictionary.
 
+import { inject } from "@vercel/analytics";
+
 import { localeUrl, LOCALES, type FontGroup } from "./locales";
+
+// Visit counts (Vercel Web Analytics): no cookies, nothing that follows a visitor to other sites
+// or past a day. The privacy page says exactly what it records. Built site only, not `vite dev`.
+if (import.meta.env.PROD) inject({ mode: "production" });
 
 export const root = document.documentElement;
 const runtime = JSON.parse(document.getElementById("i18n")?.textContent ?? "{}") as {
