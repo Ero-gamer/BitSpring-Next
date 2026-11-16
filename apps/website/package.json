@@ -6,8 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build": "tsc --noEmit && vite build && npm run build:demo",
+    "preview": "vite preview",
+    "build:demo": "DEMO_OUT=../website/dist/demo npm run build:demo --prefix ../desktop"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

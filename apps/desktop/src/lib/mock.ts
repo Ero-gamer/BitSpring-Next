@@ -4,6 +4,7 @@
 // BitSpring works with any DAC and any headphones.
 import { isIOS } from "./api";
 import { MOCK_COVERS } from "./mockCovers";
+import { clipSeconds, demoAudio, DEMO_ALBUM, DEMO_CLIPS, isDemo } from "./demo";
 import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack, Lyrics, NowPlaying, Signal, Status, StoredPreset } from "./api";
 
 // ---- library ----------------------------------------------------------------------------------
@@ -14,7 +15,11 @@ const storeBuild = new URLSearchParams(location.search).has("store");
 const LIB: [string, string, string | null, string | null, string, number, number | null, string | null, string[]][] = [
   ["Ada Marlow", "Paper Moons", "2017", "Folk", "ALAC", 48000, 24, "#6b5d2e", ["Kite Strings", "Harbour", "Paper Moons"]],
   ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, "#16233a", ["Carrier", "Sideband", "Noise Floor"]],
-  ["Halvorsen Quartet", "Strings in Winter", "2021", "Classical", "FLAC", 192000, 24, "#2e3b6b", ["I. Allegro", "II. Adagio", "III. Scherzo", "IV. Finale"]],
+  // The website demo plays this album for real (demo.ts), so there it carries the recording's own
+  // names and format.
+  isDemo
+    ? [DEMO_ALBUM.artist, DEMO_ALBUM.title, DEMO_ALBUM.year, "Classical", "ALAC", 48000, 24, "#2e3b6b", DEMO_CLIPS.map((c) => c.title)]
+    : ["Halvorsen Quartet", "Strings in Winter", "2021", "Classical", "FLAC", 192000, 24, "#2e3b6b", ["I. Allegro", "II. Adagio", "III. Scherzo", "IV. Finale"]],
   ["Northern Lights Trio", "Quiet Hours", "2019", "Jazz", "FLAC", 96000, 24, "#2b4a5c", ["Morning Glass", "Slow Current", "Blue Hour", "Afterglow"]],
   ["Northern Lights Trio", "City Rain", "2022", "Jazz", "FLAC", 44100, 16, "#5c3a2b", ["Neon Puddles", "Last Tram", "Umbrella Song"]],
   [UNKNOWN_ARTIST, "Untitled Sketches", null, null, "WAV", 44100, 16, null, ["01 sketch one", "02 sketch two"]],
@@ -24,10 +29,11 @@ const libTracks: LibTrack[] = [];
 const libAlbums: Album[] = LIB.map(([artist, title, year, genre, format, rate, bits, color, names], ai) => {
   const id = `a${ai}`;
   const idx = names.map((name, n) => {
+    const path = `/Music/${artist}/${title}/${String(n + 1).padStart(2, "0")} ${name}.${format.toLowerCase()}`;
     libTracks.push({
-      path: `/Music/${artist}/${title}/${String(n + 1).padStart(2, "0")} ${name}.${format.toLowerCase()}`,
+      path,
       title: name, artist: artist === UNKNOWN_ARTIST ? null : artist, albumArtist: null, album: title, genre, year,
-      trackNumber: n + 1, discNumber: null, duration: 27 + n * 7 + ai * 31, sampleRate: rate, bits, channels: 2, format,
+      trackNumber: n + 1, discNumber: null, duration: isDemo ? clipSeconds(path) : 27 + n * 7 + ai * 31, sampleRate: rate, bits, channels: 2, format,
       lossless: format !== "MP3", hasCover: !!color, size: 0, mtime: 1700000000 + ai * 1000, albumId: id,
       hiRes: format !== "MP3" && (rate > 48000 || (bits ?? 0) > 16),
     });
@@ -56,7 +62,8 @@ const mockChecks: Record<string, unknown> = {};
 
 let libFolders = ["/Users/me/Music"];
 
-let mockVolume = 35;
+let mockVolume = isDemo ? 80 : 35;
+if (isDemo) demoAudio.setVolume(mockVolume);
 let mockRemote = false;
 const devices: Device[] = [
   { uid: "q7", name: "USB DAC", transport: "Usb", channels: 2, rates: [44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000], nominalRate: 44100, isDefault: true, bitPerfectCapable: true, maxDop: 256, network: false, model: null, protocol: null },
@@ -95,7 +102,8 @@ const eq: { presets: StoredPreset[]; activeId: string | null; enabled: boolean; 
       ],
     },
   ],
-  activeId: "p1", enabled: true, bypass: false, devices: { spk: { mode: "preset", id: "p2" } },
+  // The website demo opens bit-perfect: switching the EQ on is then something you hear.
+  activeId: "p1", enabled: !isDemo, bypass: false, devices: { spk: { mode: "preset", id: "p2" } },
 };
 let eqSeq = 3;
 function eqSnapshot(): EqState {
@@ -104,11 +112,17 @@ function eqSnapshot(): EqState {
   const effectiveId = b ? (b.mode === "preset" ? b.id : null) : eq.enabled ? eq.activeId : null;
   return structuredClone({ ...eq, playingOn, effectiveId });
 }
+/** The preset that shapes the sound right now (EQ on, not bypassed), for the demo's real filters. */
+function eqPlaying(): EqPreset | null {
+  const s = eqSnapshot();
+  return s.bypass ? null : (s.presets.find((p) => p.id === s.effectiveId) ?? null);
+}
 function eqOn(): string | null {
   const s = eqSnapshot();
   return s.presets.find((p) => p.id === s.effectiveId)?.name ?? null;
 }
 function eqChanged() {
+  if (isDemo) demoAudio.setEq(eqPlaying());
   return { state: eqSnapshot(), signal: duration > 0 && lastDevice ? mockSignal(lastDevice, lastExclusive, lastPath, lastDop) : null };
 }
 
@@ -134,13 +148,15 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
       dsdRate, dop, dsdNote, layout: "Stereo", downmix: null, bitPerfect: dop,
     };
   }
-  const src = 44100;
+  // The demo shows the playing file's real format; elsewhere every file reads as CD quality.
+  const track = isDemo ? libTracks.find((t) => t.path === path) : undefined;
+  const src = track?.sampleRate ?? 44100;
   // A surround file folds down to stereo on every mock device.
   const surround = /surround|5\.1/i.test(path);
   const up = dsp.upsampleKhz ? Math.min(dsp.upsampleKhz * 1000, air ? 48000 : 352800) : null;
   const rate = up ?? (air ? 48000 : src);
   return {
-    sourceRate: src, sourceBits: 16, deviceRate: rate, dacBits: 32, dacFloat: air, integerMode: !air,
+    sourceRate: src, sourceBits: track?.bits ?? 16, deviceRate: rate, dacBits: 32, dacFloat: air, integerMode: !air,
     exclusive, transport: dev.transport, resampled: rate !== src,
     eq: eqOn(), eqLinear: eqSnapshot().presets.find((p) => p.name === eqOn())?.phase === "linear", convolution: convName(), crossfeed: dsp.crossfeed,
     sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null,
@@ -178,7 +194,7 @@ function mockSummary(p: (typeof mockLists)[number]) {
 }
 
 export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
-  const now = () => (paused ? pausedAt : (performance.now() - started) / 1000);
+  const now = () => (isDemo ? demoAudio.position : paused ? pausedAt : (performance.now() - started) / 1000);
   switch (cmd) {
     case "list_devices":
       return devices as T;
@@ -195,6 +211,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return (mockVolume as unknown) as T;
     case "set_output_volume":
       mockVolume = Number(args.volume);
+      if (isDemo) demoAudio.setVolume(mockVolume);
       return undefined as T;
     case "system_locales":
       return [...navigator.languages] as T;
@@ -241,6 +258,11 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       lastDop = !!args.dop;
       const signal = mockSignal(dev, lastExclusive, lastPath, lastDop);
       started = performance.now() - ((args.startAt as number) ?? 0) * 1000; paused = !!args.paused; pausedAt = (args.startAt as number) ?? 0; duration = 251;
+      if (isDemo) {
+        duration = clipSeconds(lastPath);
+        demoAudio.setEq(eqPlaying());
+        demoAudio.load(lastPath, pausedAt, paused);
+      }
       const np: NowPlaying = {
         path: args.path as string, ...(() => {
           const t = libTracks.find((x) => x.path === args.path);
@@ -292,6 +314,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     }
     case "meter": {
       if (duration === 0 || paused) return [-90, -90] as T;
+      if (isDemo) return demoAudio.levels() as T;
       const t = performance.now() / 1000;
       const base = -14 + 6 * Math.sin(t * 1.3) + 4 * Math.sin(t * 7.1);
       return [base + 2 * Math.sin(t * 13), base - 2 + 2 * Math.cos(t * 11)] as T;
@@ -300,13 +323,16 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       if (args.paused && !paused) pausedAt = now();
       if (!args.paused && paused) started = performance.now() - pausedAt * 1000;
       paused = args.paused as boolean;
+      if (isDemo) demoAudio.setPaused(paused);
       return undefined as T;
     case "seek":
       started = performance.now() - (args.seconds as number) * 1000;
       pausedAt = args.seconds as number;
+      if (isDemo) demoAudio.seek(pausedAt);
       return undefined as T;
     case "stop":
       duration = 0;
+      if (isDemo) demoAudio.stop();
       return undefined as T;
     case "set_dsp": {
       dsp = {
@@ -322,7 +348,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return undefined as T;
     case "update_check":
       return {
-        enabled: !storeBuild, current: "0.2.0",
+        enabled: !storeBuild && !isDemo, current: "0.2.0",
         update: new URLSearchParams(location.search).has("update")
           ? { version: "0.3.0", date: null, notes: "**What's new**\n- **Equalizer** presets per output.\n- Faster library scan." }
           : null,

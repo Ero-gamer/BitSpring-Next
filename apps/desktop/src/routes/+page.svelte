@@ -16,6 +16,7 @@
   import UpdateNotice from "$lib/UpdateNotice.svelte";
   import { startUpdateChecks } from "$lib/updates.svelte";
   import { look } from "$lib/look.svelte";
+  import { isDemo } from "$lib/demo";
   import { fade } from "svelte/transition";
   import { liquidPill } from "$lib/liquid";
   import { fitRow } from "$lib/fitRow";
@@ -400,7 +401,13 @@
   }
 
   onMount(() => {
-    refreshDevices();
+    // The website demo opens with the album that really plays queued up, paused at the start.
+    refreshDevices().then(async () => {
+      if (!isDemo || queue.length) return;
+      const tracks = await api.libraryTracks();
+      queue = tracks.filter((t) => t.albumId === "a2").map((t) => t.path);
+      await playIndex(0, 0, true);
+    });
     refreshStreaming();
     // Restore last session's processing (also loads and validates the impulse response).
     applyDsp(untrack(() => dsp));
@@ -484,7 +491,7 @@
 <div class="app" class:drag-over={dragOver} class:sig-bp={signalState === "bp"} class:sig-dsp={signalState === "dsp"}>
   <!-- Translations differ by up to ~150px here: when the row doesn't fit, the wordmark goes
        first, then the enhancers' state; the device name ellipsizes last. -->
-  <header data-tauri-drag-region class:mac={isMac} class:chrome-right={isMac && i18n.system.dir === "rtl"} use:fitRow={["no-wordmark", "no-enh-state"]}>
+  <header data-tauri-drag-region class:mac={isMac && !isDemo} class:chrome-right={isMac && i18n.system.dir === "rtl"} use:fitRow={["no-wordmark", "no-enh-state"]}>
     <span class="wordmark" data-tauri-drag-region>BitSpring</span>
     <nav class="tabs" aria-label={t("nav.screens")} use:liquidPill={screen}>
       <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} onclick={() => (screen = "player")}>{t("nav.player")}</button>

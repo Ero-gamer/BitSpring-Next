@@ -1,18 +1,22 @@
 // Store screenshots, taken from the desktop UI running on its mock backend: `npm run dev`, then
 // `node scripts/store-screenshots.mjs windows` (Microsoft Store) or `… mac` (Mac App Store).
 // They look like the store builds: ?store drops the streaming tab and the updater, and the user
-// agent picks the platform (Windows: classic look, no title-bar padding; Mac: glass, room for the
-// traffic lights). Covers are the mock's own abstract art (src/lib/mockCovers.ts).
+// agent picks the platform (Windows: no title-bar padding; Mac: room for the traffic lights).
+// Windows keeps the classic look its listing was made with, Mac shows glass (glass is now the
+// default everywhere, so the look is set explicitly). Covers are the mock's own abstract art
+// (src/lib/mockCovers.ts).
 //   windows: 1440×810 at 2× = 2880×1620 (16:9) into store/screenshots/windows
 //   mac:     1440×900 at 2× = 2880×1800 (16:10) into store/screenshots/mac
 import { chromium } from "playwright-core";
 
 const PLATFORMS = {
   windows: {
+    look: "classic",
     size: { width: 1440, height: 810 },
     ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
   },
   mac: {
+    look: "glass",
     size: { width: 1440, height: 900 },
     ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
   },
@@ -24,6 +28,7 @@ const url = process.argv[3] ?? "http://127.0.0.1:1420";
 const out = process.argv[4] ?? new URL(`../store/screenshots/${os}`, import.meta.url).pathname;
 const browser = await chromium.launch({ channel: "chrome" }); // the installed Google Chrome
 const page = await browser.newPage({ viewport: platform.size, deviceScaleFactor: 2, userAgent: platform.ua, locale: "en-US" });
+await page.addInitScript((l) => localStorage.setItem("look", JSON.stringify(l)), platform.look);
 const tab = (name) => page.getByRole("button", { name, exact: true }).first().click();
 const shot = async (file, wait = 1500) => {
   await page.mouse.move(1, platform.size.height - 5);

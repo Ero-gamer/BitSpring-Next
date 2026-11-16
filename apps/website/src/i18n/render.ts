@@ -13,7 +13,7 @@ import { DEFAULT_LOCALE, LOCALES, localeUrl, type Locale } from "./locales";
 type Dict = Record<string, string>;
 
 /** Strings main.ts needs at runtime; shipped inline so there is no extra request. */
-const RUNTIME_KEYS = /^(cta\.|dl\.|rates\.)/;
+const RUNTIME_KEYS = /^(cta\.|dl\.|rates\.|app\.demo_title$)/;
 
 const dir = fileURLToPath(new URL("./locales/", import.meta.url));
 
@@ -30,10 +30,12 @@ const escapeJson = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c");
 const abs = (site: string, path: string) => (site ? site.replace(/\/$/, "") + path : path);
 
 // Runs before first paint on the root page only: send visitors to their language unless they
-// already picked one in the switcher. Mirrors matchLocale() in locales.ts.
+// already picked one in the switcher. Mirrors matchLocale() in locales.ts. The page leaving is
+// hidden: its scripts still run until the next one arrives, and its opening animation would
+// play once here and again there.
 function redirectScript(page: string): string {
   const paths = LOCALES.map((l) => l.path).filter(Boolean);
-  return `<script>(function(){var P=${escapeJson(paths)};function m(t){t=t.toLowerCase();var l=t.split("-")[0];if(l==="zh")return /-(hant|tw|hk|mo)\\b/.test(t)?"zh-hant":"zh-hans";if(l==="no"||l==="nn")l="nb";if(l==="pt")return"pt-br";if(l==="en")return"";return P.indexOf(l)>=0?l:null}var p=null;try{p=localStorage.getItem("lang")}catch(e){}if(p===null){var ls=navigator.languages||[navigator.language||""];for(var i=0;i<ls.length&&p===null;i++)p=m(ls[i]||"")}if(p&&P.indexOf(p)>=0)location.replace("/"+p+"/"+${escapeJson(page)}+location.search+location.hash)})()</script>`;
+  return `<script>(function(){var P=${escapeJson(paths)};function m(t){t=t.toLowerCase();var l=t.split("-")[0];if(l==="zh")return /-(hant|tw|hk|mo)\\b/.test(t)?"zh-hant":"zh-hans";if(l==="no"||l==="nn")l="nb";if(l==="pt")return"pt-br";if(l==="en")return"";return P.indexOf(l)>=0?l:null}var p=null;try{p=localStorage.getItem("lang")}catch(e){}if(p===null){var ls=navigator.languages||[navigator.language||""];for(var i=0;i<ls.length&&p===null;i++)p=m(ls[i]||"")}if(p&&P.indexOf(p)>=0){document.documentElement.style.visibility="hidden";location.replace("/"+p+"/"+${escapeJson(page)}+location.search+location.hash)}})()</script>`;
 }
 
 /** `page`: path below the language root, "" for home or "download/". */

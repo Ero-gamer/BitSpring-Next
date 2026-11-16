@@ -16,6 +16,15 @@
     <link rel="icon" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!--@runtime-->
+    <script>
+      // The opening animation hides the headline, copy and nav before the first paint, so they
+      // don't show at rest and then jump back to their start (main.ts reveals them). Should the
+      // script never run, everything shows after 4 s anyway.
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.classList.add("intro");
+        setTimeout(function () { document.documentElement.classList.remove("intro"); }, 4000);
+      }
+    </script>
   </head>
   <body>
     <canvas class="field" aria-hidden="true"></canvas>
@@ -148,10 +157,25 @@
       <section class="app" id="app" aria-labelledby="app-title">
         <div class="app-head">
           <h2 class="section-title" id="app-title">{{app.title}}</h2>
-          <p>{{app.lede}}</p>
+          <div class="app-aside">
+            <p>{{app.lede}}</p>
+            <div class="look-switch" role="radiogroup" aria-label="{{app.look}}" data-look-switch>
+              <span class="look-pill" aria-hidden="true"></span>
+              <button type="button" role="radio" aria-checked="true" data-look="glass">{{app.look_glass}}</button>
+              <button type="button" role="radio" aria-checked="false" data-look="classic">{{app.look_classic}}</button>
+            </div>
+          </div>
         </div>
-        <figure class="app-shot">
-          <img src="/app.webp" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
+        <figure class="app-shot" data-look="glass">
+          <div class="app-frame" data-demo-frame>
+            <img class="is-glass" src="/app-glass.webp" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
+            <img class="is-classic" src="/app-classic.webp" width="2240" height="1480" alt="" loading="lazy" decoding="async" />
+            <button type="button" class="btn btn-primary demo-start" data-demo-start>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.8v10.4L13 8z" /></svg>
+              {{app.demo_start}}
+            </button>
+          </div>
+          <figcaption class="demo-note">{{app.demo_note}}</figcaption>
         </figure>
       </section>
 

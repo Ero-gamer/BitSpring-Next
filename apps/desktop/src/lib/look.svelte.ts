@@ -1,14 +1,15 @@
 // The app's look: the classic anodised panel, or glass (translucent layers over an ambient
 // backdrop made from the playing album's cover). Kept per machine, like the language.
-import { isIOS, isMac } from "./api";
+// The website demo keeps settings in memory: that swap must come before the reads below.
+import "./demo";
 
 export const LOOKS = ["classic", "glass"] as const;
 export type Look = (typeof LOOKS)[number];
 
 const KEY = "look";
-/** Glass on Apple's systems, whose own interface is glass; the anodised panel elsewhere.
-    Only until the person picks one in Settings. */
-const DEFAULT: Look = isMac || isIOS ? "glass" : "classic";
+/** Glass on every system (its frost and backdrop are plain CSS, which every webview we ship on
+    draws), until the person picks one in Settings. */
+const DEFAULT: Look = "glass";
 
 function loadLook(): Look {
   try {

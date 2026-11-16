@@ -10,7 +10,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 
 import { LINKS } from "./config";
-import { downloadUrl, fontGroup, fontsReady, isRtl, numberLocale, t } from "./i18n/runtime";
+import { currentLocale, downloadUrl, fontGroup, fontsReady, isRtl, numberLocale, t } from "./i18n/runtime";
 import { detectPlatform, isAvailable, type Platform } from "./platform";
 import { createField, HERO, type FieldState } from "./scene";
 
@@ -154,14 +154,19 @@ const downloadChars = split($(".download-title"));
 const intro = { amp: 1, visible: 1 };
 
 if (!reduceMotion) {
+  // Every element takes its start state right now (immediateRender), and synchronously (lazy
+  // would wait for GSAP's first tick, a few frames later): nothing may show at rest first and
+  // then jump back to the start.
   gsap
-    .timeline({ defaults: { ease: "expo.out" } })
+    .timeline({ defaults: { ease: "expo.out", immediateRender: true, lazy: false } })
     .fromTo(intro, { amp: 0, visible: 0 }, { amp: 1, visible: 1, duration: 2.6, ease: "power3.out" }, 0)
     .from(heroChars, { yPercent: 110, duration: 1.4, stagger: 0.05 }, 0.25)
     .from(".hero-lede", { autoAlpha: 0, y: 16, duration: 1.2 }, 0.9)
     .from(".hero .cta-row .btn", { autoAlpha: 0, y: 16, duration: 1.1, stagger: 0.08 }, 1.0)
     .from(".nav", { autoAlpha: 0, duration: 1.2, ease: "power2.out" }, 1.1);
 }
+// index.html hid these before the first paint; from here on the timeline owns them.
+document.documentElement.classList.remove("intro");
 
 // ---- scroll choreography ---------------------------------------------------------------------
 // Each section owns a camera/signal keyframe, reached while the section scrolls into view.
@@ -355,7 +360,7 @@ for (const li of $$(".enhance-list li")) {
 travel(".app", APP, "top bottom", "top 30%");
 if (!reduceMotion) {
   gsap.fromTo(
-    ".app-shot img",
+    ".app-frame",
     { rotateX: 22, scale: 0.9, y: 60 },
     {
       rotateX: 0,
@@ -366,6 +371,65 @@ if (!reduceMotion) {
     },
   );
 }
+
+// Glass | Classic: the same moment in the app, in either look. Arrow keys move between the two,
+// like any radio group.
+const lookSwitch = $("[data-look-switch]");
+const appShot = $(".app-shot");
+const lookButtons = $$<HTMLButtonElement>("button[data-look]", lookSwitch);
+function pickLook(button: HTMLButtonElement) {
+  for (const b of lookButtons) {
+    const on = b === button;
+    b.setAttribute("aria-checked", String(on));
+    b.tabIndex = on ? 0 : -1;
+  }
+  appShot.dataset.look = button.dataset.look;
+  demoFrame?.contentWindow?.postMessage({ type: "bitspring-look", look: button.dataset.look }, "*");
+}
+for (const b of lookButtons) {
+  b.tabIndex = b.getAttribute("aria-checked") === "true" ? 0 : -1;
+  b.addEventListener("click", () => pickLook(b));
+  b.addEventListener("keydown", (e) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const next = lookButtons[(lookButtons.indexOf(b) + 1) % lookButtons.length];
+    pickLook(next);
+    next.focus();
+  });
+}
+
+// The live demo: the app's UI on its mock backend, playing Haydn (apps/desktop/src/lib/demo.ts).
+// Loaded only when asked for. A computer gets it in place of the screenshot; a phone opens it
+// full screen, where the app's own phone layout fits.
+const DEMO_URL = import.meta.env.DEV ? "http://127.0.0.1:1420/?demo&" : "/demo/?";
+const DEMO_WIDTH = 1120;
+const frame = $("[data-demo-frame]");
+let demoFrame: HTMLIFrameElement | null = null;
+
+function demoSrc() {
+  const lang = currentLocale.path || "en";
+  return `${DEMO_URL}lang=${encodeURIComponent(lang)}&look=${appShot.dataset.look ?? "glass"}`;
+}
+
+$("[data-demo-start]").addEventListener("click", () => {
+  if (window.innerWidth < 900) {
+    location.href = demoSrc();
+    return;
+  }
+  demoFrame = document.createElement("iframe");
+  demoFrame.className = "demo-frame";
+  demoFrame.title = t("app.demo_title");
+  demoFrame.allow = "autoplay";
+  demoFrame.src = demoSrc();
+  demoFrame.addEventListener("load", () => {
+    frame.classList.add("is-live");
+    demoFrame?.focus({ preventScroll: true });
+  });
+  const fit = () => frame.style.setProperty("--demo-scale", String(frame.clientWidth / DEMO_WIDTH));
+  fit();
+  new ResizeObserver(fit).observe(frame);
+  frame.append(demoFrame);
+});
 
 // Download: back to the opening view, back to brass.
 travel(".download", DOWNLOAD, "top bottom", "top 20%");

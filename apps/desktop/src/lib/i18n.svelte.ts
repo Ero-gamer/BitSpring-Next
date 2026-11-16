@@ -5,6 +5,9 @@
 // shown — an object of CLDR plural forms ({ one, few, many, other, … }) picked with
 // Intl.PluralRules, so "1 трек / 3 трека / 5 треков" and Arabic's six forms come out right.
 
+// The website demo keeps settings in memory: that swap must come before the reads below.
+import "./demo";
+
 export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>>;
 type Dict = Record<string, string | PluralForms>;
 

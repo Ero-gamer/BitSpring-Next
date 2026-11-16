@@ -1,5 +1,7 @@
 // Whether the app may ask LRCLIB (lrclib.net) for lyrics a track doesn't carry itself. Off until
 // the listener switches it on: the app goes online only for what it's asked to do. Per machine.
+// The website demo keeps settings in memory: that swap must come before the reads below.
+import "./demo";
 
 const KEY = "lyricsOnline";
 

@@ -11,6 +11,8 @@ export const LINKS: {
   macFile: string | null;
   /** App Store page for iPhone and iPad (the same apps.apple.com URL if it is a universal purchase). */
   iosAppStore: string | null;
+  /** Microsoft Store page, e.g. https://apps.microsoft.com/detail/9XXXXXXXXXXX */
+  windowsStore: string | null;
   /** Direct installer .exe download. */
   windowsFile: string | null;
   /** Google Play page or a direct .apk download. */
@@ -19,6 +21,7 @@ export const LINKS: {
   macAppStore: null,
   macFile: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-mac.dmg",
   iosAppStore: null,
+  windowsStore: null,
   windowsFile: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-windows-setup.exe",
   android: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-android.apk",
 };
