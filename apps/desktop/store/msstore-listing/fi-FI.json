@@ -1,0 +1,27 @@
+{
+  "language": "fi-FI",
+  "title": "BitSpring",
+  "shortDescription": "Bit-perfect hi-res-musiikkisoitin omille FLAC-, ALAC- ja DSD-tiedostoillesi. Mukana taajuuskorjain kuulokkeillesi.",
+  "description": "BitSpring soittaa musiikkisi juuri sellaisena kuin se on äänitetty. Tiedoston jokainen bitti päätyy DAC:llesi muuttumattomana: ei uudelleennäytteistystä, ei Windowsin mikseriä, ei yllätyksiä.\n\nSe on ilmainen ja avointa lähdekoodia. Ei tiliä, ei tilausta, ei mainoksia, ei sovelluksen sisäisiä ostoja, eikä sinusta kerätä mitään.\n\nBIT-PERFECT\n• WASAPI yksinomaisessa tilassa: muiden sovellusten tai järjestelmän ääniä ei sekoiteta mukaan, ja DAC vaihtaa kunkin kappaleen näytetaajuuteen, aina 768 kHz:iin asti.\n• Selkeä ilmaisin näyttää, onko signaali bit-perfect vai käsitelläänkö sitä, ja miksi.\n• Katkoton toisto live-albumeille, oopperoille ja DJ-mikseille.\n• Verkkosoittimet: Sonos, WiiM, Bluesound ja muut UPnP/DLNA-suoratoistimet sekä Chromecast- ja Google Cast -laitteet saavat musiikkisi FLAC-muodossa, näyte näytteeltä ja ilman taukoja.\n• Puhelin kaukosäätimenä: selaa kirjastoa ja ohjaa toistoa millä tahansa samassa verkossa olevalla puhelimella, ilman asennettavaa sovellusta.\n\nKAIKKI FORMAATTISI\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC ja Ogg Vorbis.\n• DSD (DSF, DFF ja SACD-levykuvat) aina DSD1024:ään asti: natiivisti DoP:n kautta sitä tukevilla DAC:eilla, muuten muunnettuna 176,4 kHz:n PCM:ksi.\n• Kansikuvat, tunnisteet ja kirjasto, joka seuraa musiikkikansioitasi.\n• Yhdeksi tiedostoksi CUE-tiedoston kanssa ripatut albumit soivat kappale kerrallaan.\n• Laaduntarkistus: löytää suoraan tietokoneeltasi ”hi-res”-tiedostot, jotka ovat oikeasti ylinäytteistettyjä CD-levyjä tai tehty MP3:sta.\n\nPARANNUKSET VAIN SILLOIN KUN HALUAT\n• Parametrinen taajuuskorjain lineaari- tai minimivaiheisena sekä valmiit AutoEQ-korjaukset tuhansille kuulokkeille ja nappikuulokkeille: valitse mallisi nimen perusteella. Se tuo myös tiedostoja Equalizer APO:sta, EasyEffectsistä ja AutoEQ:sta.\n• Crossfeed luonnollisempaan stereokuvaan kuulokkeilla.\n• Laadukas ylinäytteistys.\n• Häviöllisille tiedostoille: automaattinen pelivara klippausta vastaan.\nKytke ne kaikki pois, niin signaali on taas bit-perfect.\n\nKIRJASTOSI\n• Lisää mitä tahansa musiikkikansioita sisäisiltä tai ulkoisilta asemilta.\n• Soittolistat: tuonti M3U-, PLS-, XSPF- ja WPL-muodoista, vienti M3U-, PLS-, XSPF- ja CSV-muotoihin.\n• Mediapainikkeet ja Windowsin äänenvoimakkuuspaneeli ohjaavat toistoa.\n\n24 kielellä.",
+  "features": [
+    "Bit-perfect-toisto WASAPIn yksinomaisessa tilassa",
+    "Vaihtaa DAC:n kunkin kappaleen näytetaajuuteen, aina 768 kHz:iin asti",
+    "Natiivi DSD DoP:n kautta, aina DSD1024:ään asti",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC ja muita",
+    "Katkoton toisto ja CUE-tiedostot",
+    "Verkkosoittimet: Sonos, WiiM, UPnP/DLNA ja Chromecast",
+    "Parametrinen taajuuskorjain ja AutoEQ-korjaukset tuhansille kuulokkeille",
+    "Laaduntarkistus paljastaa väärennetyt hi-res-tiedostot",
+    "Ilmainen ja avointa lähdekoodia: ei tiliä, ei mainoksia, ei seurantaa"
+  ],
+  "searchTerms": [
+    "hifi",
+    "musiikkisoitin",
+    "flac",
+    "dac",
+    "häviötön",
+    "audiofiili",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}

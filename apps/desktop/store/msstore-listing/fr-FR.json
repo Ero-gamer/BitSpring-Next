@@ -1,0 +1,27 @@
+{
+  "language": "fr-FR",
+  "title": "BitSpring",
+  "shortDescription": "Lecteur de musique haute résolution bit-perfect pour vos propres fichiers FLAC, ALAC et DSD, avec un égaliseur adapté à votre casque.",
+  "description": "BitSpring lit votre musique exactement telle qu’elle a été enregistrée. Chaque bit du fichier arrive intact à votre DAC : pas de rééchantillonnage, pas de mélangeur Windows, pas de surprise.\n\nIl est gratuit et open source. Pas de compte, pas d’abonnement, pas de publicité, pas d’achats intégrés, et aucune donnée vous concernant n’est collectée.\n\nBIT-PERFECT\n• Mode exclusif WASAPI : aucune autre app ni aucun son système ne vient s’y mêler, et votre DAC bascule sur la fréquence d’échantillonnage de chaque morceau, jusqu’à 768 kHz.\n• Un indicateur clair montre si le signal est bit-perfect ou s’il est traité, et pourquoi.\n• Lecture sans blanc (gapless) pour les albums live, les opéras et les mix DJ.\n• Lecteurs réseau : Sonos, WiiM, Bluesound et les autres streamers UPnP/DLNA, ainsi que les appareils Chromecast et Google Cast, reçoivent votre musique en FLAC, échantillon par échantillon et sans blanc.\n• Télécommande sur téléphone : parcourez la bibliothèque et pilotez la lecture depuis n’importe quel téléphone de votre réseau, sans app à installer.\n\nTOUS VOS FORMATS\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC et Ogg Vorbis.\n• DSD (DSF, DFF et images de disques SACD) jusqu’au DSD1024 : en natif via DoP sur les DAC compatibles, ou converti en PCM 176,4 kHz.\n• Pochettes, tags et une bibliothèque qui suit vos dossiers de musique.\n• Les albums rippés en un seul fichier avec une feuille CUE se lisent piste par piste.\n• Contrôle de qualité : repère, directement sur votre PC, les fichiers « hi-res » qui sont en réalité des CD suréchantillonnés ou issus de MP3.\n\nDES AMÉLIORATIONS, SEULEMENT SI VOUS LE VOULEZ\n• Égaliseur paramétrique en phase linéaire ou minimale, avec des corrections toutes prêtes d’AutoEQ pour des milliers de casques et d’intra-auriculaires : il suffit de choisir votre modèle par son nom. Il importe aussi les fichiers Equalizer APO, EasyEffects et AutoEQ.\n• Crossfeed pour une image stéréo plus naturelle au casque.\n• Suréchantillonnage de haute qualité.\n• Pour les fichiers avec perte : marge automatique contre l’écrêtage.\nDésactivez-les toutes, et le signal redevient bit-perfect.\n\nVOTRE BIBLIOTHÈQUE\n• Ajoutez autant de dossiers de musique que vous voulez, sur disques internes ou externes.\n• Playlists : import M3U, PLS, XSPF et WPL, export M3U, PLS, XSPF et CSV.\n• Les touches multimédia et le panneau de volume de Windows pilotent la lecture.\n\nDisponible en 24 langues.",
+  "features": [
+    "Lecture bit-perfect en mode exclusif WASAPI",
+    "Bascule votre DAC sur la fréquence d’échantillonnage de chaque morceau, jusqu’à 768 kHz",
+    "DSD natif via DoP, jusqu’au DSD1024",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC et bien d’autres",
+    "Lecture gapless et feuilles CUE",
+    "Lecteurs réseau Sonos, WiiM, UPnP/DLNA et Chromecast",
+    "Égaliseur paramétrique avec corrections AutoEQ pour des milliers de casques",
+    "Contrôle de qualité contre les faux fichiers hi-res",
+    "Gratuit et open source : sans compte, sans pub, sans pistage"
+  ],
+  "searchTerms": [
+    "hifi",
+    "lecteur audio",
+    "flac",
+    "dac",
+    "audiophile",
+    "sans perte",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}

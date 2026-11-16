@@ -1,0 +1,27 @@
+{
+  "language": "it-IT",
+  "title": "BitSpring",
+  "shortDescription": "Lettore musicale hi-res bit-perfect per i tuoi file FLAC, ALAC e DSD, con equalizzatore per le tue cuffie.",
+  "description": "BitSpring riproduce la tua musica esattamente com’è stata registrata. Ogni bit del file arriva intatto al tuo DAC: niente ricampionamento, niente mixer di Windows, nessuna sorpresa.\n\nÈ gratuito e open source. Nessun account, nessun abbonamento, nessuna pubblicità, nessun acquisto in-app, e nessun dato su di te viene raccolto.\n\nBIT-PERFECT\n• Modalità esclusiva WASAPI: nessun’altra app né suono di sistema si mescola al segnale, e il tuo DAC passa alla frequenza di campionamento di ogni brano, fino a 768 kHz.\n• Un indicatore chiaro mostra se il segnale è bit-perfect o viene elaborato, e perché.\n• Riproduzione senza pause (gapless) per album live, opere liriche e DJ set.\n• Lettori di rete: Sonos, WiiM, Bluesound e altri streamer UPnP/DLNA, oltre ai dispositivi Chromecast e Google Cast, ricevono la tua musica in FLAC, campione per campione e senza pause.\n• Telecomando sul telefono: sfoglia la libreria e controlla la riproduzione da qualsiasi telefono della tua rete, senza installare nessuna app.\n\nTUTTI I TUOI FORMATI\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC e Ogg Vorbis.\n• DSD (DSF, DFF e immagini di dischi SACD) fino a DSD1024: nativo tramite DoP sui DAC che lo supportano, oppure convertito in PCM a 176,4 kHz.\n• Copertine, tag e una libreria che tiene d’occhio le tue cartelle musicali.\n• Gli album rippati in un unico file con un CUE sheet si riproducono traccia per traccia.\n• Controllo qualità: scova i file “hi-res” che in realtà sono CD sovracampionati o nati da MP3, direttamente sul tuo PC.\n\nMIGLIORAMENTI, SOLO QUANDO LI VUOI\n• Equalizzatore parametrico a fase lineare o minima, con correzioni pronte di AutoEQ per migliaia di cuffie e IEM: scegli il tuo modello per nome. Importa anche file di Equalizer APO, EasyEffects e AutoEQ.\n• Crossfeed per un’immagine stereo più naturale in cuffia.\n• Upsampling di alta qualità.\n• Per i file con perdita: headroom automatico contro il clipping.\nDisattivali tutti e il segnale torna bit-perfect.\n\nLA TUA LIBRERIA\n• Aggiungi tutte le cartelle musicali che vuoi, su dischi interni o esterni.\n• Playlist: importa M3U, PLS, XSPF e WPL, esporta M3U, PLS, XSPF e CSV.\n• I tasti multimediali e il riquadro del volume di Windows controllano la riproduzione.\n\nDisponibile in 24 lingue.",
+  "features": [
+    "Riproduzione bit-perfect in modalità esclusiva WASAPI",
+    "Porta il tuo DAC alla frequenza di campionamento di ogni brano, fino a 768 kHz",
+    "DSD nativo tramite DoP, fino a DSD1024",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC e altro ancora",
+    "Riproduzione gapless e CUE sheet",
+    "Lettori di rete Sonos, WiiM, UPnP/DLNA e Chromecast",
+    "Equalizzatore parametrico con correzioni AutoEQ per migliaia di cuffie",
+    "Controllo qualità per scovare i falsi file hi-res",
+    "Gratuito e open source: niente account, pubblicità o tracciamento"
+  ],
+  "searchTerms": [
+    "hifi",
+    "lettore musicale",
+    "flac",
+    "dac",
+    "audiofilo",
+    "lossless",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}

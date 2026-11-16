@@ -1,0 +1,27 @@
+{
+  "language": "zh-Hans",
+  "title": "BitSpring",
+  "shortDescription": "比特完美的 Hi-Res 音乐播放器，播放你自己的 FLAC、ALAC 和 DSD 文件，还能按你的耳机型号进行均衡器校正。",
+  "description": "BitSpring 按录制时的原样播放你的音乐。文件中的每一个比特都原封不动地送达 DAC：不重采样，不经过 Windows 混音器，没有任何意外。\n\n免费且开源。无需账号，没有订阅、广告和应用内购买，也不收集任何关于你的信息。\n\n【比特完美】\n• WASAPI 独占模式：不会混入其他应用或系统的声音，DAC 随每首曲目切换到对应的采样率，最高 768 kHz。\n• 清晰的指示器告诉你信号是比特完美还是经过了处理，以及原因。\n• 无缝播放，现场专辑、歌剧和 DJ 混音都不会断开。\n• 网络播放器：以 FLAC 格式把音乐送往 Sonos、WiiM、Bluesound 等 UPnP/DLNA 播放器，以及 Chromecast 和 Google Cast 设备，每个采样都原封不动，曲间也没有空隙。\n• 手机遥控：在同一网络中的任意手机上浏览资料库、控制播放，无需安装应用。\n\n【你拥有的每一种格式】\n• FLAC、ALAC、WAV、AIFF、CAF、MKA、APE、WavPack、TTA、MP3、AAC 和 Ogg Vorbis。\n• DSD（DSF、DFF 和 SACD 镜像）最高支持 DSD1024：在支持的 DAC 上通过 DoP 原生播放，否则转换为 176.4 kHz PCM。\n• 专辑封面、标签，以及自动监视音乐文件夹的资料库。\n• 整轨加 CUE 的专辑可以逐曲播放。\n• 音质检查：直接在你的电脑上找出由 CD 升频而来、或由 MP3 转制的“Hi-Res”文件。\n\n【音效增强，只在你需要时开启】\n• 支持线性相位和最小相位的参数均衡器，内置 AutoEQ 为数千款头戴式耳机和入耳式耳机提供的现成校正：按型号名称选择即可。还可导入 Equalizer APO、EasyEffects 和 AutoEQ 文件。\n• 交叉馈送，让耳机上的立体声声像更自然。\n• 高品质升频。\n• 针对有损文件：自动预留余量，防止削波。\n全部关闭，信号即恢复比特完美。\n\n【你的资料库】\n• 可添加任意音乐文件夹，内置或外置硬盘均可。\n• 播放列表：支持导入 M3U、PLS、XSPF 和 WPL，导出 M3U、PLS、XSPF 和 CSV。\n• 媒体键和 Windows 音量浮窗都能控制播放。\n\n支持 24 种语言。",
+  "features": [
+    "WASAPI 独占模式，比特完美播放",
+    "DAC 随每首曲目切换采样率，最高 768 kHz",
+    "通过 DoP 原生播放 DSD，最高 DSD1024",
+    "支持 FLAC、ALAC、WAV、AIFF、APE、WavPack、MP3、AAC 等格式",
+    "无缝播放，支持整轨 CUE",
+    "支持 Sonos、WiiM、UPnP/DLNA 和 Chromecast 网络播放器",
+    "参数均衡器，内置数千款耳机的 AutoEQ 校正",
+    "音质检查，识别假 Hi-Res 文件",
+    "免费开源：无需账号，无广告，无追踪"
+  ],
+  "searchTerms": [
+    "无损播放器",
+    "发烧播放器",
+    "hifi",
+    "flac",
+    "dac",
+    "dsd",
+    "wasapi 独占"
+  ],
+  "releaseNotes": ""
+}

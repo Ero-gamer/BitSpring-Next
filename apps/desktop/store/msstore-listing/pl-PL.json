@@ -1,0 +1,27 @@
+{
+  "language": "pl-PL",
+  "title": "BitSpring",
+  "shortDescription": "Odtwarzacz muzyki hi-res bit-perfect dla twoich własnych plików FLAC, ALAC i DSD, z korektorem dopasowanym do słuchawek.",
+  "description": "BitSpring odtwarza muzykę dokładnie tak, jak została nagrana. Każdy bit pliku dociera do przetwornika DAC bez zmian: bez resamplingu, bez miksera Windows, bez niespodzianek.\n\nJest darmowy i open source. Bez konta, bez subskrypcji, bez reklam, bez zakupów w aplikacji i bez zbierania jakichkolwiek danych o tobie.\n\nBIT-PERFECT\n• WASAPI w trybie wyłącznym: żadne inne aplikacje ani dźwięki systemowe nie są domiksowywane, a przetwornik przełącza się na częstotliwość próbkowania każdego utworu, aż do 768 kHz.\n• Czytelny wskaźnik pokazuje, czy sygnał jest bit-perfect, czy przetwarzany, i dlaczego.\n• Odtwarzanie bez przerw (gapless) dla albumów koncertowych, oper i miksów DJ-skich.\n• Odtwarzacze sieciowe: Sonos, WiiM, Bluesound i inne streamery UPnP/DLNA oraz urządzenia Chromecast i Google Cast dostają muzykę jako FLAC, próbka w próbkę i bez przerw.\n• Pilot w telefonie: przeglądaj bibliotekę i steruj odtwarzaniem z dowolnego telefonu w twojej sieci, bez instalowania aplikacji.\n\nWSZYSTKIE TWOJE FORMATY\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC i Ogg Vorbis.\n• DSD (DSF, DFF i obrazy płyt SACD) do DSD1024: natywnie przez DoP na przetwornikach, które to obsługują, a w innym wypadku z konwersją do PCM 176,4 kHz.\n• Okładki, tagi i biblioteka, która śledzi twoje foldery z muzyką.\n• Albumy zgrane do jednego pliku z arkuszem CUE odtwarzają się utwór po utworze.\n• Kontrola jakości: bezpośrednio na twoim komputerze wykrywa pliki „hi-res”, które w rzeczywistości są płytami CD po upsamplingu albo powstały z MP3.\n\nULEPSZENIA, TYLKO GDY ICH CHCESZ\n• Korektor parametryczny w fazie liniowej lub minimalnej, z gotowymi korekcjami z AutoEQ dla tysięcy modeli słuchawek, także dokanałowych: wybierz swój model po nazwie. Importuje też pliki z Equalizer APO, EasyEffects i AutoEQ.\n• Crossfeed dla bardziej naturalnej sceny stereo w słuchawkach.\n• Wysokiej jakości upsampling.\n• Dla plików stratnych: automatyczny zapas przed przesterowaniem.\nWyłącz je wszystkie, a sygnał znów będzie bit-perfect.\n\nTWOJA BIBLIOTEKA\n• Dodaj dowolne foldery z muzyką, na dyskach wewnętrznych lub zewnętrznych.\n• Playlisty: import z M3U, PLS, XSPF i WPL, eksport do M3U, PLS, XSPF i CSV.\n• Klawisze multimedialne i panel głośności Windows sterują odtwarzaniem.\n\nW 24 językach.",
+  "features": [
+    "Odtwarzanie bit-perfect w trybie wyłącznym WASAPI",
+    "Przełącza przetwornik na częstotliwość próbkowania każdego utworu, do 768 kHz",
+    "Natywne DSD przez DoP, do DSD1024",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC i inne",
+    "Odtwarzanie bez przerw i arkusze CUE",
+    "Odtwarzacze sieciowe: Sonos, WiiM, UPnP/DLNA i Chromecast",
+    "Korektor parametryczny z korekcjami AutoEQ dla tysięcy słuchawek",
+    "Kontrola jakości wykrywająca fałszywe pliki hi-res",
+    "Darmowy i open source: bez konta, bez reklam, bez śledzenia"
+  ],
+  "searchTerms": [
+    "hifi",
+    "odtwarzacz muzyki",
+    "flac",
+    "dac",
+    "bezstratny",
+    "audiofil",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}

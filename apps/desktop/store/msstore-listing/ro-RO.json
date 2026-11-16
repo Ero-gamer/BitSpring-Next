@@ -1,0 +1,27 @@
+{
+  "language": "ro-RO",
+  "title": "BitSpring",
+  "shortDescription": "Player de muzică hi-res bit-perfect pentru propriile tale fișiere FLAC, ALAC și DSD, cu egalizator pentru căștile tale.",
+  "description": "BitSpring îți redă muzica exact așa cum a fost înregistrată. Fiecare bit din fișier ajunge neschimbat la DAC-ul tău: fără resampling, fără mixerul Windows, fără surprize.\n\nEste gratuit și open source. Fără cont, fără abonament, fără reclame, fără achiziții în aplicație și nu colectează nimic despre tine.\n\nBIT-PERFECT\n• Modul exclusiv WASAPI: niciun sunet din alte aplicații sau din sistem nu se amestecă, iar DAC-ul trece pe frecvența de eșantionare a fiecărei piese, până la 768 kHz.\n• Un indicator clar îți arată dacă semnalul e bit-perfect sau procesat și de ce.\n• Redare fără pauze (gapless) pentru albume live, opere și mixuri DJ.\n• Playere de rețea: Sonos, WiiM, Bluesound și alte streamere UPnP/DLNA, precum și dispozitivele Chromecast și Google Cast primesc muzica în FLAC, eșantion cu eșantion și fără pauze.\n• Telecomandă pe telefon: răsfoiești biblioteca și controlezi redarea de pe orice telefon din rețeaua ta, fără să instalezi vreo aplicație.\n\nTOATE FORMATELE TALE\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC și Ogg Vorbis.\n• DSD (DSF, DFF și imagini de disc SACD) până la DSD1024: nativ prin DoP pe DAC-urile care îl suportă sau convertit în PCM la 176,4 kHz.\n• Coperți de album, taguri și o bibliotecă ce urmărește dosarele tale de muzică.\n• Albumele ripuite într-un singur fișier cu CUE sheet se redau piesă cu piesă.\n• Verificarea calității: găsește direct pe PC-ul tău fișierele „hi-res” care sunt de fapt CD-uri cu upsampling sau au fost făcute din MP3.\n\nÎMBUNĂTĂȚIRI, DOAR CÂND LE VREI\n• Egalizator parametric cu fază liniară sau minimă, cu corecții gata făcute din AutoEQ pentru mii de căști și IEM-uri: îți alegi modelul după nume. Importă și fișiere Equalizer APO, EasyEffects și AutoEQ.\n• Crossfeed pentru o imagine stereo mai naturală în căști.\n• Upsampling de înaltă calitate.\n• Pentru fișierele lossy: headroom automat împotriva clipping-ului.\nDezactivează-le pe toate și semnalul redevine bit-perfect.\n\nBIBLIOTECA TA\n• Adaugi orice dosare de muzică, de pe unități interne sau externe.\n• Playlisturi: import M3U, PLS, XSPF și WPL, export M3U, PLS, XSPF și CSV.\n• Tastele media și controlul de volum din Windows comandă redarea.\n\nÎn 24 de limbi.",
+  "features": [
+    "Redare bit-perfect în modul exclusiv WASAPI",
+    "Trece DAC-ul pe frecvența de eșantionare a fiecărei piese, până la 768 kHz",
+    "DSD nativ prin DoP, până la DSD1024",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC și multe altele",
+    "Redare fără pauze (gapless) și CUE sheet",
+    "Playere de rețea Sonos, WiiM, UPnP/DLNA și Chromecast",
+    "Egalizator parametric cu corecții AutoEQ pentru mii de căști",
+    "Verificarea calității pentru fișierele hi-res false",
+    "Gratuit și open source: fără cont, fără reclame, fără urmărire"
+  ],
+  "searchTerms": [
+    "player muzica",
+    "hifi",
+    "audiofil",
+    "flac",
+    "dac",
+    "lossless",
+    "wasapi exclusive"
+  ],
+  "releaseNotes": ""
+}

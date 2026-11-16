@@ -48,7 +48,7 @@ the app after installing the package on a clean Windows.
 
 | Field | Value |
 |---|---|
-| Product name | BitSpring: Bit-Perfect Player |
+| Product name | BitSpring (must be the reserved name exactly) |
 | Short description | Bit-perfect hi-res music player for your own FLAC, ALAC and DSD files, with EQ for your headphones. |
 | Search terms (7) | hifi, audiophile, flac, dac, lossless, dsd, wasapi exclusive |
 | Copyright | 2026 Oleksandr Hurov |
@@ -121,5 +121,6 @@ To try it: press "Add folder" and pick any folder with music (FLAC, WAV, MP3 or 
 - Store logos (optional, for Windows 11 Store pages): 1:1 box art 1080 × 1080 and 2:3 poster
   720 × 1080, both from the icon masters (`src-tauri/icons/source`).
 
-Other languages: Partner Center offers a listing for each of the 24 languages the package
-declares; anything left empty falls back to English.
+Other languages: Partner Center adds a listing for each of the 24 languages the package declares
+and wants every one filled. The texts for all of them are in `msstore-listing/<language>.json`
+(English is the source); they go in through Store listings → Export listings / Import listings.

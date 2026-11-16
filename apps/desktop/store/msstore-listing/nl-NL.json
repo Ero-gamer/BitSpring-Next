@@ -1,0 +1,27 @@
+{
+  "language": "nl-NL",
+  "title": "BitSpring",
+  "shortDescription": "Bit-perfect hi-res muziekspeler voor je eigen FLAC-, ALAC- en DSD-bestanden, met een equalizer voor je koptelefoon.",
+  "description": "BitSpring speelt je muziek precies af zoals die is opgenomen. Elke bit van het bestand komt ongewijzigd aan bij je DAC: geen resampling, geen Windows-mixer, geen verrassingen.\n\nHet is gratis en open source. Geen account, geen abonnement, geen advertenties, geen in-app-aankopen, en er wordt niets over jou verzameld.\n\nBIT-PERFECT\n• Exclusieve WASAPI-modus: er wordt geen andere app of systeemgeluid doorheen gemengd, en je DAC schakelt naar de samplerate van elk nummer, tot 768 kHz.\n• Een duidelijke indicator laat zien of het signaal bit-perfect is of wordt bewerkt, en waarom.\n• Naadloos afspelen (gapless) voor livealbums, opera's en dj-mixen.\n• Netwerkspelers: Sonos, WiiM, Bluesound en andere UPnP/DLNA-streamers, en Chromecast- en Google Cast-apparaten, krijgen je muziek als FLAC, sample voor sample en zonder onderbrekingen.\n• Afstandsbediening op telefoon: blader door de bibliotheek en bedien het afspelen vanaf elke telefoon in je netwerk, zonder een app te installeren.\n\nELK FORMAAT DAT JE HEBT\n• FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC en Ogg Vorbis.\n• DSD (DSF, DFF en SACD-images) tot DSD1024: native via DoP op DAC's die het ondersteunen, of omgezet naar PCM op 176,4 kHz.\n• Albumhoezen, tags en een bibliotheek die je muziekmappen in de gaten houdt.\n• Albums die als één bestand met een CUE-sheet zijn geript, spelen gewoon per nummer af.\n• Kwaliteitscontrole: vindt ‘hi-res’-bestanden die eigenlijk geüpsamplede cd's zijn of van MP3 zijn gemaakt, direct op je pc.\n\nVERBETERINGEN, ALLEEN ALS JIJ DAT WILT\n• Parametrische equalizer met lineaire of minimale fase, met kant-en-klare correcties van AutoEQ voor duizenden koptelefoons en in-ears: kies je model gewoon op naam. Hij importeert ook bestanden van Equalizer APO, EasyEffects en AutoEQ.\n• Crossfeed voor een natuurlijker stereobeeld op je koptelefoon.\n• Hoogwaardige upsampling.\n• Voor lossy bestanden: automatische headroom tegen clipping.\nZet ze allemaal uit en het signaal is weer bit-perfect.\n\nJE BIBLIOTHEEK\n• Voeg zoveel muziekmappen toe als je wilt, op interne of externe schijven.\n• Playlists: importeer M3U, PLS, XSPF en WPL, exporteer M3U, PLS, XSPF en CSV.\n• Mediatoetsen en het volumevenster van Windows bedienen het afspelen.\n\nIn 24 talen.",
+  "features": [
+    "Bit-perfect afspelen in exclusieve WASAPI-modus",
+    "Schakelt je DAC naar de samplerate van elk nummer, tot 768 kHz",
+    "Native DSD via DoP, tot DSD1024",
+    "FLAC, ALAC, WAV, AIFF, APE, WavPack, MP3, AAC en meer",
+    "Naadloos afspelen en CUE-sheets",
+    "Netwerkspelers: Sonos, WiiM, UPnP/DLNA en Chromecast",
+    "Parametrische equalizer met AutoEQ-correcties voor duizenden koptelefoons",
+    "Kwaliteitscontrole op nep-hi-res-bestanden",
+    "Gratis en open source: geen account, geen advertenties, geen tracking"
+  ],
+  "searchTerms": [
+    "hifi",
+    "muziekspeler",
+    "flac",
+    "dac",
+    "audiofiel",
+    "lossless",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}

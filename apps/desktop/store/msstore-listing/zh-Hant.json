@@ -1,0 +1,27 @@
+{
+  "language": "zh-Hant",
+  "title": "BitSpring",
+  "shortDescription": "位元完美的高解析音樂播放器，播放你自己的 FLAC、ALAC 與 DSD 檔案，還能依你的耳機型號套用等化器校正。",
+  "description": "BitSpring 讓你的音樂以錄製時的原貌播放。檔案裡的每一個位元都原封不動地送進 DAC：不重新取樣、不經過 Windows 混音器，也不會有任何意外。\n\n免費且開放原始碼。不需要帳號，沒有訂閱、廣告或 App 內購買，也不會蒐集任何關於你的資料。\n\n【位元完美】\n• WASAPI 獨占模式：不會混入其他 App 或系統音效，DAC 會依每首曲目切換到對應的取樣率，最高 768 kHz。\n• 畫面上清楚標示訊號是位元完美還是經過處理，以及原因。\n• 無間斷播放，現場專輯、歌劇與 DJ 混音都能一氣呵成。\n• 網路播放器：將音樂以 FLAC 格式傳送到 Sonos、WiiM、Bluesound 等 UPnP/DLNA 串流播放器，以及 Chromecast 與 Google Cast 裝置，每個取樣都分毫不差，曲目之間也不會出現空檔。\n• 手機遙控：用同一網路上的任何一支手機瀏覽資料庫、控制播放，不必安裝 App。\n\n【你收藏的各種格式】\n• FLAC、ALAC、WAV、AIFF、CAF、MKA、APE、WavPack、TTA、MP3、AAC 與 Ogg Vorbis。\n• DSD（DSF、DFF 與 SACD 光碟映像檔）最高支援 DSD1024：在支援的 DAC 上透過 DoP 原生播放，否則轉換為 176.4 kHz PCM。\n• 專輯封面、標籤，以及會自動留意音樂資料夾變動的資料庫。\n• 以單一檔案搭配 CUE 檔備份的專輯，也能逐首播放。\n• 音質檢查：直接在你的電腦上揪出由 CD 升頻、或由 MP3 轉製而成的「高解析」檔案。\n\n【音效強化，想用時再開】\n• 可選線性相位或最小相位的參數式等化器，內建 AutoEQ 為數千款耳罩式與入耳式耳機提供的現成校正：依型號名稱挑選即可。也能匯入 Equalizer APO、EasyEffects 與 AutoEQ 檔案。\n• 交叉饋送，讓耳機上的立體聲音場更自然。\n• 高品質升頻。\n• 針對有損格式檔案：自動保留餘裕，避免削波。\n全部關閉，訊號就會恢復位元完美。\n\n【你的資料庫】\n• 可加入任何音樂資料夾，內接或外接硬碟皆可。\n• 播放清單：可匯入 M3U、PLS、XSPF 與 WPL，匯出 M3U、PLS、XSPF 與 CSV。\n• 媒體鍵與 Windows 音量浮動面板都能控制播放。\n\n支援 24 種語言。",
+  "features": [
+    "WASAPI 獨占模式，位元完美播放",
+    "DAC 依每首曲目切換取樣率，最高 768 kHz",
+    "透過 DoP 原生播放 DSD，最高 DSD1024",
+    "支援 FLAC、ALAC、WAV、AIFF、APE、WavPack、MP3、AAC 等格式",
+    "無間斷播放，支援 CUE 檔",
+    "支援 Sonos、WiiM、UPnP/DLNA 與 Chromecast 網路播放器",
+    "參數式等化器，內建數千款耳機的 AutoEQ 校正",
+    "音質檢查，揪出假高解析檔案",
+    "免費開源：不需帳號、沒有廣告、不追蹤"
+  ],
+  "searchTerms": [
+    "無損音樂",
+    "高解析",
+    "音樂播放器",
+    "hifi",
+    "flac",
+    "dac",
+    "dsd"
+  ],
+  "releaseNotes": ""
+}
