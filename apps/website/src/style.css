@@ -956,6 +956,84 @@ main,
   background: var(--violet);
 }
 
+/* ---- faq --------------------------------------------------------------------------------- */
+/* Plain <details>: the answers are in the page for search engines and screen readers even
+   while closed, and open without any script. */
+
+.faq {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 48px clamp(32px, 6vw, 112px);
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(80px, 14vh, 160px) var(--gutter);
+}
+
+.faq-head {
+  position: sticky;
+  top: 120px;
+  align-self: start;
+  display: grid;
+  gap: 24px;
+}
+
+.faq-head p {
+  color: var(--mist);
+  max-width: 30rem;
+}
+
+.faq-list {
+  display: grid;
+  border-block-start: 1px solid var(--slate-700);
+}
+
+.faq-item {
+  border-block-end: 1px solid var(--slate-700);
+}
+
+.faq-item summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 24px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary::after {
+  content: "+";
+  flex: none;
+  color: var(--brass);
+  font-size: var(--t-lg);
+  line-height: 1;
+  transition: transform 0.3s var(--ease);
+}
+
+.faq-item[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.faq-item h3 {
+  font-size: var(--t-lg);
+  transition: color 0.3s var(--ease);
+}
+
+.faq-item summary:hover h3 {
+  color: var(--brass);
+}
+
+.faq-item p {
+  margin: 0;
+  padding-block-end: 28px;
+  color: var(--mist);
+  max-width: 40rem;
+}
+
 /* ---- download ---------------------------------------------------------------------------- */
 
 .download {
@@ -1369,11 +1447,13 @@ a.dl-option[href]:active {
   .hero-body,
   .formats-head,
   .app-head,
-  .enhance {
+  .enhance,
+  .faq {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .enhance-head {
+  .enhance-head,
+  .faq-head {
     position: static;
   }
 

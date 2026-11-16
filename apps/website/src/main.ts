@@ -95,6 +95,12 @@ ScrollTrigger.create({
   onToggle: (self) => nav.classList.toggle("is-solid", self.isActive),
 });
 
+// ---- FAQ ---------------------------------------------------------------------------------------
+// An answer opening or closing changes the page's height, which moves every scroll trigger
+// below it (the download section's camera move).
+
+for (const d of $$<HTMLDetailsElement>(".faq-item")) d.addEventListener("toggle", () => ScrollTrigger.refresh());
+
 // ---- 3D field --------------------------------------------------------------------------------
 
 // three.js is most of this page's script, so it loads as its own chunk after the text has

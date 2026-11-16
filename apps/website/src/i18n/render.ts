@@ -41,7 +41,13 @@ function redirectScript(page: string): string {
 // schema.org data for the home pages: WebSite gives Google the site name it shows above the
 // result, SoftwareApplication says this is a free app and for which systems. iOS joins the list
 // once the App Store build is out. No version number: the site isn't rebuilt on app releases.
-function structuredData(site: string, locale: Locale, pageUrl: string, description: string): string {
+function structuredData(
+  site: string,
+  locale: Locale,
+  pageUrl: string,
+  description: string,
+  faq: { q: string; a: string }[],
+): string {
   const home = abs(site, "/");
   const data = {
     "@context": "https://schema.org",
@@ -65,6 +71,13 @@ function structuredData(site: string, locale: Locale, pageUrl: string, descripti
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         sameAs: ["https://github.com/crash2bash/bitspring"],
       },
+      // The questions in the page's FAQ section, word for word.
+      {
+        "@type": "FAQPage",
+        "@id": `${pageUrl}#faq`,
+        inLanguage: locale.tag,
+        mainEntity: faq.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+      },
     ],
   };
   return `<script type="application/ld+json">${escapeJson(data)}</script>`;
@@ -79,6 +92,13 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
     const v = dict[key] ?? fallback[key];
     if (v === undefined) throw new Error(`i18n: missing key "${key}" (${locale.tag})`);
     return v;
+  };
+
+  /** faq.q1/faq.a1, faq.q2/faq.a2, … for as many as the English dictionary has. */
+  const faq = () => {
+    const out: { q: string; a: string }[] = [];
+    for (let i = 1; `faq.q${i}` in fallback; i++) out.push({ q: t(`faq.q${i}`), a: t(`faq.a${i}`) });
+    return out;
   };
 
   const runtime: Dict = {};
@@ -96,7 +116,7 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
       `<meta property="og:locale" content="${locale.tag.replace("-", "_")}" />`,
       `<meta property="og:site_name" content="BitSpring" />`,
       `<meta name="twitter:card" content="summary_large_image" />`,
-      ...(opts.page === "" ? [structuredData(opts.site, locale, abs(opts.site, url(locale)), t("meta.description"))] : []),
+      ...(opts.page === "" ? [structuredData(opts.site, locale, abs(opts.site, url(locale)), t("meta.description"), faq())] : []),
     ].join("\n    "),
     redirect: locale === DEFAULT_LOCALE ? redirectScript(opts.page) : "",
     "lang-options": LOCALES.map(
