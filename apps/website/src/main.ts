@@ -358,19 +358,19 @@ for (const li of $$(".enhance-list li")) {
 
 // App: dim the field behind the screenshot; the window tilts upright as it arrives.
 travel(".app", APP, "top bottom", "top 30%");
-if (!reduceMotion) {
-  gsap.fromTo(
-    ".app-frame",
-    { rotateX: 22, scale: 0.9, y: 60 },
-    {
-      rotateX: 0,
-      scale: 1,
-      y: 0,
-      ease: "none",
-      scrollTrigger: { trigger: ".app-shot", start: "top 95%", end: "top 25%", scrub: 1 },
-    },
-  );
-}
+const tilt = reduceMotion
+  ? null
+  : gsap.fromTo(
+      ".app-frame",
+      { rotateX: 22, scale: 0.9, y: 60 },
+      {
+        rotateX: 0,
+        scale: 1,
+        y: 0,
+        ease: "none",
+        scrollTrigger: { trigger: ".app-shot", start: "top 95%", end: "top 25%", scrub: 1 },
+      },
+    );
 
 // Glass | Classic: the same moment in the app, in either look. Arrow keys move between the two,
 // like any radio group.
@@ -404,7 +404,9 @@ for (const b of lookButtons) {
 // too narrow for the desktop window: there the button opens the demo full screen, in the app's
 // own phone layout.
 const DEMO_URL = import.meta.env.DEV ? "http://127.0.0.1:1420/?demo&" : "/demo/?";
-const DEMO_WIDTH = 1120;
+/** The size the app's window needs here (the screenshots' 1120×740): a wider frame gets the app
+    at its own size, a narrower one this size scaled down, so nothing is cut off at the bottom. */
+const DEMO_MIN_WIDTH = 1120;
 const wide = matchMedia("(min-width: 900px)");
 const frame = $("[data-demo-frame]");
 let demoFrame: HTMLIFrameElement | null = null;
@@ -423,8 +425,25 @@ function embedDemo() {
   demoFrame.src = demoSrc();
   // The page arrives before the app has drawn itself: give it a moment, then fade it in.
   demoFrame.addEventListener("load", () => setTimeout(() => frame.classList.add("is-live"), 350));
-  const fit = () => frame.style.setProperty("--demo-scale", String(frame.clientWidth / DEMO_WIDTH));
+  // A live window with frosted glass is costly to redraw: it sits still (no scroll tilt), at its
+  // own size rather than scaled when there is room, and the field behind it stops drawing while
+  // it is on screen.
+  tilt?.scrollTrigger?.kill();
+  tilt?.kill();
+  gsap.set(frame, { clearProps: "transform" });
+  appShot.classList.add("is-flat");
+  const fit = () => {
+    const w = frame.clientWidth;
+    const h = frame.clientHeight;
+    const scale = Math.min(1, w / DEMO_MIN_WIDTH);
+    demoFrame!.style.width = `${w / scale}px`;
+    demoFrame!.style.height = `${h / scale}px`;
+    frame.style.setProperty("--demo-scale", String(scale));
+  };
   fit();
+  if (field) {
+    new IntersectionObserver(([e]) => field.setRunning(e.intersectionRatio < 0.4), { threshold: [0, 0.4] }).observe(frame);
+  }
   new ResizeObserver(fit).observe(frame);
   frame.append(demoFrame);
 }

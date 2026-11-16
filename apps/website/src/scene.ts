@@ -160,6 +160,8 @@ export interface Field {
   /** Pointer in -1..1, for a slight parallax in the hero. */
   pointer: { x: number; y: number };
   setMotion(enabled: boolean): void;
+  /** false stops drawing (the last frame stays up), e.g. while the live demo covers the field. */
+  setRunning(running: boolean): void;
   resize(): void;
 }
 
@@ -284,6 +286,9 @@ export function createField(canvas: HTMLCanvasElement, opts: { mirror?: boolean 
     resize,
     setMotion(enabled) {
       motion = enabled;
+    },
+    setRunning(running) {
+      renderer.setAnimationLoop(running ? frame : null);
     },
   };
 }

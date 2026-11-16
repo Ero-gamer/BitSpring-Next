@@ -462,7 +462,8 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "playlist_export":
       return "/Users/me/Downloads/playlist.m3u8" as T;
     case "streaming_status":
-      return { available: !isIOS && !storeBuild, quality: mockQuality, accounts: ["qobuz", "tidal"].map((s) => ({ service: s, signedIn: mockSignedIn[s], user: mockSignedIn[s] ? "me@example.com" : null, note: null })) } as T;
+      // The website demo leaves streaming out, like the store builds.
+      return { available: !isIOS && !storeBuild && !isDemo, quality: mockQuality, accounts: ["qobuz", "tidal"].map((s) => ({ service: s, signedIn: mockSignedIn[s], user: mockSignedIn[s] ? "me@example.com" : null, note: null })) } as T;
     case "streaming_set_quality":
       mockQuality = args.quality as string;
       return undefined as T;
