@@ -36,7 +36,7 @@ for (const soon of document.querySelectorAll<HTMLElement>(".dl-option.is-soon"))
 // A link to a specific platform (/download/#windows, from the home page's list) wins over
 // detection, so "I'm on a Mac but want the Windows build" works.
 
-const PLATFORMS: Platform[] = ["mac", "windows", "ios", "android"];
+const PLATFORMS: Platform[] = ["mac", "windows", "linux", "ios", "android"];
 const detected = detectPlatform();
 const slot = document.querySelector<HTMLElement>("[data-featured]")!;
 const list = document.querySelector<HTMLElement>(".dl-list")!;

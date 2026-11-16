@@ -1,4 +1,5 @@
-//! Updates for the builds from the website (Mac DMG, Windows installer, Android APK).
+//! Updates for the builds from the website (Mac DMG, Windows installer, Android APK, Linux
+//! AppImage).
 //!
 //! Every release on GitHub carries `latest.json`: the version, its notes, and per platform a
 //! download and, for Mac and Windows, a signature made with our updater key. Mac and Windows go
@@ -48,18 +49,24 @@ pub async fn update_check(app: AppHandle) -> Result<UpdateCheck, UserError> {
     // A development build is a bare binary in target/debug, not an installed app: the macOS
     // updater takes the folder around it for the app bundle and replaces it wholesale (it once
     // swapped target/debug for a release BitSpring.app). Only installed builds update.
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) || !self_updating() {
         return Ok(UpdateCheck { enabled: false, current, update: None });
     }
     let update = platform::check(&app, &current).await?;
     Ok(UpdateCheck { enabled: true, current, update })
 }
 
+/// Can this copy replace itself? On Linux only the AppImage can (Tauri's updater swaps the
+/// file `$APPIMAGE` names); a .deb install is the package manager's to update.
+fn self_updating() -> bool {
+    !cfg!(target_os = "linux") || std::env::var_os("APPIMAGE").is_some()
+}
+
 /// Download and install the newer version, then restart into it (Android: open the system
 /// installer, which takes over).
 #[tauri::command]
 pub async fn update_install(app: AppHandle) -> Result<(), UserError> {
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) || !self_updating() {
         return Ok(()); // see update_check
     }
     DONE.store(0, Ordering::Relaxed);

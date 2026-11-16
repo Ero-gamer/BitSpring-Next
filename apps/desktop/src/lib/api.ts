@@ -453,6 +453,8 @@ export const isIOS =
 export const isAndroid =
   typeof navigator !== "undefined" &&
   (/Android/.test(navigator.userAgent) || (!("__TAURI_INTERNALS__" in window) && new URLSearchParams(location.search).has("android")));
+/** Linux desktops. */
+export const isLinux = typeof navigator !== "undefined" && navigator.userAgent.includes("Linux") && !navigator.userAgent.includes("Android");
 export const isMac = typeof navigator !== "undefined" && navigator.userAgent.includes("Mac") && !isIOS && !isAndroid;
 /** The system mixer that shared mode goes through. */
 export function osMixer(): string {

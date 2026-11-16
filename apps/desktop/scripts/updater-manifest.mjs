@@ -1,15 +1,17 @@
 // Writes latest.json for a release: the file every installed website build (Mac DMG, Windows,
-// Android APK) reads to learn about a new version. Upload it to the GitHub release next to the
+// Android APK, Linux AppImage) reads to learn about a new version. Upload it to the GitHub release next to the
 // installers; https://github.com/crash2bash/bitspring/releases/latest/download/latest.json then
 // always points at the newest one.
 //
 //   node scripts/updater-manifest.mjs --version 0.3.0 --notes notes.md \
-//     --mac-sig <BitSpring.app.tar.gz.sig> --win-sig <BitSpring-windows-setup.exe.sig> > latest.json
+//     --mac-sig <BitSpring.app.tar.gz.sig> --win-sig <BitSpring-windows-setup.exe.sig> \
+//     [--linux-sig <BitSpring-linux.AppImage.sig>] > latest.json
 //
 // Expects these release assets (names are what the URLs below point at):
 //   BitSpring-mac.app.tar.gz   the updater archive of the universal Mac app (bundle/macos/BitSpring.app.tar.gz)
 //   BitSpring-windows-setup.exe  the NSIS installer (signed by the same build: .exe.sig)
 //   BitSpring-android.apk      the release-signed APK (Android checks the signing key itself)
+//   BitSpring-linux.AppImage   the AppImage (it replaces itself on update; .deb installs don't update)
 // --base overrides the download address (for testing against a local server).
 import { readFileSync } from "node:fs";
 
@@ -43,4 +45,8 @@ const manifest = {
     "android-aarch64": { signature: "", url: `${androidBase}/BitSpring-android.apk` },
   },
 };
+// Linux from 0.18.4 on: the AppImage, signed like the others.
+if (args["linux-sig"]) {
+  manifest.platforms["linux-x86_64"] = { signature: sig(args["linux-sig"]), url: `${base}/BitSpring-linux.AppImage` };
+}
 process.stdout.write(JSON.stringify(manifest, null, 2) + "\n");

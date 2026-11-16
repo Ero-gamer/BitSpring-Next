@@ -3,7 +3,7 @@
 //! Everything between the decoded track and the device buffers lives here: the processing
 //! chain on its render thread, the lock-free hand-off to the realtime callback, DoP packing,
 //! sample format conversion, position, seek and meters. A backend (CoreAudio on macOS, WASAPI
-//! on Windows) only finds the device, sets its rate and format, and calls
+//! on Windows, ALSA on Linux) only finds the device, sets its rate and format, and calls
 //! [`Shared::render`] from its realtime callback with the device's buffers.
 
 use crate::channels::{Route, Speaker};
@@ -33,6 +33,8 @@ pub use crate::wasapi_out::{Device, DeviceInfo, Player, output_devices};
 pub use crate::ios_out::{Device, DeviceInfo, Player, dop_blocker, output_devices, system_volume};
 #[cfg(target_os = "android")]
 pub use crate::android_out::{Device, DeviceInfo, Player, output_devices};
+#[cfg(target_os = "linux")]
+pub use crate::linux_out::{Device, DeviceInfo, Player, output_devices};
 
 /// The system volume (0…1), where the OS may scale our samples with it (iOS). None elsewhere:
 /// on a Mac or PC in exclusive mode the OS volume doesn't touch the stream.

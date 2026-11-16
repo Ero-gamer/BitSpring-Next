@@ -1,7 +1,7 @@
 // Where each build of the app is published. While a link is null, every button for it says
 // "coming soon"; fill them in at release and all pages in every language pick them up.
 //
-// Files (.dmg / .exe / .apk) can live on GitHub Releases: the repository is public, and
+// Files (.dmg / .exe / .apk / .AppImage / .deb) can live on GitHub Releases: the repository is public, and
 // https://github.com/crash2bash/bitspring/releases/latest/download/<asset-name> always points at
 // the newest release, as long as the asset keeps the same name.
 export const LINKS: {
@@ -17,6 +17,10 @@ export const LINKS: {
   windowsFile: string | null;
   /** Google Play page or a direct .apk download. */
   android: string | null;
+  /** AppImage: runs on any distribution; updates itself. */
+  linuxFile: string | null;
+  /** .deb package for Ubuntu, Debian and their relatives. */
+  linuxDeb: string | null;
 } = {
   macAppStore: null,
   macFile: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-mac.dmg",
@@ -24,6 +28,8 @@ export const LINKS: {
   windowsStore: null,
   windowsFile: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-windows-setup.exe",
   android: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-android.apk",
+  linuxFile: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-linux.AppImage",
+  linuxDeb: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-linux.deb",
 };
 
 // Public origin of the site, e.g. "https://bitspring.app". Used at build time for hreflang,

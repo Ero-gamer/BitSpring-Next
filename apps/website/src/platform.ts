@@ -2,12 +2,12 @@
 
 import { LINKS } from "./config";
 
-export type Platform = "mac" | "ios" | "windows" | "android" | "other";
+export type Platform = "mac" | "ios" | "windows" | "android" | "linux" | "other";
 
 export function detectPlatform(): Platform {
   // ?platform=mac etc. overrides detection: handy for links in emails and for testing.
   const forced = new URLSearchParams(location.search).get("platform");
-  if (forced === "mac" || forced === "ios" || forced === "windows" || forced === "android") return forced;
+  if (forced === "mac" || forced === "ios" || forced === "windows" || forced === "android" || forced === "linux") return forced;
 
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
   const ua = nav.userAgent;
@@ -17,6 +17,8 @@ export function detectPlatform(): Platform {
   if (/Android/i.test(ua)) return "android";
   if (/Mac/i.test(platform) || /Mac OS X/.test(ua)) return "mac";
   if (/Win/i.test(platform) || /Windows/.test(ua)) return "windows";
+  // Desktop Linux (Android is caught above; Chromebooks say CrOS).
+  if (/Linux/i.test(platform) || (/Linux|X11/.test(ua) && !/CrOS/.test(ua))) return "linux";
   return "other";
 }
 
@@ -31,6 +33,8 @@ export function isAvailable(p: Platform): boolean {
       return !!LINKS.windowsFile;
     case "android":
       return !!LINKS.android;
+    case "linux":
+      return !!(LINKS.linuxFile || LINKS.linuxDeb);
     default:
       return false;
   }

@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
         let t0 = Instant::now();
         let track = hifi_engine::open_track(std::path::Path::new(&file))?;
         let opened = t0.elapsed();
-        let p = Player::start(device.device, track.clone(), &PlayOptions { dsp, ..Default::default() })?;
+        let p = Player::start(device.device.clone(), track.clone(), &PlayOptions { dsp, ..Default::default() })?;
         println!(
             "[{name}] opened in {:.1} ms, playing after {:.1} ms with {:.2} s decoded of {:.2} s (complete: {})",
             opened.as_secs_f64() * 1e3,

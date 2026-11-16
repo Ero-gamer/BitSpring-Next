@@ -90,6 +90,13 @@ button {
   border-radius: var(--r-sm);
 }
 
+/* Driven by a game controller (see gamepad.ts): a ring you can see from the sofa. */
+:root[data-pad] [data-pad-focus] {
+  outline: 3px solid var(--porcelain);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
 /* Scroll bars (shown when macOS is set to always show them, and on Windows): a thin rounded
    thumb on no track, instead of the light system bar over the content. */
 ::-webkit-scrollbar {
