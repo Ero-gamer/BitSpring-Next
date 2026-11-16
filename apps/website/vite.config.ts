@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 
 import { SITE_URL } from "./src/config";
-import { DEFAULT_LOCALE, LOCALES } from "./src/i18n/locales";
+import { DEFAULT_LOCALE, LOCALES, localeUrl } from "./src/i18n/locales";
 import { renderPage } from "./src/i18n/render";
 
 /** Page templates, by their path below a language root. */
@@ -15,6 +15,26 @@ const PAGES: Record<string, string> = {
 };
 
 const LOCALE_PATH = "[a-z]{2}(?:-[a-z]+)?";
+
+/** Every page in every language, each listing its translations (the same set as the hreflang
+ *  links in the pages), so search engines find all languages without crawling the switcher. */
+function sitemap(): string {
+  const loc = (l: (typeof LOCALES)[number], page: string) => `${SITE_URL}${localeUrl(l)}${page}`;
+  const entries = Object.keys(PAGES).flatMap((page) => {
+    const alternates = [
+      ...LOCALES.map((l) => `    <xhtml:link rel="alternate" hreflang="${l.tag}" href="${loc(l, page)}"/>`),
+      `    <xhtml:link rel="alternate" hreflang="x-default" href="${loc(DEFAULT_LOCALE, page)}"/>`,
+    ].join("\n");
+    return LOCALES.map((l) => `  <url>\n    <loc>${loc(l, page)}</loc>\n${alternates}\n  </url>`);
+  });
+  return [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">`,
+    ...entries,
+    `</urlset>`,
+    ``,
+  ].join("\n");
+}
 
 /** One static page per language and template: "/", "/download/", "/de/", "/de/download/", … */
 function i18nPages(): Plugin {
@@ -66,6 +86,8 @@ function i18nPages(): Plugin {
           else this.emitFile({ type: "asset", fileName: `${l.path}/${file}`, source: html });
         }
       }
+      this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap() });
+      this.emitFile({ type: "asset", fileName: "robots.txt", source: `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n` });
     },
   };
 }

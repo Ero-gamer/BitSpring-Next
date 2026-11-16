@@ -8,6 +8,11 @@
   "trailingSlash": true,
   "headers": [
     {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "hifi-player-nu.vercel.app" }],
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {

@@ -38,6 +38,38 @@ function redirectScript(page: string): string {
   return `<script>(function(){var P=${escapeJson(paths)};function m(t){t=t.toLowerCase();var l=t.split("-")[0];if(l==="zh")return /-(hant|tw|hk|mo)\\b/.test(t)?"zh-hant":"zh-hans";if(l==="no"||l==="nn")l="nb";if(l==="pt")return"pt-br";if(l==="en")return"";return P.indexOf(l)>=0?l:null}var p=null;try{p=localStorage.getItem("lang")}catch(e){}if(p===null){var ls=navigator.languages||[navigator.language||""];for(var i=0;i<ls.length&&p===null;i++)p=m(ls[i]||"")}if(p&&P.indexOf(p)>=0){document.documentElement.style.visibility="hidden";location.replace("/"+p+"/"+${escapeJson(page)}+location.search+location.hash)}})()</script>`;
 }
 
+// schema.org data for the home pages: WebSite gives Google the site name it shows above the
+// result, SoftwareApplication says this is a free app and for which systems. iOS joins the list
+// once the App Store build is out. No version number: the site isn't rebuilt on app releases.
+function structuredData(site: string, locale: Locale, pageUrl: string, description: string): string {
+  const home = abs(site, "/");
+  const data = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "WebSite", "@id": `${home}#website`, name: "BitSpring", url: home, inLanguage: locale.tag },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${home}#app`,
+        name: "BitSpring",
+        url: pageUrl,
+        description,
+        inLanguage: locale.tag,
+        applicationCategory: "MultimediaApplication",
+        applicationSubCategory: "Music player",
+        operatingSystem: "macOS, Windows, Android",
+        downloadUrl: abs(site, localeUrl(locale) + "download/"),
+        image: abs(site, "/og.png"),
+        screenshot: abs(site, "/screens/player-classic.webp"),
+        isAccessibleForFree: true,
+        license: "https://opensource.org/licenses/MIT",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        sameAs: ["https://github.com/crash2bash/bitspring"],
+      },
+    ],
+  };
+  return `<script type="application/ld+json">${escapeJson(data)}</script>`;
+}
+
 /** `page`: path below the language root, "" for home or "download/". */
 export function renderPage(template: string, locale: Locale, opts: { site: string; page: string }): string {
   const url = (l: Locale) => localeUrl(l) + opts.page;
@@ -62,6 +94,9 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
       `<meta property="og:url" content="${abs(opts.site, url(locale))}" />`,
       `<meta property="og:image" content="${abs(opts.site, "/og.png")}" />`,
       `<meta property="og:locale" content="${locale.tag.replace("-", "_")}" />`,
+      `<meta property="og:site_name" content="BitSpring" />`,
+      `<meta name="twitter:card" content="summary_large_image" />`,
+      ...(opts.page === "" ? [structuredData(opts.site, locale, abs(opts.site, url(locale)), t("meta.description"))] : []),
     ].join("\n    "),
     redirect: locale === DEFAULT_LOCALE ? redirectScript(opts.page) : "",
     "lang-options": LOCALES.map(
