@@ -113,9 +113,11 @@ To try it: press "Add folder" and pick any folder with music (FLAC, WAV, MP3 or 
 
 ### Images
 
-- Screenshots: 1366 × 768 or larger PNG, 1 to 10 (recommended 1920 × 1080 or 2880 × 1800;
-  the Mac screenshots in `screenshots/mac` are the right shape but show macOS window controls,
-  so Windows ones are better).
+- Screenshots: `screenshots/windows`, four 2880 × 1620 PNGs (the Store takes 1366 × 768 and up,
+  1 to 10). Upload in name order. Retake after UI changes: `npm run dev`, then
+  `node scripts/store-screenshots.mjs windows`. They come from the mock backend dressed as the
+  Store build (no streaming tab), and the album covers are our own abstract art
+  (src/lib/mockCovers.ts): never use real album covers, they are other people's artwork.
 - Store logos (optional, for Windows 11 Store pages): 1:1 box art 1080 × 1080 and 2:3 poster
   720 × 1080, both from the icon masters (`src-tauri/icons/source`).
 

@@ -130,7 +130,11 @@ A USB DAC is not required: the app plays through the built-in speaker or headpho
 
 - iPhone: 6.9" display (1320 × 2868), 3 to 10 screenshots. Taken in the simulator on an
   iPhone 17 Pro Max with real-looking albums.
-- Mac: 2880 × 1800 (16:10), 1 to 10 screenshots.
+- Mac: 2880 × 1800 (16:10), 1 to 10 screenshots: `screenshots/mac`, taken with
+  `node scripts/store-screenshots.mjs mac` (with `npm run dev` running). Like the App Store build
+  they have no Streaming tab; covers are our own abstract art (src/lib/mockCovers.ts).
+- The iPhone screenshots still show the old flat placeholder covers; retake them before the
+  first iPhone submission.
 
 ---
 

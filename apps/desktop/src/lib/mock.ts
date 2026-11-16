@@ -3,14 +3,17 @@
 // Device and preset names are generic on purpose: these screens end up in screenshots, and
 // BitSpring works with any DAC and any headphones.
 import { isIOS } from "./api";
+import { MOCK_COVERS } from "./mockCovers";
 import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack, Lyrics, NowPlaying, Signal, Status, StoredPreset } from "./api";
 
 // ---- library ----------------------------------------------------------------------------------
 /** The engine's name for untagged music (api.ts UNKNOWN_ARTIST; not imported: api.ts imports this file). */
 const UNKNOWN_ARTIST = "Unknown artist";
+/** ?store: look like an App Store / Microsoft Store build (no streaming, no self-updating). */
+const storeBuild = new URLSearchParams(location.search).has("store");
 const LIB: [string, string, string | null, string | null, string, number, number | null, string | null, string[]][] = [
   ["Ada Marlow", "Paper Moons", "2017", "Folk", "ALAC", 48000, 24, "#6b5d2e", ["Kite Strings", "Harbour", "Paper Moons"]],
-  ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, null, ["Carrier", "Sideband", "Noise Floor"]],
+  ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, "#16233a", ["Carrier", "Sideband", "Noise Floor"]],
   ["Halvorsen Quartet", "Strings in Winter", "2021", "Classical", "FLAC", 192000, 24, "#2e3b6b", ["I. Allegro", "II. Adagio", "III. Scherzo", "IV. Finale"]],
   ["Northern Lights Trio", "Quiet Hours", "2019", "Jazz", "FLAC", 96000, 24, "#2b4a5c", ["Morning Glass", "Slow Current", "Blue Hour", "Afterglow"]],
   ["Northern Lights Trio", "City Rain", "2022", "Jazz", "FLAC", 44100, 16, "#5c3a2b", ["Neon Puddles", "Last Tram", "Umbrella Song"]],
@@ -38,7 +41,13 @@ const libAlbums: Album[] = LIB.map(([artist, title, year, genre, format, rate, b
 });
 const coverColor: Record<string, string> = Object.fromEntries(LIB.map((a, i) => [`a${i}`, a[7] ?? "#1f3039"]));
 
+const coverCache = new Map<string, string>();
 export function mockCover(id: string): string {
+  const art = MOCK_COVERS[id];
+  if (art) {
+    if (!coverCache.has(id)) coverCache.set(id, art());
+    return coverCache.get(id)!;
+  }
   const c = coverColor[id] ?? "#1f3039";
   return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="${c}"/><circle cx="150" cy="150" r="90" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"/></svg>`)}`;
 }
@@ -313,7 +322,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return undefined as T;
     case "update_check":
       return {
-        enabled: true, current: "0.2.0",
+        enabled: !storeBuild, current: "0.2.0",
         update: new URLSearchParams(location.search).has("update")
           ? { version: "0.3.0", date: null, notes: "**What's new**\n- **Equalizer** presets per output.\n- Faster library scan." }
           : null,
@@ -427,7 +436,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "playlist_export":
       return "/Users/me/Downloads/playlist.m3u8" as T;
     case "streaming_status":
-      return { available: !isIOS, quality: mockQuality, accounts: ["qobuz", "tidal"].map((s) => ({ service: s, signedIn: mockSignedIn[s], user: mockSignedIn[s] ? "me@example.com" : null, note: null })) } as T;
+      return { available: !isIOS && !storeBuild, quality: mockQuality, accounts: ["qobuz", "tidal"].map((s) => ({ service: s, signedIn: mockSignedIn[s], user: mockSignedIn[s] ? "me@example.com" : null, note: null })) } as T;
     case "streaming_set_quality":
       mockQuality = args.quality as string;
       return undefined as T;
