@@ -703,7 +703,7 @@ pub fn headphone_preset(name: &str) -> Option<EqPreset> {
 /// AutoEQ's whole catalog (every headphone it has results for, often measured by several
 /// people), packed by data/autoeq_catalog.py and served with the website, so the app fetches
 /// one file instead of thousands, and from us rather than GitHub.
-pub const AUTOEQ_CATALOG: &str = "https://hifi-player-nu.vercel.app/autoeq/catalog.json";
+pub const AUTOEQ_CATALOG: &str = "https://bitspring.app/autoeq/catalog.json";
 
 /// One measurement in the catalog.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]

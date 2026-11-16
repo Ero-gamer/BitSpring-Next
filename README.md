@@ -10,7 +10,7 @@ means bit-perfect again.
 - Parametric EQ with AutoEQ, Equalizer APO and EasyEffects import; crossfeed; upsampling
 - No account, no ads, no in-app purchases, nothing collected
 
-**Download:** https://hifi-player-nu.vercel.app/download/ or the
+**Download:** https://bitspring.app/download/ or the
 [latest release](https://github.com/crash2bash/bitspring/releases/latest).
 
 ## Layout

@@ -18,9 +18,9 @@ user's own files only. Don't mention streaming anywhere in the listing.
 | Secondary category | Utilities |
 | Price | Free, no in-app purchases |
 | Age rating | 4+ (answer "None" to every question) |
-| Privacy policy URL | https://hifi-player-nu.vercel.app/privacy/ |
+| Privacy policy URL | https://bitspring.app/privacy/ |
 | Support URL | https://github.com/crash2bash/bitspring/issues |
-| Marketing URL | https://hifi-player-nu.vercel.app/ |
+| Marketing URL | https://bitspring.app/ |
 | Copyright | 2026 Oleksandr Hurov |
 | Content rights | Contains no third-party content |
 | Export compliance | Uses only exempt encryption (ITSAppUsesNonExemptEncryption = NO in the builds) |

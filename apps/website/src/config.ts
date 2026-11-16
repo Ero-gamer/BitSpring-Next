@@ -23,6 +23,6 @@ export const LINKS: {
   android: "https://github.com/crash2bash/bitspring/releases/latest/download/BitSpring-android.apk",
 };
 
-// Public origin of the site, e.g. "https://hifi.example". Used at build time for hreflang,
+// Public origin of the site, e.g. "https://bitspring.app". Used at build time for hreflang,
 // canonical and og:image URLs, which search engines and link previews want absolute.
-export const SITE_URL = "https://hifi-player-nu.vercel.app";
+export const SITE_URL = "https://bitspring.app";

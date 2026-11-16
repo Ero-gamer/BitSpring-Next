@@ -36,8 +36,8 @@ the app after installing the package on a clean Windows.
 |---|---|
 | Category | Music |
 | Subcategory | — |
-| Privacy policy URL | https://hifi-player-nu.vercel.app/privacy/ |
-| Website | https://hifi-player-nu.vercel.app/ |
+| Privacy policy URL | https://bitspring.app/privacy/ |
+| Website | https://bitspring.app/ |
 | Support contact | https://github.com/crash2bash/bitspring/issues |
 | Product declarations | Leave the defaults (no accessibility claim, installs on up to 10 devices) |
 | System requirements | Minimum: Windows 10 version 1809, x64. Recommended: a USB DAC |
