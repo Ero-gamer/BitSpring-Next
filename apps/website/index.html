@@ -177,6 +177,16 @@
             <!-- Phones (≤700px, the frame's breakpoint) pick the iPhone screen: 300px wide there, while the
                  2300px "size" elsewhere always lands on the desktop shot. main.ts takes over from here. -->
             <img class="shot is-on" src="/screens/player-glass.webp" srcset="/screens/player-glass-phone.webp 1179w, /screens/player-glass.webp 2240w" sizes="(max-width: 700px) 300px, 2300px" width="2240" height="1480" alt="{{app.alt}}" loading="lazy" decoding="async" />
+            <script>
+              // Android phones: the Android screen instead of the iPhone one, before it loads. Mirrors
+              // detectPlatform() in platform.ts, ?platform= included.
+              (function () {
+                var f = new URLSearchParams(location.search).get("platform");
+                if (f ? f !== "android" : !/Android/i.test(navigator.userAgent)) return;
+                var i = document.currentScript.previousElementSibling;
+                i.srcset = i.srcset.replace("player-glass-phone.webp 1179w", "player-glass-android.webp 1082w");
+              })();
+            </script>
             <img class="shot" width="2240" height="1480" alt="" decoding="async" />
             <!-- The tabs drawn in the screenshot answer clicks too (the real ones are above). -->
             <button type="button" class="hotspot" tabindex="-1" aria-hidden="true" data-screen="player"></button>

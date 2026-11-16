@@ -868,6 +868,12 @@ main,
     border-radius: 46px;
   }
 
+  /* Android phones' corners are rounder than a square but tighter than an iPhone's. */
+  .app-shot[data-device="android"] .app-frame {
+    border-width: 6px;
+    border-radius: 34px;
+  }
+
   .hotspot {
     top: 90%;
     height: 7%;

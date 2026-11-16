@@ -54,3 +54,5 @@ To retake them: `npm run dev` in `apps/desktop`, `node scripts/site-screenshots.
 then `cwebp -q 82 <dir>/<name>.png -o public/screens/<name>.webp` for each.
 Phones (≤700px wide) get the iPhone app's screens instead, `<screen>-<look>-phone.webp`
 (393×852 @3x with the iOS status bar and home indicator drawn in): the same script with `--phone`.
+Android phones get `<screen>-<look>-android.webp` (412×915 @2.625x, Android status bar and gesture
+bar): `--android`.

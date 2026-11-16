@@ -8,10 +8,13 @@
 // `--phone` takes the same screens as the iPhone app shows them (<screen>-<look>-phone.png),
 // which the site shows on phones: 393×852 points at 3× (iPhone 15/16 class), with the status
 // bar, Dynamic Island and home indicator drawn over the app the way iOS lays them out.
+// `--android` does the same for Android phones (<screen>-<look>-android.png): 412×915 dp at
+// 2.625× (Pixel class), status bar, camera punch-hole and gesture bar.
 import { chromium } from "playwright-core";
 
 const args = process.argv.slice(2);
-const phone = args.includes("--phone");
+const kind = args.includes("--android") ? "android" : args.includes("--phone") ? "phone" : "desktop";
+const phone = kind !== "desktop";
 const [url = "http://127.0.0.1:1420", out = new URL("../../website/public/screens", import.meta.url).pathname] = args.filter(
   (a) => !a.startsWith("--"),
 );
@@ -29,7 +32,13 @@ const PHONE = {
   ua: "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",
   suffix: "-phone",
 };
-const device = phone ? PHONE : DESKTOP;
+const ANDROID = {
+  size: { width: 412, height: 915 },
+  scale: 2.625,
+  ua: "Mozilla/5.0 (Linux; Android 16; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
+  suffix: "-android",
+};
+const device = { desktop: DESKTOP, phone: PHONE, android: ANDROID }[kind];
 
 // iOS draws these over every app; the app keeps clear of them through --safe-top/--safe-bottom
 // (the same variables its own iPhone build fills from env(safe-area-inset-*)).
@@ -48,6 +57,27 @@ const IOS_CHROME = `
   </div>
   <div style="position:fixed;left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;
     background:rgba(255,255,255,0.8);z-index:2147483647;pointer-events:none"></div>`;
+
+// Android's status bar (clock left, Wi-Fi/signal/battery right, the front camera's punch-hole
+// in the middle) and the gesture bar.
+const ANDROID_CHROME = `
+  <div style="position:fixed;inset:0 0 auto 0;height:40px;z-index:2147483647;pointer-events:none;
+    font:500 14px/1 Roboto,'Google Sans',system-ui;color:#fff">
+    <span style="position:absolute;left:24px;top:14px">9:30</span>
+    <span style="position:absolute;left:50%;top:9px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:#000"></span>
+    <svg style="position:absolute;right:22px;top:13px" width="58" height="14" viewBox="0 0 58 14" fill="#fff">
+      <path d="M8 13 0.6 4.6a10.6 10.6 0 0 1 14.8 0z"/>
+      <path d="M19 13h12V1z"/>
+      <rect x="38" y="2" width="18" height="10" rx="2.5" fill="none" stroke="#fff" stroke-opacity="0.5"/>
+      <rect x="39.5" y="3.5" width="12" height="7" rx="1.2"/>
+    </svg>
+  </div>
+  <div style="position:fixed;left:50%;bottom:10px;width:108px;height:4px;margin-left:-54px;border-radius:2px;
+    background:rgba(255,255,255,0.75);z-index:2147483647;pointer-events:none"></div>`;
+const SYSTEM_BARS = {
+  phone: { top: 59, bottom: 34, html: IOS_CHROME },
+  android: { top: 40, bottom: 24, html: ANDROID_CHROME },
+}[kind];
 
 const browser = await chromium.launch({ channel: "chrome" }); // the installed Google Chrome
 for (const look of ["glass", "classic"]) {
@@ -70,11 +100,11 @@ for (const look of ["glass", "classic"]) {
   };
   await page.goto(`${url}/?store`);
   if (phone) {
-    await page.evaluate((html) => {
-      document.documentElement.style.setProperty("--safe-top", "59px");
-      document.documentElement.style.setProperty("--safe-bottom", "34px");
+    await page.evaluate(({ top, bottom, html }) => {
+      document.documentElement.style.setProperty("--safe-top", `${top}px`);
+      document.documentElement.style.setProperty("--safe-bottom", `${bottom}px`);
       document.body.insertAdjacentHTML("beforeend", html);
-    }, IOS_CHROME);
+    }, SYSTEM_BARS);
   }
   await page.waitForTimeout(1500);
 

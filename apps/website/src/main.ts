@@ -411,11 +411,14 @@ const ALT: Record<string, string> = {
   library: t("app.alt_library"),
   eq: t("app.alt_eq"),
 };
-// Phones get the iPhone app's screens (<name>-phone.webp, 1179×2556) in a phone-shaped frame;
-// the width matches the frame's breakpoint in style.css.
+// Phones get the phone app's screens in a phone-shaped frame: Android ones on Android
+// (<name>-android.webp, 1082×2402), the iPhone ones everywhere else (<name>-phone.webp,
+// 1179×2556). The width matches the frame's breakpoint in style.css.
 const phoneShots = matchMedia("(max-width: 700px)");
+const phoneKind = platform === "android" ? "android" : "phone";
+appShot.dataset.device = phoneKind;
 const fileOf = (look: Look, screen: Screen, eq: boolean) =>
-  (screen === "player" && eq ? "processing" : screen) + "-" + look + (phoneShots.matches ? "-phone" : "");
+  (screen === "player" && eq ? "processing" : screen) + "-" + look + (phoneShots.matches ? `-${phoneKind}` : "");
 const srcOf = (look: Look, screen: Screen, eq: boolean) => `/screens/${fileOf(look, screen, eq)}.webp`;
 
 /** Crossfade: the next shot decodes in the hidden layer, then takes over. */
@@ -442,14 +445,15 @@ async function render() {
 
 /** Width and height for the shots' aspect ratio before they load. */
 function sizeShots() {
-  const [w, h] = phoneShots.matches ? [1179, 2556] : [2240, 1480];
+  const [w, h] = !phoneShots.matches ? [2240, 1480] : phoneKind === "android" ? [1082, 2402] : [1179, 2556];
   for (const s of shots) {
     s.width = w;
     s.height = h;
   }
 }
-// The first shot comes with a srcset (index.html) so the browser fetches the right one before
-// any script runs; from here on render() sets plain src, which a srcset would override.
+// The first shot comes with a srcset (index.html; an inline script there switches it to the
+// Android file on Android) so the browser fetches the right one before any module runs; from
+// here on render() sets plain src, which a srcset would override.
 sizeShots();
 shots[0].src = srcOf(view.look, view.screen, view.eq);
 shots[0].removeAttribute("srcset");
