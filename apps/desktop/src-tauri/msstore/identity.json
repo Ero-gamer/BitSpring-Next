@@ -1,6 +1,6 @@
 {
-  "_comment": "Placeholders until the name is reserved. Copy the three values from Partner Center → BitSpring → Product management → Product identity (Package/Identity/Name, Package/Identity/Publisher, Package/Properties/PublisherDisplayName).",
-  "name": "BitSpring.Placeholder",
-  "publisher": "CN=00000000-0000-0000-0000-000000000000",
+  "_comment": "From Partner Center → BitSpring → Product management → Product identity. Store ID 9NDVJBXLSHVM, https://apps.microsoft.com/detail/9NDVJBXLSHVM, package family name BitSpring.BitSpring_dv0qw4az5s52m.",
+  "name": "BitSpring.BitSpring",
+  "publisher": "CN=35D6AEDE-C6FC-4C44-9EF3-67BAA17F4042",
   "publisherDisplayName": "BitSpring"
 }
