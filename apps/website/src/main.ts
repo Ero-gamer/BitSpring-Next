@@ -12,7 +12,8 @@ import Lenis from "lenis";
 import { LINKS } from "./config";
 import { downloadUrl, fontGroup, fontsReady, isRtl, numberLocale, t } from "./i18n/runtime";
 import { detectPlatform, isAvailable, type Platform } from "./platform";
-import { createField, HERO, type FieldState } from "./scene";
+import { HERO, type FieldState } from "./field-state";
+import type { Field } from "./scene";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -96,19 +97,28 @@ ScrollTrigger.create({
 
 // ---- 3D field --------------------------------------------------------------------------------
 
-const field = createField($<HTMLCanvasElement>(".field"), { mirror: isRtl });
-
-if (field) {
-  field.setMotion(!reduceMotion);
-  window.addEventListener(
-    "pointermove",
-    (e) => {
-      field.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
-      field.pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
-    },
-    { passive: true },
-  );
-}
+// three.js is most of this page's script, so it loads as its own chunk after the text has
+// started animating: the headline doesn't wait for it. The intro fades the field in from black,
+// so a field arriving a moment later joins that fade rather than popping in.
+let field: Field | null = null;
+import("./scene")
+  .then(({ createField }) => {
+    field = createField($<HTMLCanvasElement>(".field"), { mirror: isRtl });
+    if (!field) return;
+    field.setMotion(!reduceMotion);
+    // Start where the page already is (mid-intro, or scrolled down on a reload), not at the hero.
+    Object.assign(field.state, fieldTarget());
+    window.addEventListener(
+      "pointermove",
+      (e) => {
+        if (!field) return;
+        field.pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+        field.pointer.y = (e.clientY / window.innerHeight) * 2 - 1;
+      },
+      { passive: true },
+    );
+  })
+  .catch(() => {}); // Offline mid-load or no WebGL: the page reads fine on its own background.
 
 // ---- headline letters ------------------------------------------------------------------------
 
@@ -195,19 +205,24 @@ function stateAtScroll(): FieldState {
   return cur;
 }
 
-if (field) {
-  gsap.ticker.add(() => {
-    const target = stateAtScroll();
-    target.amp *= intro.amp;
-    target.visible *= intro.visible;
-    const k = reduceMotion ? 1 : 0.075;
-    const s = field.state;
-    for (const key of Object.keys(target) as (keyof FieldState)[]) {
-      // Bit depth snaps, like it does on a real DAC; everything else glides.
-      s[key] = key === "levels" ? target[key] : s[key] + (target[key] - s[key]) * k;
-    }
-  });
+/** Where the field should be right now: the scroll position's state, faded by the intro. */
+function fieldTarget(): FieldState {
+  const target = stateAtScroll();
+  target.amp *= intro.amp;
+  target.visible *= intro.visible;
+  return target;
 }
+
+gsap.ticker.add(() => {
+  if (!field) return;
+  const target = fieldTarget();
+  const k = reduceMotion ? 1 : 0.075;
+  const s = field.state;
+  for (const key of Object.keys(target) as (keyof FieldState)[]) {
+    // Bit depth snaps, like it does on a real DAC; everything else glides.
+    s[key] = key === "levels" ? target[key] : s[key] + (target[key] - s[key]) * k;
+  }
+});
 
 // Dimmed and lowered: the field runs behind the steps' text here, which has to stay readable.
 const PATH: FieldState = { ...HERO, camX: 0, camY: 0.35, camZ: 12, lookX: 0, lookY: 1.1, lookZ: 0, focus: 1, visible: 0.45 };

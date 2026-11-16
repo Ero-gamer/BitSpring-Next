@@ -4,41 +4,7 @@
 
 import * as THREE from "three";
 
-/** Everything the scroll timeline animates. Plain numbers so GSAP can tween them directly. */
-export interface FieldState {
-  camX: number;
-  camY: number;
-  camZ: number;
-  lookX: number;
-  lookY: number;
-  lookZ: number;
-  /** 0 = untouched signal (brass), 1 = processed by enhancers (violet). */
-  process: number;
-  /** 0 = whole field, 1 = only the centre row (a single clean stem plot). */
-  focus: number;
-  /** Samples per wave cycle; higher = higher sample rate. */
-  density: number;
-  /** Quantisation levels per half-scale; 1 = one bit (DSD). */
-  levels: number;
-  amp: number;
-  /** Overall brightness, used to dim the field behind dense content. */
-  visible: number;
-}
-
-export const HERO: FieldState = {
-  camX: -7.5,
-  camY: 2.4,
-  camZ: 10.5,
-  lookX: 2.5,
-  lookY: -1.3,
-  lookZ: 0,
-  process: 0,
-  focus: 0,
-  density: 1,
-  levels: 7,
-  amp: 1,
-  visible: 1,
-};
+import { HERO, type FieldState } from "./field-state";
 
 const BRASS = new THREE.Color("#c9a45c");
 const VIOLET = new THREE.Color("#8c7ae6");
@@ -163,14 +129,34 @@ export interface Field {
   resize(): void;
 }
 
+/** Not every browser honours failIfMajorPerformanceCaveat, so also ask the driver's name. */
+function isSoftwareRenderer(gl: WebGLRenderingContext | WebGL2RenderingContext): boolean {
+  const info = gl.getExtension("WEBGL_debug_renderer_info");
+  const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) ?? "");
+  return /swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(name);
+}
+
 /** `mirror`: right-to-left pages put the copy on the right, so the camera swings the other way. */
 export function createField(canvas: HTMLCanvasElement, opts: { mirror?: boolean } = {}): Field | null {
   const flip = opts.mirror ? -1 : 1;
   let renderer: THREE.WebGLRenderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    // failIfMajorPerformanceCaveat: no context when the browser would draw on the CPU instead
+    // of a GPU (blocklisted drivers, VMs, remote desktops, headless test machines). Drawing this
+    // field in software takes most of every frame and leaves the page itself stuttering.
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: true,
+    });
   } catch {
     return null; // No WebGL: the page reads fine on its own background.
+  }
+  if (isSoftwareRenderer(renderer.getContext())) {
+    renderer.dispose();
+    renderer.forceContextLoss();
+    return null;
   }
   renderer.setClearColor(BG, 1);
 
