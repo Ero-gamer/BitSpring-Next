@@ -12,7 +12,8 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri",
     "check:locales": "node scripts/check-locales.mjs",
-    "build:appstore": "tauri build --config src-tauri/tauri.appstore.conf.json -- --no-default-features"
+    "build:appstore": "tauri build --config src-tauri/tauri.appstore.conf.json -- --no-default-features",
+    "build:msstore": "tauri build --no-bundle --config src-tauri/tauri.msstore.conf.json -- --no-default-features && node scripts/msstore-pack.mjs --exe ../../target/release/hifi-desktop.exe --arch x64 --out ../../target/msstore"
   },
   "license": "MIT",
   "dependencies": {

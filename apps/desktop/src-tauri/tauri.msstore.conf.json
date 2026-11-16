@@ -1,0 +1,9 @@
+{
+  "identifier": "app.bitspring.player",
+  "bundle": {
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": null
+  }
+}

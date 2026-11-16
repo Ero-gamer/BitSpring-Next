@@ -1,0 +1,119 @@
+# Builds the Microsoft Store package (MSIX) on Windows, then installs and launches it there and
+# runs the Windows App Certification Kit: the same checks the Store makes on submission.
+# The unsigned .msix artifact is what gets uploaded to Partner Center.
+name: Microsoft Store package
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/msstore.yml
+      - apps/desktop/src-tauri/msstore/**
+      - apps/desktop/src-tauri/tauri.msstore.conf.json
+      - apps/desktop/scripts/msstore-pack.mjs
+      - apps/desktop/package.json # version bumps: a package for every release
+
+jobs:
+  msix:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      # No updater (the Store updates the app) and no Qobuz/TIDAL, like the Mac App Store build.
+      - name: Build and pack
+        run: npm run build:msstore
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BitSpring-msix-x64
+          path: target/msstore/*.msix
+          if-no-files-found: error
+
+      # Windows only installs signed packages, so sign a copy with a throwaway certificate whose
+      # subject is the manifest's Publisher, trust it, install, launch and look.
+      - name: Install and launch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msix = Get-ChildItem ../../target/msstore/*.msix | Select-Object -First 1
+          $publisher = (Get-Content src-tauri/msstore/identity.json | ConvertFrom-Json).publisher
+          $cert = New-SelfSignedCertificate -Type Custom -Subject $publisher -KeyUsage DigitalSignature `
+            -FriendlyName 'BitSpring CI' -CertStoreLocation Cert:\CurrentUser\My `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          $pfx = Join-Path $env:RUNNER_TEMP 'ci.pfx'
+          $pw = ConvertTo-SecureString -String 'ci' -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $pw | Out-Null
+          Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $pw | Out-Null
+
+          $signed = Join-Path $env:RUNNER_TEMP 'BitSpring-signed.msix'
+          Copy-Item $msix.FullName $signed
+          $kits = 'C:\Program Files (x86)\Windows Kits\10\bin'
+          $signtool = Get-ChildItem $kits -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /f $pfx /p ci $signed
+          if ($LASTEXITCODE) { throw 'signtool failed' }
+
+          Add-AppxPackage -Path $signed
+          $pkg = Get-AppxPackage | Where-Object { $_.Name -eq (Get-Content src-tauri/msstore/identity.json | ConvertFrom-Json).name }
+          "Installed: $($pkg.PackageFullName) at $($pkg.InstallLocation)"
+          Start-Process "shell:AppsFolder\$($pkg.PackageFamilyName)!BitSpring"
+          Start-Sleep -Seconds 25
+
+          $proc = Get-Process BitSpring -ErrorAction SilentlyContinue
+          if (-not $proc) { throw 'BitSpring is not running 25 s after launch' }
+          "Running: pid $($proc.Id), $([math]::Round($proc.WorkingSet64 / 1MB)) MB"
+
+          Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+          $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+          [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+          $bmp.Save((Join-Path $env:RUNNER_TEMP 'launched.png'))
+          Stop-Process -Id $proc.Id
+          "signed=$signed" >> $env:GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: launch-screenshot
+          path: ${{ runner.temp }}/launched.png
+          if-no-files-found: ignore
+
+      # The Store's own technical checks (manifest, binaries, launch). The XML report says which
+      # test failed and why.
+      - name: App Certification Kit
+        shell: pwsh
+        run: |
+          $appcert = 'C:\Program Files (x86)\Windows Kits\10\App Certification Kit\appcert.exe'
+          if (-not (Test-Path $appcert)) { 'App Certification Kit is not installed on this runner'; exit 0 }
+          $report = Join-Path $env:RUNNER_TEMP 'wack-report.xml'
+          & $appcert reset
+          & $appcert test -appxpackagepath $env:signed -reportoutputpath $report
+          [xml]$r = Get-Content $report
+          "Overall: $($r.REPORT.OVERALL_RESULT)"
+          $r.SelectNodes('//TEST') | ForEach-Object {
+            $res = $_.RESULT.'#cdata-section'
+            if ($res -and $res -ne 'PASS') { "$res  $($_.NAME)"; $_.MESSAGES.MESSAGE | ForEach-Object { "    $($_.TEXT)" } }
+          }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wack-report
+          path: ${{ runner.temp }}/wack-report.xml
+          if-no-files-found: ignore

@@ -1,0 +1,6 @@
+{
+  "_comment": "Placeholders until the name is reserved. Copy the three values from Partner Center → BitSpring → Product management → Product identity (Package/Identity/Name, Package/Identity/Publisher, Package/Properties/PublisherDisplayName).",
+  "name": "BitSpring.Placeholder",
+  "publisher": "CN=00000000-0000-0000-0000-000000000000",
+  "publisherDisplayName": "BitSpring"
+}
