@@ -3,12 +3,18 @@
 // runtime come from the inline dictionary.
 
 import { inject } from "@vercel/analytics";
+import { injectSpeedInsights } from "@vercel/speed-insights";
 
 import { localeUrl, LOCALES, type FontGroup } from "./locales";
 
-// Visit counts (Vercel Web Analytics): no cookies, nothing that follows a visitor to other sites
-// or past a day. The privacy page says exactly what it records. Built site only, not `vite dev`.
-if (import.meta.env.PROD) inject({ mode: "production" });
+// Visit counts (Vercel Web Analytics) and page speed (Vercel Speed Insights): no cookies, nothing
+// that follows a visitor to other sites or past a day. The privacy page says exactly what each
+// records. Built site only, not `vite dev`. Speed Insights on Hobby is free up to 10,000 events
+// over 30 days, then pauses for two weeks; lower sampleRate if the site outgrows that.
+if (import.meta.env.PROD) {
+  inject({ mode: "production" });
+  injectSpeedInsights({ sampleRate: 1 });
+}
 
 export const root = document.documentElement;
 const runtime = JSON.parse(document.getElementById("i18n")?.textContent ?? "{}") as {
