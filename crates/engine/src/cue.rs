@@ -94,11 +94,13 @@ pub struct CueFile {
     pub tracks: Vec<CueTrack>,
 }
 
-/// "mm:ss:ff" → CD frames.
-fn msf(s: &str) -> Option<u64> {
+/// "mm:ss:ff" → whole seconds and the last field as written. That field counts CD frames
+/// (0–74), but sheets made by hand or by vinyl tools often count hundredths of a second there
+/// (0–99); which one a sheet means shows only when all its indexes are read ([`parse`]).
+fn msf(s: &str) -> Option<(u64, u64)> {
     let mut it = s.split(':').map(|p| p.trim().parse::<u64>().ok());
     let (m, s, f) = (it.next()??, it.next()??, it.next()??);
-    (s < 60 && f < FRAMES_PER_SEC && it.next().is_none()).then_some((m * 60 + s) * FRAMES_PER_SEC + f)
+    (s < 60 && f < 100 && it.next().is_none()).then_some((m * 60 + s, f))
 }
 
 /// The value after a keyword: `"quoted text"` or a bare word.
@@ -118,6 +120,9 @@ pub fn parse(bytes: &[u8]) -> Vec<CueFile> {
     let mut files: Vec<CueFile> = Vec::new();
     // Whether a TRACK has begun: TITLE/PERFORMER before it are the album's.
     let mut in_track = false;
+    // Each track's INDEX 01 as written (seconds, last field), in the order of `files`' tracks;
+    // turned into CD frames once the whole sheet is read.
+    let mut written: Vec<Vec<Option<(u64, u64)>>> = Vec::new();
     for line in text.lines() {
         let line = line.trim().trim_start_matches('\u{FEFF}');
         let (key, rest) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
@@ -128,6 +133,7 @@ pub fn parse(bytes: &[u8]) -> Vec<CueFile> {
                 let rest = rest.trim();
                 let name = if rest.starts_with('"') { value(rest) } else { rest.rsplit_once(' ').map_or(rest, |(n, _)| n).to_string() };
                 files.push(CueFile { name, tracks: Vec::new(), ..head.clone() });
+                written.push(Vec::new());
                 in_track = false;
             }
             "TRACK" => {
@@ -137,6 +143,9 @@ pub fn parse(bytes: &[u8]) -> Vec<CueFile> {
                 let audio = rest.split_whitespace().nth(1).is_none_or(|k| k.eq_ignore_ascii_case("AUDIO"));
                 if audio {
                     file.tracks.push(CueTrack { number, start: u64::MAX, ..Default::default() });
+                    if let Some(w) = written.last_mut() {
+                        w.push(None);
+                    }
                     in_track = true;
                 } else {
                     in_track = false;
@@ -145,9 +154,9 @@ pub fn parse(bytes: &[u8]) -> Vec<CueFile> {
             "INDEX" => {
                 let mut p = rest.split_whitespace();
                 let (Some(n), Some(at)) = (p.next(), p.next()) else { continue };
-                let Some(t) = files.last_mut().and_then(|f| f.tracks.last_mut()).filter(|_| in_track) else { continue };
+                let Some(w) = written.last_mut().and_then(|w| w.last_mut()).filter(|_| in_track) else { continue };
                 if n.parse::<u32>() == Ok(1) && let Some(at) = msf(at) {
-                    t.start = at;
+                    *w = Some(at);
                 }
             }
             "TITLE" | "PERFORMER" => {
@@ -180,6 +189,18 @@ pub fn parse(bytes: &[u8]) -> Vec<CueFile> {
                 }
             }
             _ => {}
+        }
+    }
+    // One index past 74 in the last field and the sheet is counting hundredths of a second, not
+    // CD frames: read all of it that way, or the tracks it places there would be lost and the
+    // rest would start a fraction of a second off.
+    let hundredths = written.iter().flatten().flatten().any(|&(_, f)| f >= FRAMES_PER_SEC);
+    for (f, w) in files.iter_mut().zip(&written) {
+        for (t, at) in f.tracks.iter_mut().zip(w) {
+            if let Some((secs, last)) = *at {
+                let frames = if hundredths { (last * FRAMES_PER_SEC + 50) / 100 } else { last };
+                t.start = secs * FRAMES_PER_SEC + frames;
+            }
         }
     }
     for f in &mut files {
@@ -356,6 +377,32 @@ mod tests {
         let r = f.ranges();
         assert_eq!(r[1], Range { start: f.tracks[1].start, end: Some(f.tracks[2].start) });
         assert_eq!(r[2].end, None);
+    }
+
+    #[test]
+    fn a_sheet_counting_hundredths_keeps_every_track() {
+        // A vinyl rip's sheet: the last field runs past 74, so it is not CD frames.
+        let s = "FILE \"LP.flac\" WAVE\n TRACK 01 AUDIO\n  INDEX 01 00:00:00\n TRACK 02 AUDIO\n  INDEX 01 00:38:40\n TRACK 03 AUDIO\n  INDEX 01 23:03:77\n TRACK 04 AUDIO\n  INDEX 01 26:34:32\n";
+        let f = &parse(s.as_bytes())[0];
+        assert_eq!(f.tracks.iter().map(|t| t.number).collect::<Vec<_>>(), [1, 2, 3, 4]);
+        // 0.40 s is 30 frames, 0.77 s is 58 (57.75 rounded), 0.32 s is 24.
+        assert_eq!(f.tracks[1].start, 38 * 75 + 30);
+        assert_eq!(f.tracks[2].start, (23 * 60 + 3) * 75 + 58);
+        assert_eq!(f.tracks[3].start, (26 * 60 + 34) * 75 + 24);
+        // A sheet that stays within 0–74 is in frames, as before; three digits are no time at all.
+        let cd = "FILE \"CD.flac\" WAVE\n TRACK 01 AUDIO\n  INDEX 01 00:00:00\n TRACK 02 AUDIO\n  INDEX 01 00:38:40\n TRACK 03 AUDIO\n  INDEX 01 01:00:100\n";
+        let f = &parse(cd.as_bytes())[0];
+        assert_eq!(f.tracks.len(), 2);
+        assert_eq!(f.tracks[1].start, 38 * 75 + 40);
+    }
+
+    #[test]
+    fn a_file_type_glued_to_the_name_is_not_part_of_it() {
+        let s = "   FILE \"Side A.flac\"WAVE\n    TRACK 01 AUDIO\n    INDEX 01 00:00:00\n    TRACK 02 AUDIO\n    INDEX 01  07:19:00\n   FILE \"Side B.flac\"WAVE\n    TRACK 03 AUDIO\n    INDEX 01 00:00:00\n    TRACK 04 AUDIO\n    INDEX 01 02:33:00\n";
+        let files = parse(s.as_bytes());
+        assert_eq!(files.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["Side A.flac", "Side B.flac"]);
+        assert_eq!(files[0].tracks[1].start, (7 * 60 + 19) * 75);
+        assert_eq!(files[1].tracks.iter().map(|t| t.number).collect::<Vec<_>>(), [3, 4]);
     }
 
     #[test]
