@@ -43,8 +43,8 @@ them, and off means bit-perfect again.
 
 <table>
   <tr>
-    <td width="50%"><img src="apps/website/public/screens/library-classic.webp" alt="Library: albums with their bit depth and sample rate"></td>
-    <td width="50%"><img src="apps/website/public/screens/eq-classic.webp" alt="Equalizer: a six-band parametric EQ curve for planar headphones"></td>
+    <td width="50%"><img src=".github/readme/screens/library-glass.webp" alt="Library: albums with their bit depth and sample rate"></td>
+    <td width="50%"><img src=".github/readme/screens/eq-glass.webp" alt="Equalizer: a six-band parametric EQ curve for planar headphones"></td>
   </tr>
   <tr>
     <td align="center">Library, with each album's bit depth and sample rate</td>
