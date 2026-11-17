@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- README hero: the desktop window with the Android phone in front of it, on a transparent
+     background so it sits on both GitHub themes. Uses the website's own screenshots.
+     Rendered to ../hero.png by render.sh at 1280x700, 2x. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; background: transparent; }
+  .stage { position: relative; width: 1280px; height: 700px; }
+  .desktop {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+    width: 960px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.07),
+      0 30px 60px -20px rgba(8, 14, 18, 0.55),
+      0 12px 24px -12px rgba(8, 14, 18, 0.45);
+  }
+  .desktop img { display: block; width: 100%; }
+  .phone {
+    position: absolute;
+    right: 50px;
+    bottom: 24px;
+    width: 256px;
+    padding: 9px;
+    border-radius: 46px;
+    background: #0b1216;
+    box-shadow:
+      0 0 0 1.5px #2b414c,
+      0 34px 60px -18px rgba(8, 14, 18, 0.6),
+      0 14px 26px -10px rgba(8, 14, 18, 0.5);
+  }
+  .phone img { display: block; width: 100%; border-radius: 37px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="desktop"><img src="../../../apps/website/public/screens/player-classic.webp" alt="" /></div>
+  <div class="phone"><img src="../../../apps/website/public/screens/player-classic-android.webp" alt="" /></div>
+</div>
+</body>
+</html>
