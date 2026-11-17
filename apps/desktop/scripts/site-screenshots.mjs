@@ -108,8 +108,12 @@ for (const look of ["glass", "classic"]) {
   }
   await page.waitForTimeout(1500);
 
+  // The glass backdrop is made from the playing cover, so the album sets the mood of every glass
+  // shot. Quiet Hours (teal sky, warm sun) gives it colour without brass or violet, which mean
+  // something; a pale blue cover like Strings in Winter blurs down to flat navy and the glass
+  // disappears. Classic plays the same album so the site's look switch changes only the look.
   await tab("Library");
-  await page.getByRole("button").filter({ hasText: "Strings in Winter" }).first().click();
+  await page.getByRole("button").filter({ hasText: "Quiet Hours" }).first().click();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.waitForTimeout(500);
 
