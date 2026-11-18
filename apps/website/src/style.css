@@ -1201,6 +1201,210 @@ main,
   font-size: var(--t-sm);
 }
 
+/* ---- release notes page ------------------------------------------------------------------ */
+
+/* A long page that scrolls under the nav: give the nav its scrolled look from the start. */
+.rel-page .nav {
+  background: rgba(18, 29, 35, 0.72);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.rel-main {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(120px, 18vh, 180px) var(--gutter) 96px;
+}
+
+.rel-head {
+  max-width: 38em;
+  margin-bottom: clamp(56px, 9vh, 104px);
+}
+
+.rel-page .dl-title {
+  margin: 0 0 24px;
+  font-size: clamp(2.6rem, 8vw, 7rem);
+}
+
+.rel-lead {
+  margin: 0;
+  color: var(--porcelain);
+  font-size: var(--t-lg);
+  line-height: 1.4;
+}
+
+.rel-english {
+  margin: 16px 0 0;
+  color: var(--mist-dim);
+  font-size: var(--t-sm);
+}
+
+.rel-days,
+.rel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Each day: its date beside the releases of that day, which hang off one continuous line. */
+.rel-day {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 13rem) minmax(0, 1fr);
+  column-gap: clamp(24px, 4vw, 64px);
+}
+
+.rel-date {
+  position: sticky;
+  top: 96px;
+  align-self: start;
+  margin: 0;
+  /* Level with the first version number. */
+  padding-top: 0.6rem;
+  color: var(--porcelain);
+  font-size: var(--t-md);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.rel-list {
+  border-inline-start: 1px solid var(--slate-600);
+}
+
+.rel {
+  /* The version number's size; the node on the line is centred on its digits. */
+  --rel-num: clamp(2.1rem, 3.4vw, 2.9rem);
+  position: relative;
+  max-width: calc(38em + 48px);
+  padding-block-end: clamp(44px, 7vh, 72px);
+  padding-inline-start: clamp(24px, 3vw, 48px);
+  scroll-margin-top: 96px;
+}
+
+/* Every release gets the same node and the same size of number: here a patch number can carry
+   a whole new platform (0.18.4 brought Linux), so the number says nothing about weight. */
+.rel::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -5px;
+  top: calc(var(--rel-num) * 0.56 - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--brass);
+}
+
+.rel-version {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: var(--rel-num);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.rel-version a {
+  color: var(--brass);
+  text-decoration: none;
+}
+
+.rel-version a:hover,
+.rel:target .rel-version a {
+  color: var(--porcelain);
+}
+
+.rel-was {
+  color: var(--mist-dim);
+  font-family: var(--font);
+  font-size: var(--t-sm);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.rel-notes {
+  color: var(--mist);
+  line-height: 1.6;
+}
+
+.rel-notes ul {
+  margin: 0;
+  padding-inline-start: 1.1em;
+}
+
+.rel-notes li + li {
+  margin-top: 12px;
+}
+
+.rel-notes ul ul {
+  margin-top: 8px;
+}
+
+.rel-notes ul ul li + li {
+  margin-top: 4px;
+}
+
+.rel-notes li::marker {
+  color: var(--slate-600);
+}
+
+.rel-notes p {
+  margin: 14px 0 0;
+}
+
+.rel-notes p:first-child {
+  margin-top: 0;
+}
+
+/* The notes open each point with a bold summary: that is what a skimming eye reads. */
+.rel-notes strong {
+  color: var(--porcelain);
+  font-weight: 500;
+}
+
+.rel-notes code {
+  color: var(--porcelain);
+  font-family: inherit;
+}
+
+.rel-notes a {
+  color: var(--brass);
+}
+
+.rel-files {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--mist-dim);
+  font-size: var(--t-sm);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.rel-files:hover {
+  color: var(--porcelain);
+}
+
+/* Phones: the date goes above its releases and joins the line, so it stays unbroken. */
+@media (max-width: 700px) {
+  .rel-day {
+    display: block;
+  }
+
+  .rel-date {
+    position: static;
+    padding-block-end: 20px;
+    padding-inline-start: clamp(24px, 3vw, 48px);
+    border-inline-start: 1px solid var(--slate-600);
+  }
+
+  .rel-day:first-child .rel-date {
+    border-color: transparent;
+  }
+}
+
 /* ---- download page ----------------------------------------------------------------------- */
 
 .lang-end {

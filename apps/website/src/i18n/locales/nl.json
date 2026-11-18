@@ -133,6 +133,7 @@
   "dl.other": "Andere platforms",
   "dl.back": "Terug naar de site",
   "footer.source": "Broncode",
+  "footer.releases": "Release-opmerkingen",
   "footer.privacy": "Privacy",
   "footer.support": "Support",
   "privacy.meta_title": "Privacybeleid van BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring is open source, dus iedereen kan dit allemaal in de code controleren.",
   "privacy.contact": "Vragen?",
   "privacy.contact_link": "Vraag het op GitHub",
-  "privacy.updated": "Laatst bijgewerkt op 16 november 2026."
+  "privacy.updated": "Laatst bijgewerkt op 16 november 2026.",
+  "releases.meta_title": "Release-opmerkingen van BitSpring",
+  "releases.meta_description": "Elke versie van BitSpring, de nieuwste eerst: wat elke versie toevoegde of verhielp, en wanneer ze uitkwam.",
+  "releases.title": "Release-opmerkingen",
+  "releases.lead": "Elke versie van BitSpring, de nieuwste eerst: wat ze toevoegde of verhielp, en wanneer ze uitkwam.",
+  "releases.english": "De release-opmerkingen zelf zijn in het Engels.",
+  "releases.files": "Downloads en checksums",
+  "releases.as_hifi": "Uitgebracht als Hifi"
 }

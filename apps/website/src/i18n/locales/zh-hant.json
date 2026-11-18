@@ -133,6 +133,7 @@
   "dl.other": "其他平台",
   "dl.back": "返回網站",
   "footer.source": "原始碼",
+  "footer.releases": "版本說明",
   "footer.privacy": "隱私權",
   "footer.support": "支援",
   "privacy.meta_title": "BitSpring 隱私權政策",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring 是開放原始碼，所以任何人都可以在程式碼中驗證以上所有內容。",
   "privacy.contact": "有疑問嗎？",
   "privacy.contact_link": "在 GitHub 上提問",
-  "privacy.updated": "最後更新於 2026 年 11 月 16 日。"
+  "privacy.updated": "最後更新於 2026 年 11 月 16 日。",
+  "releases.meta_title": "BitSpring 版本說明",
+  "releases.meta_description": "BitSpring 的每個版本，從最新的開始：每個版本新增或修正了什麼，以及何時發布。",
+  "releases.title": "版本說明",
+  "releases.lead": "BitSpring 的每個版本，從最新的開始：新增或修正了什麼，以及何時發布。",
+  "releases.english": "版本說明為英文。",
+  "releases.files": "下載與校驗碼",
+  "releases.as_hifi": "以 Hifi 之名發布"
 }

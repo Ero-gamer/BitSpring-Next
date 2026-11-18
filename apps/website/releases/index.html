@@ -1,0 +1,67 @@
+<!doctype html>
+<!-- Template: rendered once per language by src/i18n/render.ts (see the syntax there).
+     Every release, newest first, from src/releases.json (npm run releases rebuilds it). -->
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!--@redirect-->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{releases.meta_title}}</title>
+    <meta name="description" content="{{releases.meta_description}}" />
+    <meta name="theme-color" content="#121d23" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{releases.meta_title}}" />
+    <meta property="og:description" content="{{releases.meta_description}}" />
+    <!--@og-->
+    <!--@alternates-->
+    <link rel="icon" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--@runtime-->
+  </head>
+  <body class="dl-page rel-page">
+    <header class="nav">
+      <a class="nav-logo" href="{{@home}}" aria-label="{{dl.back}}">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10.6" />
+            <path d="M12.00 1.40A6.5 6.5 0 0 1 12.00 14.40M20.29 5.39A6.5 6.5 0 0 1 10.12 13.50M22.33 14.36A6.5 6.5 0 0 1 9.66 11.47M16.60 21.55A6.5 6.5 0 0 1 10.96 9.84M7.40 21.55A6.5 6.5 0 0 1 13.04 9.84M1.67 14.36A6.5 6.5 0 0 1 14.34 11.47M3.71 5.39A6.5 6.5 0 0 1 13.88 13.50" />
+          </g>
+        </svg>
+        BitSpring
+      </a>
+      <label class="lang lang-end">
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" />
+          <path d="M2 10h16M10 2c2.4 2.2 3.6 4.9 3.6 8s-1.2 5.8-3.6 8c-2.4-2.2-3.6-4.9-3.6-8S7.6 4.2 10 2z" />
+        </svg>
+        <span class="lang-current" data-lang-current></span>
+        <span class="visually-hidden">{{nav.language}}</span>
+        <select class="lang-select" data-lang-select><!--@lang-options--></select>
+      </label>
+    </header>
+
+    <main class="rel-main">
+      <header class="rel-head">
+        <h1 class="dl-title">{{releases.title}}</h1>
+        <p class="rel-lead">{{releases.lead}}</p>
+        <!--@releases-english-->
+      </header>
+      <ol class="rel-days">
+        <!--@releases-->
+      </ol>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 BitSpring</span>
+      <nav class="footer-links" aria-label="BitSpring">
+        <a href="https://github.com/crash2bash/bitspring" rel="noopener">{{footer.source}}</a>
+        <a href="{{@releases}}">{{footer.releases}}</a>
+        <a href="{{@privacy}}">{{footer.privacy}}</a>
+        <a href="https://github.com/crash2bash/bitspring/issues" rel="noopener">{{footer.support}}</a>
+      </nav>
+      <a href="{{@home}}">{{dl.back}}</a>
+    </footer>
+
+    <script type="module" src="/src/releases.ts"></script>
+  </body>
+</html>

@@ -133,6 +133,7 @@
   "dl.other": "Další platformy",
   "dl.back": "Zpět na web",
   "footer.source": "Zdrojový kód",
+  "footer.releases": "Poznámky k verzím",
   "footer.privacy": "Soukromí",
   "footer.support": "Podpora",
   "privacy.meta_title": "Zásady ochrany soukromí BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring je open source, takže vše výše může kdokoli ověřit v jeho kódu.",
   "privacy.contact": "Máte otázky?",
   "privacy.contact_link": "Zeptejte se na GitHubu",
-  "privacy.updated": "Naposledy aktualizováno 16. listopadu 2026."
+  "privacy.updated": "Naposledy aktualizováno 16. listopadu 2026.",
+  "releases.meta_title": "Poznámky k verzím BitSpring",
+  "releases.meta_description": "Všechny verze BitSpring od nejnovější: co která přidala nebo opravila a kdy vyšla.",
+  "releases.title": "Poznámky k verzím",
+  "releases.lead": "Všechny verze BitSpring od nejnovější: co přidaly nebo opravily a kdy vyšly.",
+  "releases.english": "Poznámky k verzím jsou v angličtině.",
+  "releases.files": "Soubory ke stažení a kontrolní součty",
+  "releases.as_hifi": "Vydáno jako Hifi"
 }

@@ -133,6 +133,7 @@
   "dl.other": "Autres plateformes",
   "dl.back": "Retour au site",
   "footer.source": "Code source",
+  "footer.releases": "Notes de version",
   "footer.privacy": "Confidentialité",
   "footer.support": "Assistance",
   "privacy.meta_title": "Politique de confidentialité de BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring est open source : chacun peut donc vérifier tout cela dans son code.",
   "privacy.contact": "Des questions ?",
   "privacy.contact_link": "Demander sur GitHub",
-  "privacy.updated": "Dernière mise à jour le 16 novembre 2026."
+  "privacy.updated": "Dernière mise à jour le 16 novembre 2026.",
+  "releases.meta_title": "Notes de version de BitSpring",
+  "releases.meta_description": "Toutes les versions de BitSpring, de la plus récente à la plus ancienne : ce que chacune a ajouté ou corrigé, et quand elle est sortie.",
+  "releases.title": "Notes de version",
+  "releases.lead": "Toutes les versions de BitSpring, de la plus récente à la plus ancienne : ce qu’elles ont ajouté ou corrigé, et quand elles sont sorties.",
+  "releases.english": "Les notes de version sont rédigées en anglais.",
+  "releases.files": "Téléchargements et sommes de contrôle",
+  "releases.as_hifi": "Sortie sous le nom Hifi"
 }

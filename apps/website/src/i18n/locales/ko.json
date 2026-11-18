@@ -133,6 +133,7 @@
   "dl.other": "다른 플랫폼",
   "dl.back": "사이트로 돌아가기",
   "footer.source": "소스 코드",
+  "footer.releases": "릴리스 노트",
   "footer.privacy": "개인정보 보호",
   "footer.support": "지원",
   "privacy.meta_title": "BitSpring 개인정보 처리방침",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring은 오픈 소스이므로 누구나 코드에서 이 모든 것을 확인할 수 있습니다.",
   "privacy.contact": "궁금한 점이 있으신가요?",
   "privacy.contact_link": "GitHub에서 문의하기",
-  "privacy.updated": "최종 업데이트: 2026년 11월 16일"
+  "privacy.updated": "최종 업데이트: 2026년 11월 16일",
+  "releases.meta_title": "BitSpring 릴리스 노트",
+  "releases.meta_description": "BitSpring의 모든 버전을 최신순으로: 각 버전에서 추가되거나 고쳐진 것과 출시일.",
+  "releases.title": "릴리스 노트",
+  "releases.lead": "BitSpring의 모든 버전을 최신순으로: 추가되거나 고쳐진 것과 출시일.",
+  "releases.english": "릴리스 노트는 영어로 작성되어 있습니다.",
+  "releases.files": "다운로드 및 체크섬",
+  "releases.as_hifi": "Hifi로 출시"
 }

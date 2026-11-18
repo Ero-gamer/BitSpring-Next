@@ -133,6 +133,7 @@
   "dl.other": "Muut alustat",
   "dl.back": "Takaisin sivustolle",
   "footer.source": "Lähdekoodi",
+  "footer.releases": "Julkaisutiedot",
   "footer.privacy": "Tietosuoja",
   "footer.support": "Tuki",
   "privacy.meta_title": "BitSpringin tietosuojakäytäntö",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring on avointa lähdekoodia, joten kuka tahansa voi tarkistaa kaiken tämän sen koodista.",
   "privacy.contact": "Kysyttävää?",
   "privacy.contact_link": "Kysy GitHubissa",
-  "privacy.updated": "Päivitetty viimeksi 16. marraskuuta 2026."
+  "privacy.updated": "Päivitetty viimeksi 16. marraskuuta 2026.",
+  "releases.meta_title": "BitSpringin julkaisutiedot",
+  "releases.meta_description": "Kaikki BitSpringin versiot uusimmasta alkaen: mitä kukin toi tai korjasi ja milloin se julkaistiin.",
+  "releases.title": "Julkaisutiedot",
+  "releases.lead": "Kaikki BitSpringin versiot uusimmasta alkaen: mitä ne toivat tai korjasivat ja milloin ne julkaistiin.",
+  "releases.english": "Julkaisutiedot ovat englanniksi.",
+  "releases.files": "Lataukset ja tarkistussummat",
+  "releases.as_hifi": "Julkaistu nimellä Hifi"
 }
