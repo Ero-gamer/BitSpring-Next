@@ -4,6 +4,7 @@
   import { api, clock, isNetworkUid, inTauri, isMac, isIOS, isAndroid, isLinux, khz, dsdName, artistLabel, errorText, AUDIO_EXTENSIONS, type Device, type DspSettings, type LibraryGoto, type EqState, type IrInfo, type NowPlaying, type PlaylistEntry, type Status, type StreamingStatus, type RemoteCommand } from "$lib/api";
   import { i18n, sentences, t } from "$lib/i18n.svelte";
   import Settings from "$lib/Settings.svelte";
+  import { syncPlays } from "$lib/plays.svelte";
   import { labels, labelOf, remember } from "$lib/labels.svelte";
   import AddToPlaylist from "$lib/AddToPlaylist.svelte";
   import Library from "$lib/Library.svelte";
@@ -50,7 +51,7 @@
   let queue = $state<string[]>([]);
   let index = $state(-1);
   let now = $state<NowPlaying | null>(null);
-  let status = $state<Status>({ active: false, position: 0, duration: 0, paused: false, finished: false, peakDb: null, underruns: 0, buffering: false, buffered: 0, error: null, queueIndex: null, nowRev: 0, advanceError: null, systemVolume: null });
+  let status = $state<Status>({ active: false, position: 0, duration: 0, paused: false, finished: false, peakDb: null, underruns: 0, buffering: false, buffered: 0, error: null, queueIndex: null, nowRev: 0, advanceError: null, systemVolume: null, playsRev: 0 });
   /** The backend's nowRev we are showing; when it moves, the queue went on by itself. */
   let knownRev = 0;
   let lastOutputError: string | null = null;
@@ -434,6 +435,8 @@
     const stopUpdateChecks = startUpdateChecks();
     const timer = setInterval(async () => {
       status = await api.status();
+      // A track was counted as listened to: the library's numbers follow.
+      syncPlays(status.playsRev);
       // The backend moved on to the next track (or stopped at one it couldn't play).
       if (status.nowRev !== knownRev && !loading) {
         knownRev = status.nowRev;

@@ -203,7 +203,7 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
     let state = app.state::<AppState>();
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/api/state") => {
-            let status = crate::status(app.state::<AppState>());
+            let status = crate::status(app.state::<AppState>(), app.state::<std::sync::Arc<crate::stats::Plays>>());
             let (paths, index) = {
                 let q = state.queue.lock().unwrap();
                 (q.paths.clone(), q.index)

@@ -445,7 +445,7 @@
           tracks={albumTracks}
           {currentPath}
           sortable={false}
-          columns={["number", "title", "duration", "format"]}
+          columns={["number", "title", "duration", "format", "plays"]}
           onplay={(_, i) => playAlbum(openAlbum!, i)}
         >
           {#snippet marker(tr)}
@@ -479,6 +479,7 @@
         <TrackTable
           tracks={visibleTracks}
           {currentPath}
+          columns={["number", "title", "artist", "album", "year", "duration", "format", "plays", "lastPlayed"]}
           bind:sortKey={trackSort}
           bind:sortAsc={trackAsc}
           onplay={(list, i) => onplay(list.map((t) => t.path), i)}

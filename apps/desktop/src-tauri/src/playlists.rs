@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use hifi_engine::library::TrackInfo;
-use hifi_engine::smart::{self, SmartRules};
+use hifi_engine::smart::{self, Facts, SmartRules};
 use hifi_engine::UserError;
 use hifi_engine::playlist::{self, Entry, Found, Index};
 use serde::{Deserialize, Serialize};
@@ -138,8 +138,10 @@ fn summary(p: &Playlist) -> Summary {
 /// A smart playlist's tracks now, as entries.
 fn smart_entries(app: &AppHandle, rules: &SmartRules, tracks: &[TrackInfo]) -> Vec<PlaylistEntry> {
     let quality = app.state::<crate::quality::Quality>();
+    let plays = app.state::<std::sync::Arc<crate::stats::Plays>>();
     let word = |t: &TrackInfo| quality.word(&t.path);
-    smart::select(tracks, rules, &word, now())
+    let played = |t: &TrackInfo| plays.of(&t.path);
+    smart::select(tracks, rules, &Facts { quality: &word, played: &played, now: now() })
         .into_iter()
         .map(|i| {
             let t = &tracks[i];

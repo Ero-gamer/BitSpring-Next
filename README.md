@@ -39,6 +39,9 @@ them, and off means bit-perfect again.
   and the indicator switches from *Bit-perfect* to *Processing* and lists what is being done.
 - **Quality check** looks at a file's spectrum and tells you when "hi-res" is really a CD or an MP3
   inside a bigger file.
+- **Play counts that stay with you:** how often and when you played each track is kept on your
+  device, and smart playlists can use it ("not played this year", "most played"). Scrobbling to
+  Last.fm or ListenBrainz is there if you connect an account, and off until you do.
 - **Nothing to sign up for:** no account, no ads, no in-app purchases, nothing collected.
 
 <table>
@@ -74,6 +77,10 @@ npx tauri dev                 # run the desktop app
 npx tauri build               # installer for this computer
 npm run build:appstore        # Mac App Store build (sandboxed, no streaming or self-update)
 ```
+
+Scrobbling to Last.fm needs an API key of your own ([last.fm/api](https://www.last.fm/api)): set
+`BITSPRING_LASTFM_KEY` and `BITSPRING_LASTFM_SECRET` when you build. Without them the build has
+ListenBrainz only.
 
 <details>
 <summary><b>What's where</b></summary>
