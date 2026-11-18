@@ -12,8 +12,10 @@ mod windows_media;
 #[cfg(target_os = "linux")]
 mod linux_media;
 mod bookmarks;
+mod crash;
 mod eq;
 mod library;
+mod loudness;
 mod lyrics;
 #[cfg(target_os = "linux")]
 mod pad;
@@ -40,7 +42,7 @@ use windows_media as media;
 use linux_media as media;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
 
@@ -50,6 +52,7 @@ use hifi_engine::player::{self as outputs, Output, Player};
 use hifi_engine::dsp::crossfeed::CrossfeedLevel;
 use hifi_engine::dsp::fir::ImpulseResponse;
 use hifi_engine::dsp::lossy::LossySettings;
+use hifi_engine::dsp::loudness::{Basis, LevelMode, LevelSettings};
 use hifi_engine::dsp::{Convolution, DspSettings, Upsample};
 use hifi_engine::dsd::{self, DsdMode};
 use hifi_engine::{Track, UserError, open_file_at, testsignal};
@@ -79,6 +82,8 @@ enum DsdNote {
     Volume,
     /// The equalizer, convolution and crossfeed work on PCM.
     Dsp,
+    /// Volume levelling works on PCM: DSD bits can't be turned down.
+    Level,
     /// The device doesn't run at the PCM rate DoP needs (`khz`) for this DSD rate (`dsd`).
     Rate { device: String, khz: f64, dsd: String },
     /// The file has more channels (`channels`) than the device: DoP can't fold them down.
@@ -116,6 +121,8 @@ struct AppState {
     now_rev: AtomicU64,
     /// One start at a time: a click in the UI and the queue's own advance can't race.
     play_lock: Mutex<()>,
+    /// The user turned off the short fades at pause, seek and stop (on unless they did).
+    fades_off: AtomicBool,
     /// Why the queue stopped at a track it couldn't play.
     advance_error: Mutex<Option<AdvanceError>>,
     /// The last status sent to the UI, answered again while a track is starting.
@@ -253,6 +260,13 @@ struct SignalDto {
     headroom_measured: bool,
     /// Encoder low-pass the highs are restored from (Hz), if restoration runs.
     restore_from_hz: Option<f64>,
+    /// The gain this track plays at (volume levelling or peak headroom), dB.
+    level_db: Option<f64>,
+    /// What it is based on: "track", "album", "peak" (headroom only) or "unknown" (not
+    /// measured yet: plays as it is).
+    level_basis: Option<Basis>,
+    /// The gain was held back to keep the track's peak under full scale.
+    level_limited: bool,
     /// DSD source: its 1-bit rate (Hz).
     dsd_rate: Option<u32>,
     /// DSD goes out as DoP (false with `dsd_rate` set = converted to PCM).
@@ -293,6 +307,9 @@ impl From<&SignalPath> for SignalDto {
             headroom_db: p.lossy.filter(|l| l.gain < 1.0).map(|l| l.gain_db()),
             headroom_measured: p.lossy.is_none_or(|l| l.gain_measured),
             restore_from_hz: p.lossy.and_then(|l| l.restore_from_hz),
+            level_db: p.level.map(|l| l.gain_db()),
+            level_basis: p.level.map(|l| l.basis),
+            level_limited: p.level.is_some_and(|l| l.limited),
             dsd_rate: p.dsd.map(|d| d.rate),
             dop: p.dsd.is_some_and(|d| d.dop),
             dsd_note: None,
@@ -378,7 +395,10 @@ fn find_device(uid: &str) -> CmdResult<Output> {
 /// its hog mode is released and the device restored before we claim it again.
 fn start(state: &AppState, device: &Output, track: Arc<Track>, opts: PlayOptions) -> CmdResult<SignalDto> {
     let mut slot = state.player.lock().unwrap();
-    drop(slot.take());
+    if let Some(p) = slot.take() {
+        // What sounds now ends in a short fade, not a click.
+        p.fade_out();
+    }
     let player = Player::start(device, track, &opts).map_err(err)?;
     let signal = SignalDto::from(&player.path);
     *slot = Some(player);
@@ -402,6 +422,8 @@ fn dsd_mode(path: &std::path::Path, device: &Output, exclusive: bool, dop: bool,
         Some(DsdNote::Volume)
     } else if dsp.eq.is_some() || dsp.convolution.is_some() || dsp.crossfeed.is_some() {
         Some(DsdNote::Dsp)
+    } else if dsp.level.mode != LevelMode::Off {
+        Some(DsdNote::Level)
     } else if channels > 2 && channels > device.output_channels() as usize {
         Some(DsdNote::Channels { channels })
     } else if !device.supports_dop(rate) {
@@ -603,6 +625,21 @@ fn dsp_for(state: &AppState, device_uid: &str) -> DspSettings {
     dsp
 }
 
+/// Set the gain `track` plays at with these settings (volume levelling, peak headroom): call
+/// after opening it, before it starts or is lined up. `wait`: how long a track nothing is
+/// known about may take to load so it can be measured on the spot.
+fn set_level(dsp: &DspSettings, file: &std::path::Path, track: &Arc<Track>, wait: Duration) {
+    use tauri::Manager;
+    let Some(app) = APP.get() else { return };
+    let (levels, lib) = (app.state::<loudness::Loudness>(), app.state::<library::Library>());
+    levels.level(&lib, dsp, &file.to_string_lossy(), track, wait);
+}
+
+/// How long opening a track may wait for it to load, to measure a loudness nobody knows yet:
+/// when the user asked for it now, and when it is lined up well before its turn.
+const MEASURE_NOW: Duration = Duration::from_millis(1500);
+const MEASURE_AHEAD: Duration = Duration::from_secs(6);
+
 /// Start `file` (already opened as `track`) and record it as what plays now.
 fn begin(
     state: &AppState,
@@ -616,7 +653,7 @@ fn begin(
     dsd_note: Option<DsdNote>,
 ) -> CmdResult<NowPlayingDto> {
     let dsp = dsp_for(state, device.uid());
-    let opts = PlayOptions { exclusive, dsp, start_at, start_paused };
+    let opts = PlayOptions { exclusive, dsp, start_at, start_paused, fades: !state.fades_off.load(Ordering::Relaxed) };
     let mut signal = start(state, device, track.clone(), opts)?;
     signal.dsd_note = dsd_note.clone();
     let current = Current { track, path: file, device_uid: device.uid().to_string(), exclusive, dop, dsd_note };
@@ -689,7 +726,13 @@ async fn play_file(
         let file = file.clone();
         // Resuming in the middle (another output): decode from there, not from the start.
         let at = start_at.unwrap_or(0.0);
-        tauri::async_runtime::spawn_blocking(move || open_for_at(&file, mode, at)).await.map_err(err)??
+        tauri::async_runtime::spawn_blocking(move || {
+            let track = open_for_at(&file, mode, at)?;
+            set_level(&dsp, &file, &track, MEASURE_NOW);
+            Ok::<_, UserError>(track)
+        })
+        .await
+        .map_err(err)??
     };
     let _one = state.play_lock.lock().unwrap();
     let now = begin(&state, &device, file, track, exclusive, start_at.unwrap_or(0.0), paused.unwrap_or(false), dop, dsd_note)?;
@@ -734,8 +777,16 @@ fn play_queue_at(state: &AppState, i: usize) {
         let (mode, note) = dsd_mode(&file, &device, exclusive, dop, &dsp);
         // Opened ahead (and decoding already) — unless the settings changed how DSD goes out.
         let track = match ahead.filter(|t| t.is_dop() == (mode == DsdMode::Dop)) {
-            Some(t) => t,
-            None => open_for(&file, mode)?,
+            // (Its level was set when it was lined up; again, in case more is known by now.)
+            Some(t) => {
+                set_level(&dsp, &file, &t, Duration::ZERO);
+                t
+            }
+            None => {
+                let t = open_for(&file, mode)?;
+                set_level(&dsp, &file, &t, MEASURE_NOW);
+                t
+            }
         };
         begin(state, &device, file.clone(), track, exclusive, 0.0, false, dop, note)
     });
@@ -813,6 +864,7 @@ fn follow_queue(state: &AppState) {
                     return;
                 }
             };
+            set_level(&dsp, &file, &track, MEASURE_AHEAD);
             let mut l = state.lined_up.lock().unwrap();
             l.retain(|e| e.index == want.index);
             l.push(LinedUp { index: want.index, path: want.path.clone(), track: track.clone(), dsd_note, refused: false });
@@ -1062,13 +1114,25 @@ pub(crate) fn seek_to(state: &AppState, seconds: f64) {
 #[tauri::command]
 fn stop(state: State<'_, AppState>) {
     let _one = state.play_lock.lock().unwrap();
-    drop(state.player.lock().unwrap().take());
+    if let Some(p) = state.player.lock().unwrap().take() {
+        p.fade_out();
+    }
     state.lined_up.lock().unwrap().clear();
     *state.current.lock().unwrap() = None;
     *state.now.lock().unwrap() = None;
     #[cfg(system_media)]
     if let Some(app) = APP.get() {
         media::clear(app);
+    }
+}
+
+/// The short fades at pause, seek, stop and a change of track, on or off. Takes hold on what
+/// plays now, without a restart. Never touches a track playing through: bit-perfect stays.
+#[tauri::command]
+fn set_fades(state: State<'_, AppState>, on: bool) {
+    state.fades_off.store(!on, Ordering::Relaxed);
+    if let Some(p) = state.player.lock().unwrap().as_ref() {
+        p.set_fades(on);
     }
 }
 
@@ -1082,6 +1146,8 @@ async fn set_dsp(
     convolution: Option<String>,
     headroom: Option<bool>,
     restore_highs: Option<bool>,
+    level: Option<String>,
+    peak_headroom: Option<bool>,
 ) -> CmdResult<DspResult> {
     use tauri::Manager;
     let state = app.state::<AppState>();
@@ -1115,7 +1181,17 @@ async fn set_dsp(
         crossfeed: crossfeed
             .and_then(|k| CROSSFEED_LEVELS.iter().find(|(key, _)| *key == k).map(|(_, l)| *l)),
         lossy: LossySettings { headroom: headroom.unwrap_or(false), restore_highs: restore_highs.unwrap_or(false) },
+        level: LevelSettings {
+            mode: match level.as_deref() {
+                Some("track") => LevelMode::Track,
+                Some("album") => LevelMode::Album,
+                _ => LevelMode::Off,
+            },
+            headroom: peak_headroom.unwrap_or(false),
+        },
     };
+    // What was lined up carries a gain from the old settings: it is opened again.
+    state.lined_up.lock().unwrap().clear();
     let signal = restart(&state)?;
     Ok(DspResult { signal, convolution: ir_dto })
 }
@@ -1152,7 +1228,14 @@ fn restart_locked(state: &AppState, at: Option<f64>) -> CmdResult<Option<SignalD
     if !cur.track.can_seek_to(frame) {
         cur.track = open_for_at(&cur.path, mode, pos)?;
     }
-    let opts = PlayOptions { exclusive: cur.exclusive, dsp: settings, start_at: pos, start_paused: paused };
+    // The settings may be new, or the track just opened: its gain under them. (Measured on
+    // the spot only if it is in memory whole already.)
+    set_level(&settings, &cur.path, &cur.track, Duration::ZERO);
+    // So does what is lined up to follow it: it joins the new player as it is.
+    for next in state.lined_up.lock().unwrap().iter() {
+        set_level(&settings, std::path::Path::new(&next.path), &next.track, Duration::ZERO);
+    }
+    let opts = PlayOptions { exclusive: cur.exclusive, dsp: settings, start_at: pos, start_paused: paused, fades: !state.fades_off.load(Ordering::Relaxed) };
     let mut signal = start(state, &device, cur.track.clone(), opts)?;
     signal.dsd_note = cur.dsd_note.clone();
     if let Some(now) = state.now.lock().unwrap().as_mut() {
@@ -1233,10 +1316,13 @@ pub fn run() {
         .manage(AppState::default())
         .setup(|app| {
             use tauri::Manager;
+            // First: whatever breaks from here on leaves a report (on this device only).
+            crash::install(app.handle());
             let lib = library::Library::load(app.handle());
             app.manage(lib);
             app.manage(playlists::Playlists::default());
             app.manage(quality::Quality::load(app.handle()));
+            app.manage(loudness::Loudness::load(app.handle()));
             app.manage(remote::Remote::load(app.handle()));
             *app.state::<AppState>().eq.lock().unwrap() = eq::EqStore::load(app.handle());
             stream::init(app.handle());
@@ -1312,6 +1398,7 @@ pub fn run() {
             set_paused,
             seek,
             stop,
+            set_fades,
             set_dsp,
             eq::eq_state,
             eq::eq_save,
@@ -1344,6 +1431,10 @@ pub fn run() {
             remote::remote_new_address,
             quality::quality_cached,
             quality::quality_check,
+            loudness::loudness_status,
+            loudness::loudness_analyze,
+            crash::crash_report,
+            crash::crash_dismiss,
             playlists::playlists_list,
             playlists::playlist_get,
             playlists::playlist_create,

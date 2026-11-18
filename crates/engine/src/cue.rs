@@ -232,6 +232,7 @@ impl CueFile {
             track_number: Some(t.number),
             disc_number: self.disc,
             cover: None,
+            gain: Default::default(),
         }
     }
 }

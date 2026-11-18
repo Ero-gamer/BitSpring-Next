@@ -13,6 +13,7 @@ use hifi_engine::player::{self as outputs, Output, Player};
 use hifi_engine::dsp::crossfeed::CrossfeedLevel;
 use hifi_engine::dsp::{DspSettings, Upsample};
 use hifi_engine::dsp::lossy::LossySettings;
+use hifi_engine::dsp::loudness::{self, Known, LevelMode, LevelSettings, Measured};
 use hifi_engine::dsd::{self, DsdMode};
 use hifi_engine::{Track, load_track, open_file};
 
@@ -57,6 +58,18 @@ enum Cmd {
         /// DSD files: send the bitstream as DoP (the DAC must support it). Default: convert to PCM.
         #[arg(long)]
         dop: bool,
+        /// Volume levelling: track (each file equally loud) or album (the files given, as one).
+        #[arg(long, value_name = "MODE")]
+        level: Option<String>,
+        /// With other processing on: lower a track whose true peak would overshoot full scale.
+        #[arg(long)]
+        peak_headroom: bool,
+    },
+    /// Measure files as volume levelling does: loudness (EBU R128), true peak, and the gain to
+    /// −18 LUFS; then the same for all of them as one album.
+    Loudness {
+        #[arg(required = true)]
+        files: Vec<PathBuf>,
     },
     /// Show (or set, 0–100) a network player's own volume.
     Volume { device: String, set: Option<u32> },
@@ -84,7 +97,8 @@ fn main() -> Result<()> {
             println!("{}: volume {}", t.name(), t.volume()?);
             Ok(())
         }
-        Cmd::Play { files, device, shared, upsample, eq, crossfeed, headroom, restore_highs, dop } => {
+        Cmd::Loudness { files } => loudness(files),
+        Cmd::Play { files, device, shared, upsample, eq, crossfeed, headroom, restore_highs, dop, level, peak_headroom } => {
             let dsp = DspSettings {
                 upsample: upsample.map_or(Upsample::Off, |k| Upsample::UpTo(k * 1000.0)),
                 eq: match eq {
@@ -106,6 +120,15 @@ fn main() -> Result<()> {
                 lossy: LossySettings { headroom, restore_highs },
                 convolution: None,
                 eq_bypass: false,
+                level: LevelSettings {
+                    mode: match level.as_deref() {
+                        None => LevelMode::Off,
+                        Some("track") => LevelMode::Track,
+                        Some("album") => LevelMode::Album,
+                        Some(other) => bail!("unknown levelling mode {other:?}"),
+                    },
+                    headroom: peak_headroom,
+                },
             };
             let mode = if dop { DsdMode::Dop } else { DsdMode::Pcm };
             play(files, device, mode, PlayOptions { exclusive: !shared, dsp, ..Default::default() })
@@ -179,6 +202,29 @@ fn list_renderers() {
             t.uid()
         );
     }
+}
+
+fn loudness(files: Vec<PathBuf>) -> Result<()> {
+    let mut all = Vec::new();
+    for f in &files {
+        let t0 = Instant::now();
+        let m = loudness::analyze(f)?;
+        let took = t0.elapsed();
+        let name = f.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        match m.loudness() {
+            Some(l) => println!("{:7.2} LUFS  peak {:6.2} dBTP  gain {:+6.2} dB  {:>7.2?}  {name}", loudness::TARGET_LUFS - l.gain_db, 20.0 * m.peak.max(1e-9).log10(), l.gain_db, took),
+            None => println!("silence                                                  {name}"),
+        }
+        let tags = load_track(f).map(|t| t.meta.gain).unwrap_or_default();
+        if !tags.is_empty() {
+            println!("        tags: track {:?} dB peak {:?}, album {:?} dB peak {:?}", tags.track_db, tags.track_peak, tags.album_db, tags.album_peak);
+        }
+        all.push(m);
+    }
+    if let Some(a) = loudness::album(all.iter()).filter(|_| all.len() > 1) {
+        println!("{:7.2} LUFS  peak {:6.2} dBTP  gain {:+6.2} dB  album", loudness::TARGET_LUFS - a.gain_db, 20.0 * a.peak.unwrap_or(0.0).max(1e-9).log10(), a.gain_db);
+    }
+    Ok(())
 }
 
 fn info(file: PathBuf) -> Result<()> {
@@ -274,12 +320,26 @@ fn play(files: Vec<PathBuf>, device: Option<String>, dsd_mode: DsdMode, opts: Pl
     let dev_name = out.name().to_string();
     // Network players take PCM only.
     let dsd_mode = if out.is_network() { DsdMode::Pcm } else { dsd_mode };
+    // Levelling: what the tags don't say is measured first (the files given are the album).
+    let mut measured: Vec<Option<Measured>> = vec![None; files.len()];
+    if opts.dsp.levels() {
+        for (m, f) in measured.iter_mut().zip(&files) {
+            *m = loudness::analyze(f).ok();
+        }
+    }
+    let album = measured.iter().cloned().collect::<Option<Vec<_>>>().and_then(|all| loudness::album(all.iter()));
     let open = |file: &PathBuf| -> Result<Arc<Track>> {
         print!("Opening {}… ", file.display());
         std::io::stdout().flush()?;
         let t0 = Instant::now();
         let track = open_file(file, dsd_mode)?;
         println!("{:.2?}", t0.elapsed());
+        if opts.dsp.levels() && !track.is_dop() {
+            let i = files.iter().position(|f| f == file).unwrap_or(0);
+            let tags = track.meta.gain.known();
+            let known = Known { track: tags.track.or(measured[i].as_ref().and_then(|m| m.loudness())), album: tags.album.or(album) };
+            track.set_level(loudness::resolve(&opts.dsp.level, opts.dsp.reshapes(), &known));
+        }
         Ok(track)
     };
 
@@ -378,6 +438,9 @@ fn describe(dev_name: &str, p: &hifi_engine::output::SignalPath) {
     }
     if let Some(cf) = p.crossfeed {
         dsp.push(format!("crossfeed {} Hz / {} dB", cf.cutoff_hz, cf.feed_db));
+    }
+    if let Some(l) = &p.level {
+        dsp.push(format!("level {:+.2} dB ({:?}{})", l.gain_db(), l.basis, if l.limited { ", held by the peak" } else { "" }));
     }
     if let Some(l) = &p.lossy {
         if l.gain < 1.0 {

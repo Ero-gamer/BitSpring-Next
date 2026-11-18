@@ -5,6 +5,7 @@ pub mod crossfeed;
 pub mod eq;
 pub mod eq_io;
 pub mod fir;
+pub mod loudness;
 pub mod lossy;
 pub mod resample;
 
@@ -14,6 +15,7 @@ use crossfeed::{Crossfeed, CrossfeedLevel};
 use eq::EqPreset;
 use fir::{Convolver, FirControl, ImpulseResponse};
 use lossy::{Lossy, LossyPlan, LossySettings};
+use loudness::{LevelMode, LevelSettings};
 use resample::{ResampleQuality, Resampler};
 
 /// An impulse response to convolve with. Compared by identity: the same loaded file.
@@ -44,6 +46,9 @@ pub struct DspSettings {
     pub crossfeed: Option<CrossfeedLevel>,
     /// Applied to lossy tracks only, and only when the analysis finds something to fix.
     pub lossy: LossySettings,
+    /// Volume levelling and peak headroom: each track plays at the gain set on it
+    /// ([`crate::Track::set_level`]).
+    pub level: LevelSettings,
 }
 
 impl Default for DspSettings {
@@ -55,6 +60,7 @@ impl Default for DspSettings {
             convolution: None,
             crossfeed: None,
             lossy: LossySettings::default(),
+            level: LevelSettings::default(),
         }
     }
 }
@@ -62,7 +68,18 @@ impl Default for DspSettings {
 impl DspSettings {
     /// Processing that applies to every track. (Off, and no lossy plan → bit-perfect path.)
     pub fn is_active(&self) -> bool {
+        self.reshapes() || self.level.mode != LevelMode::Off
+    }
+
+    /// Processing that rebuilds the waveform, so it may peak where the source's samples
+    /// don't — what the peak headroom is for.
+    pub fn reshapes(&self) -> bool {
         self.upsample != Upsample::Off || self.eq.is_some() || self.convolution.is_some() || self.crossfeed.is_some()
+    }
+
+    /// Tracks play at the gain set on them.
+    pub fn levels(&self) -> bool {
+        self.level.mode != LevelMode::Off || self.level.headroom
     }
 }
 
@@ -121,10 +138,12 @@ impl Chain {
     }
 
     /// Process a block of interleaved f32 input; returns interleaved output at the device rate.
-    /// `last` flushes the resampler's tail.
-    pub fn process(&mut self, input: &[f32], last: bool) -> &[f64] {
+    /// `gain`: the level of the track the block is from, applied first — so at a gapless join
+    /// each track's samples get its own gain, whatever the chain's delay. `last` flushes the
+    /// resampler's tail.
+    pub fn process(&mut self, input: &[f32], gain: f64, last: bool) -> &[f64] {
         self.scratch.clear();
-        self.scratch.extend(input.iter().map(|&s| s as f64));
+        self.scratch.extend(input.iter().map(|&s| s as f64 * gain));
         if let Some(l) = &mut self.lossy {
             l.process(&mut self.scratch, self.channels);
         }

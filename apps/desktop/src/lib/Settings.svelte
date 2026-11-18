@@ -1,11 +1,24 @@
 <script lang="ts">
   import { i18n, LOCALES, t } from "./i18n.svelte";
   import { checkUpdates, updates } from "./updates.svelte";
-  import { api, inTauri, isAndroid, isIOS, type RemoteStatus } from "./api";
+  import { inTauri } from "./api";
+  import { hasRemote, loadRemote, newAddress, remote, setRemote } from "./remote.svelte";
   import { look, LOOKS } from "./look.svelte";
   import { lyricsPrefs } from "./lyricsPrefs.svelte";
   import { liquidPill } from "./liquid";
   import { openUrl } from "@tauri-apps/plugin-opener";
+
+  let {
+    fades,
+    onfades,
+    onclose,
+  }: {
+    /** Pause, seek and stop fade over a few milliseconds. */
+    fades: boolean;
+    onfades: (on: boolean) => void;
+    /** Back to the screen the settings were opened from. */
+    onclose: () => void;
+  } = $props();
 
   const SITE = "https://bitspring.app";
   // In the browser, not in the app's own webview. Outside Tauri (the mock in a browser) the
@@ -16,173 +29,358 @@
     openUrl(SITE).catch(() => {});
   }
 
-  let open = $state(false);
-  let root: HTMLElement;
-
-  // The phone remote: computers only (a phone is the remote).
-  const hasRemote = !isIOS && !isAndroid;
-  let remote = $state<RemoteStatus | null>(null);
+  // The phone remote is switched on here. Right then its code is shown large, to scan at
+  // once; after that it lives under the phone icon in the header.
   $effect(() => {
-    if (open && hasRemote) api.remoteStatus().then((r) => (remote = r)).catch(() => {});
+    loadRemote();
+    return () => {
+      remote.fresh = false;
+    };
   });
-  async function setRemote(on: boolean) {
-    remote = await api.remoteEnable(on);
-  }
-  async function newAddress() {
-    remote = await api.remoteNewAddress();
-  }
 
-  function onWindowClick(e: MouseEvent) {
-    if (open && root && !e.composedPath().includes(root)) open = false;
+  function onKey(e: KeyboardEvent) {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    // A select closes its own list on Escape; an open popover in the header (enhancers, the
+    // output, the phone remote) takes this press for itself.
+    if ((e.target as HTMLElement).tagName === "SELECT" || document.querySelector(".app > header [role='dialog']")) return;
+    onclose();
   }
 </script>
 
-<svelte:window onclick={onWindowClick} onkeydown={(e) => e.key === "Escape" && (open = false)} />
+<svelte:window onkeydown={onKey} />
 
-<div class="settings" bind:this={root}>
-  <button class="trigger" onclick={() => (open = !open)} aria-expanded={open} aria-haspopup="dialog" aria-label={t("settings.label")} title={t("settings.label")}>
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d="M6.9 1.5h2.2l.4 1.8 1.2.5 1.6-1 1.5 1.5-1 1.6.5 1.2 1.8.4v2.2l-1.8.4-.5 1.2 1 1.6-1.5 1.5-1.6-1-1.2.5-.4 1.8H6.9l-.4-1.8-1.2-.5-1.6 1-1.5-1.5 1-1.6-.5-1.2-1.8-.4V6.9l1.8-.4.5-1.2-1-1.6 1.5-1.5 1.6 1 1.2-.5z"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.3"
-        stroke-linejoin="round"
-      />
-      <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3" />
-    </svg>
-  </button>
+<!-- One sheet, read top to bottom: what a group is about on the left, its settings on the
+     right — the way a device's panel names a row of controls. -->
+<div class="settings">
+  <div class="sheet">
+    <h1>{t("settings.label")}</h1>
 
-  {#if open}
-    <div class="panel" role="dialog" aria-label={t("settings.label")}>
-      <label class="field">
-        <span>{t("settings.language")}</span>
-        <select value={i18n.pref} onchange={(e) => (i18n.pref = e.currentTarget.value)}>
-          <option value="auto">{t("settings.system", { name: i18n.system.name })}</option>
-          {#each LOCALES as l (l.code)}
-            <option value={l.code} lang={l.tag} dir={l.dir}>{l.name}</option>
-          {/each}
-        </select>
-      </label>
-      <div class="field look">
-        <span id="look-label">{t("settings.look")}</span>
-        <div class="seg" role="radiogroup" aria-labelledby="look-label" use:liquidPill={look.value}>
-          {#each LOOKS as l (l)}
-            <button role="radio" aria-checked={look.value === l} class:sel={look.value === l} onclick={() => (look.value = l)}>
-              {t(l === "glass" ? "settings.lookGlass" : "settings.lookClassic")}
-            </button>
-          {/each}
+    <section aria-labelledby="set-playback">
+      <h2 id="set-playback">{t("settings.playback")}</h2>
+      <div class="rows">
+        <div class="row">
+          <div class="what">
+            <label for="set-fades">{t("settings.fades")}</label>
+            <p class="help">{t("settings.fadesHelp")}</p>
+            <!-- The brass lamp is the app's mark for an untouched signal: here it says what
+                 this switch leaves alone. -->
+            <p class="signal"><i aria-hidden="true"></i>{t("settings.fadesSignal")}</p>
+          </div>
+          <span class="switch">
+            <input id="set-fades" type="checkbox" role="switch" checked={fades} onchange={(e) => onfades(e.currentTarget.checked)} />
+            <span class="knob" aria-hidden="true"></span>
+          </span>
         </div>
       </div>
-      <div class="field upd">
-        <label class="toggle">
-          <input type="checkbox" checked={lyricsPrefs.online} onchange={(e) => (lyricsPrefs.online = e.currentTarget.checked)} />
-          <span>{t("lyrics.setting")}</span>
-        </label>
-        <p class="note">{t("lyrics.settingHelp")}</p>
+    </section>
+
+    <section aria-labelledby="set-appearance">
+      <h2 id="set-appearance">{t("settings.appearance")}</h2>
+      <div class="rows">
+        <div class="row">
+          <div class="what"><label for="set-language">{t("settings.language")}</label></div>
+          <select id="set-language" value={i18n.pref} onchange={(e) => (i18n.pref = e.currentTarget.value)}>
+            <option value="auto">{t("settings.system", { name: i18n.system.name })}</option>
+            {#each LOCALES as l (l.code)}
+              <option value={l.code} lang={l.tag} dir={l.dir}>{l.name}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="row">
+          <div class="what"><span id="set-look">{t("settings.look")}</span></div>
+          <div class="seg" role="radiogroup" aria-labelledby="set-look" use:liquidPill={look.value}>
+            {#each LOOKS as l (l)}
+              <button role="radio" aria-checked={look.value === l} class:sel={look.value === l} onclick={() => (look.value = l)}>
+                {t(l === "glass" ? "settings.lookGlass" : "settings.lookClassic")}
+              </button>
+            {/each}
+          </div>
+        </div>
       </div>
-      {#if hasRemote && remote}
-        <div class="field upd remote">
-          <label class="toggle">
-            <input type="checkbox" checked={remote.enabled} onchange={(e) => setRemote(e.currentTarget.checked)} />
-            <span>{t("remote.setting")}</span>
-          </label>
-          <p class="note">{t("remote.help")}</p>
-          {#if remote.enabled && remote.url}
-            <!-- Our own SVG, made by the app from the address. -->
-            <div class="qr" aria-hidden="true">{@html remote.qr}</div>
-            <p class="url">{remote.url}</p>
-            <button class="check" onclick={newAddress}>{t("remote.newAddress")}</button>
-            <p class="note">{t("remote.newHelp")}</p>
+    </section>
+
+    <section aria-labelledby="set-network">
+      <h2 id="set-network">{t("settings.network")}</h2>
+      <div class="rows">
+        <div class="row">
+          <div class="what">
+            <label for="set-lyrics">{t("lyrics.setting")}</label>
+            <p class="help">{t("lyrics.settingHelp")}</p>
+          </div>
+          <span class="switch">
+            <input id="set-lyrics" type="checkbox" role="switch" checked={lyricsPrefs.online} onchange={(e) => (lyricsPrefs.online = e.currentTarget.checked)} />
+            <span class="knob" aria-hidden="true"></span>
+          </span>
+        </div>
+        {#if hasRemote && remote.status}
+          {@const r = remote.status}
+          <div class="row">
+            <div class="what">
+              <label for="set-remote">{t("remote.setting")}</label>
+              <p class="help">{t("remote.help")}</p>
+              {#if r.error}<p class="help err">{t("remote.failed", { error: r.error })}</p>{/if}
+              {#if r.enabled && r.url && !remote.fresh}<p class="help where">{t("remote.where")}</p>{/if}
+            </div>
+            <span class="switch">
+              <input id="set-remote" type="checkbox" role="switch" checked={r.enabled} onchange={(e) => setRemote(e.currentTarget.checked)} />
+              <span class="knob" aria-hidden="true"></span>
+            </span>
+          </div>
+          {#if r.enabled && r.url && remote.fresh}
+            <div class="pairing">
+              <!-- Our own SVG, made by the app from the address. -->
+              <div class="qr" aria-hidden="true">{@html r.qr}</div>
+              <div class="address">
+                <p class="scan">{t("remote.scan")}</p>
+                <p class="url">{r.url}</p>
+                <button class="quiet" onclick={newAddress}>{t("remote.newAddress")}</button>
+                <p class="help">{t("remote.newHelp")}</p>
+                <p class="help">{t("remote.where")}</p>
+              </div>
+            </div>
           {/if}
-          {#if remote.error}<p class="note err">{t("remote.failed", { error: remote.error })}</p>{/if}
-        </div>
-      {/if}
-      {#if updates.enabled}
-        <div class="field upd">
-          <span>{t("upd.title")}</span>
-          <p class="ver">{t("upd.version", { version: updates.current })}</p>
-          {#if updates.update}
-            <p class="note new">{t("upd.available", { version: updates.update.version })}</p>
-            {#if updates.dismissed === updates.update.version}
-              <button class="check" onclick={() => (updates.dismissed = null)}>{t("upd.show")}</button>
+        {/if}
+      </div>
+    </section>
+
+    <section aria-labelledby="set-about">
+      <h2 id="set-about">{t("settings.about")}</h2>
+      <div class="rows">
+        <div class="row">
+          <div class="what">
+            <span>BitSpring{#if updates.current}&nbsp;{updates.current}{/if}</span>
+            {#if updates.enabled}
+              {#if updates.update}
+                <p class="help new">{t("upd.available", { version: updates.update.version })}</p>
+              {:else if updates.upToDate}
+                <p class="help">{t("upd.upToDate")}</p>
+              {/if}
+              {#if updates.error && !updates.update}<p class="help err">{updates.error}</p>{/if}
             {/if}
-          {:else}
-            <button class="check" onclick={() => checkUpdates(true)} disabled={updates.checking}>
-              {t(updates.checking ? "upd.checking" : "upd.check")}
-            </button>
-            {#if updates.upToDate}<p class="note">{t("upd.upToDate")}</p>{/if}
+            <p class="help"><a href={SITE} onclick={openSite}>bitspring.app</a></p>
+          </div>
+          {#if updates.enabled}
+            {#if updates.update}
+              {#if updates.dismissed === updates.update.version}
+                <button class="quiet" onclick={() => (updates.dismissed = null)}>{t("upd.show")}</button>
+              {/if}
+            {:else}
+              <button class="quiet" onclick={() => checkUpdates(true)} disabled={updates.checking}>
+                {t(updates.checking ? "upd.checking" : "upd.check")}
+              </button>
+            {/if}
           {/if}
-          {#if updates.error && !updates.update}<p class="note err">{updates.error}</p>{/if}
         </div>
-      {/if}
-      <!-- Store builds have no update section, so the version shows here instead. -->
-      <p class="about">
-        {#if !updates.enabled && updates.current}<span>BitSpring {updates.current}</span>{/if}
-        <a href={SITE} onclick={openSite}>bitspring.app</a>
-      </p>
-    </div>
-  {/if}
+      </div>
+    </section>
+  </div>
 </div>
 
 <style>
   .settings {
-    position: relative;
-  }
-  .trigger {
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--r-md);
-    border: 1px solid var(--slate-600);
-    color: var(--mist);
-  }
-  .trigger:hover,
-  .trigger[aria-expanded="true"] {
-    color: var(--porcelain);
-    border-color: var(--slate-500);
-  }
-  .panel {
-    position: absolute;
-    inset-inline-end: 0;
-    top: calc(100% + 8px);
-    width: 260px;
-    z-index: 20;
-    background: var(--slate-700);
-    border: 1px solid var(--slate-500);
-    border-radius: var(--r-lg);
-    padding: 14px 16px 16px;
-    box-shadow: 0 18px 40px rgba(5, 12, 15, 0.55);
-    /* with the phone remote's code shown it can be taller than the window: scroll inside it */
-    max-height: calc(100vh - 72px);
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable both-edges;
   }
-  .field {
+  .sheet {
+    /* The settings' own measure: a legend column, a reading column, and one width for the
+       wide controls at its end. */
+    --legend: 168px;
+    --control: 208px;
+    max-width: 780px;
+    padding: 26px var(--gutter) 48px;
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* A group: its name in the legend column, its settings beside it, a rule above. */
+  section {
+    display: grid;
+    grid-template-columns: var(--legend) minmax(0, 1fr);
+    column-gap: 20px;
+    padding: 20px 0 22px;
+    border-top: 1px solid var(--slate-600);
+  }
+  h1 + section {
+    margin-top: 16px;
+  }
+  h2 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--t-md);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--mist);
+    /* on the first row's baseline */
+    line-height: 1.45;
+  }
+  .rows {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 18px;
+    min-width: 0;
+  }
+  .row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px 24px;
+  }
+  .what {
+    flex: 1;
+    min-width: 0;
+    max-width: 46ch;
+  }
+  .what > label,
+  .what > span {
     font-weight: 600;
   }
-  .look {
-    margin-top: 14px;
+  .what > label {
+    cursor: pointer;
+  }
+  .help {
+    margin: 4px 0 0;
+    font-size: var(--t-sm);
+    line-height: 1.5;
+    color: var(--mist);
+  }
+  .help.new {
+    color: var(--porcelain);
+  }
+  .help.err {
+    color: var(--alarm);
+  }
+  .help a {
+    color: var(--porcelain);
+    text-decoration: underline;
+    text-decoration-color: var(--slate-500);
+    text-underline-offset: 3px;
+  }
+  .help a:hover {
+    text-decoration-color: var(--porcelain);
+  }
+
+  /* What a switch leaves alone, under the app's lamp for an untouched signal. */
+  .signal {
+    display: flex;
+    gap: 9px;
+    margin: 8px 0 0;
+    font-size: var(--t-sm);
+    line-height: 1.5;
+    color: var(--porcelain);
+  }
+  .signal i {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-top: 0.5em;
+    border-radius: 50%;
+    background: var(--brass);
+    box-shadow: 0 0 8px var(--brass-glow);
+  }
+
+  /* On/off. Porcelain when on: brass and violet are kept for the signal. */
+  .switch {
+    position: relative;
+    flex: none;
+    display: block;
+    width: 38px;
+    height: 22px;
+    margin-top: 1px;
+  }
+  .switch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .knob {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: var(--slate-800);
+    border: 1px solid var(--slate-500);
+    pointer-events: none;
+    transition:
+      background 120ms ease,
+      border-color 120ms ease;
+  }
+  .knob::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    inset-inline-start: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--mist);
+    transition:
+      transform 140ms ease,
+      background 120ms ease;
+  }
+  .switch input:checked + .knob {
+    background: rgba(232, 237, 234, 0.16);
+    border-color: var(--porcelain);
+  }
+  .switch input:checked + .knob::after {
+    transform: translateX(16px);
+    background: var(--porcelain);
+  }
+  :global([dir="rtl"]) .switch input:checked + .knob::after {
+    transform: translateX(-16px);
+  }
+  .switch input:focus-visible + .knob {
+    outline: 2px solid var(--porcelain);
+    outline-offset: 2px;
+  }
+
+  /* The wide controls — a list to pick from, a row of choices — are one size and one shape,
+     so a column of them lines up on both edges. */
+  select,
+  .seg {
+    flex: none;
+    box-sizing: border-box;
+    width: var(--control);
+    height: 38px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--slate-600);
+    font-size: var(--t-sm);
+  }
+  select {
+    --select-chevron: 34px;
+    padding: 0 14px;
+    background-color: var(--slate-800);
+    background-position: right 13px center;
+  }
+  :global([dir="rtl"]) select {
+    background-position: left 13px center;
+  }
+  :global(html[data-look="glass"]) select {
+    border-radius: 999px;
+    padding: 0 16px;
   }
   .seg {
     display: flex;
     padding: 3px;
     gap: 2px;
-    border-radius: var(--r-md);
-    border: 1px solid var(--slate-600);
-    font-weight: 500;
-    font-size: var(--t-sm);
   }
   .seg button {
     flex: 1;
-    padding: 5px 8px;
+    display: grid;
+    place-items: center;
+    padding: 0 10px;
     border-radius: var(--r-md);
     color: var(--mist);
+    white-space: nowrap;
   }
   .seg button:hover {
     color: var(--porcelain);
@@ -195,51 +393,32 @@
   :global(html[data-look="glass"]) .seg button {
     border-radius: 999px;
   }
-  .upd {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--slate-600);
-  }
-  .ver,
-  .note {
-    margin: 0;
-    font-weight: 400;
-    font-size: var(--t-sm);
-    color: var(--mist);
-  }
-  .note.new {
-    color: var(--porcelain);
-  }
-  .note.err {
-    color: var(--alarm);
-  }
-  .check {
-    align-self: flex-start;
+  .quiet {
+    flex: none;
     padding: 6px 12px;
     border-radius: var(--r-md);
     border: 1px solid var(--slate-500);
-    font-weight: 500;
     font-size: var(--t-sm);
+    white-space: nowrap;
   }
-  .check:hover:not(:disabled) {
+  .quiet:hover:not(:disabled) {
     border-color: var(--mist);
   }
-  .check:disabled {
+  .quiet:disabled {
     color: var(--mist);
   }
-  .toggle {
+
+  /* The phone remote's way in: the code to scan, and the same address in words. */
+  .pairing {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-  }
-  .toggle input {
-    accent-color: var(--porcelain);
+    align-items: flex-start;
+    gap: 18px;
   }
   .qr {
-    align-self: center;
-    width: 180px;
-    padding: 8px;
+    flex: none;
+    /* large: this is the moment to point a phone at it */
+    width: 224px;
+    padding: 12px;
     border-radius: var(--r-md);
     background: #fff;
     line-height: 0;
@@ -248,56 +427,55 @@
     width: 100%;
     height: auto;
   }
+  .address {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .address .quiet {
+    margin-top: 10px;
+  }
+  .scan {
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+  .help.where {
+    color: var(--porcelain);
+  }
   .url {
     margin: 0;
-    font-weight: 400;
-    font-size: var(--t-xs);
+    font-size: var(--t-sm);
     color: var(--porcelain);
     user-select: all;
+    -webkit-user-select: all;
     word-break: break-all;
   }
-  .about {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin: 16px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--slate-600);
-    font-size: var(--t-sm);
-    color: var(--mist);
-  }
-  .about a {
-    margin-inline-start: auto;
-    color: var(--porcelain);
-    text-decoration: none;
-  }
-  .about a:hover {
-    text-decoration: underline;
-  }
-  select {
-    font: inherit;
-    font-weight: 400;
-    font-size: var(--t-sm);
-    color: var(--porcelain);
-    background: var(--slate-800);
-    border: 1px solid var(--slate-500);
-    border-radius: var(--r-md);
-    padding: 7px 10px;
+
+  @media (prefers-reduced-motion: reduce) {
+    .knob,
+    .knob::after {
+      transition: none;
+    }
   }
 
-  /* phone: a bare icon (the header is tight), and the panel spans the screen under it */
-  @media (max-width: 700px), (max-height: 500px) {
-    .trigger {
-      width: 26px;
-      border-color: transparent;
+  /* A narrow window, a phone: the group's name above its settings. */
+  @media (max-width: 1000px) {
+    .sheet {
+      --legend: 132px;
     }
-    .panel {
-      position: fixed;
-      left: 10px;
-      right: 10px;
-      top: calc(var(--safe-top, env(safe-area-inset-top)) + 58px);
-      width: auto;
-      max-height: calc(100dvh - var(--safe-top, env(safe-area-inset-top)) - var(--safe-bottom, env(safe-area-inset-bottom)) - 68px);
+  }
+  @media (max-width: 700px), (max-height: 500px) {
+    .sheet {
+      padding: 18px 16px 32px;
+    }
+    section {
+      grid-template-columns: 1fr;
+      row-gap: 12px;
+      padding: 16px 0 18px;
+    }
+    .pairing {
+      flex-direction: column;
     }
   }
 </style>

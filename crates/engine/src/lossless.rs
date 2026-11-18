@@ -145,6 +145,7 @@ pub fn open_range_at(path: &Path, range: Option<crate::cue::Range>, start_secs: 
         track_number: meta.track_number.or(file_meta.track_number),
         disc_number: meta.disc_number.or(file_meta.disc_number),
         cover: meta.cover.or(file_meta.cover),
+        gain: if range.is_some() { file_meta.gain.of_image() } else { file_meta.gain },
     };
     let track = Track::new(rate, info.channels, Some(info.bits), false, meta, length as usize);
     let track = Arc::new(track.starting_at(start as usize).windowed(WINDOW_BYTES));

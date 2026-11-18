@@ -376,7 +376,7 @@ pub fn analyze(path: &Path) -> Result<Report> {
 }
 
 /// Every decoded sample of `track`, in order, as the decoder delivers them.
-fn read_all(track: &Track, mut each: impl FnMut(&[f32])) -> Result<()> {
+pub(crate) fn read_all(track: &Track, mut each: impl FnMut(&[f32])) -> Result<()> {
     let mut pos = 0;
     loop {
         pos = track.claim(pos);

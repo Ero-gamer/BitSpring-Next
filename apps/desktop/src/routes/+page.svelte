@@ -14,6 +14,9 @@
   import Enhancers from "$lib/Enhancers.svelte";
   import Equalizer from "$lib/Equalizer.svelte";
   import UpdateNotice from "$lib/UpdateNotice.svelte";
+  import CrashNotice from "$lib/CrashNotice.svelte";
+  import RemoteButton from "$lib/RemoteButton.svelte";
+  import { loadRemote } from "$lib/remote.svelte";
   import { startUpdateChecks } from "$lib/updates.svelte";
   import { look } from "$lib/look.svelte";
   import { fade } from "svelte/transition";
@@ -55,7 +58,7 @@
   const savedDsp = load<Partial<DspSettings> & { eqPath?: string | null }>("dsp", {});
   const legacyEqPath = savedDsp.eqPath ?? null;
   delete savedDsp.eqPath;
-  let dsp = $state<DspSettings>({ upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, ...savedDsp });
+  let dsp = $state<DspSettings>({ upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true, ...savedDsp });
   let ir = $state<IrInfo | null>(null);
   let eqState = $state<EqState | null>(null);
   /** The EQ preset that plays on the picked output (null = EQ off there). */
@@ -76,7 +79,24 @@
   let dragOver = $state(false);
   let sweepKey = $state(0);
   let advancing = false;
-  let screen = $state<"player" | "library" | "queue" | "streaming" | "eq">(load("screen", "player"));
+  type Screen = "player" | "library" | "queue" | "streaming" | "eq" | "settings";
+  let screen = $state<Screen>(load("screen", "player"));
+  /** The settings open over whatever screen was up, and go back to it. */
+  let behindSettings: Screen = "player";
+  function toggleSettings() {
+    if (screen === "settings") screen = behindSettings;
+    else {
+      behindSettings = screen;
+      screen = "settings";
+    }
+  }
+  /** Pause, seek and stop fade over a few milliseconds instead of clicking. */
+  let fades = $state<boolean>(load("fades", true));
+  function setFades(on: boolean) {
+    fades = on;
+    save("fades", on);
+    api.setFades(on).catch(() => {});
+  }
   /** The lyrics take the stage on the player screen (kept on from track to track). */
   let lyricsOn = $state<boolean>(load("lyrics", false));
   $effect(() => save("lyrics", lyricsOn));
@@ -103,7 +123,10 @@
     libGoto = { kind, path: now.path, artist: now.artist, album: now.album, n: ++gotoCount };
     screen = "library";
   }
-  $effect(() => save("screen", screen));
+  // (Not the settings: the app opens on a screen with music in it.)
+  $effect(() => {
+    if (screen !== "settings") save("screen", screen);
+  });
   /** The library tab on a phone is the library alone; a desktop window shows the queue beside everything. */
   const phone = typeof window !== "undefined" ? window.matchMedia("(max-width: 700px), (max-height: 500px)") : null;
   onMount(() => trackSafeArea());
@@ -405,6 +428,8 @@
     refreshStreaming();
     // Restore last session's processing (also loads and validates the impulse response).
     applyDsp(untrack(() => dsp));
+    if (!untrack(() => fades)) api.setFades(false).catch(() => {});
+    loadRemote();
     loadEq();
     const stopUpdateChecks = startUpdateChecks();
     const timer = setInterval(async () => {
@@ -503,17 +528,30 @@
   <header data-tauri-drag-region class:mac={isMac} class:chrome-right={isMac && i18n.system.dir === "rtl"} use:fitRow={["no-wordmark", "no-enh-state"]}>
     <span class="wordmark" data-tauri-drag-region>BitSpring</span>
     <nav class="tabs" aria-label={t("nav.screens")} use:liquidPill={screen}>
-      <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} onclick={() => (screen = "player")}>{t("nav.player")}</button>
-      <button class:sel={screen === "library"} aria-current={screen === "library" ? "page" : undefined} onclick={() => (screen = "library")}>{t("nav.library")}</button>
+      <!-- data-label: the same words in the chosen tab's bold, to keep each tab's width (see .tabs button::after) -->
+      <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} data-label={t("nav.player")} onclick={() => (screen = "player")}>{t("nav.player")}</button>
+      <button class:sel={screen === "library"} aria-current={screen === "library" ? "page" : undefined} data-label={t("nav.library")} onclick={() => (screen = "library")}>{t("nav.library")}</button>
       {#if streaming?.available}
-        <button class:sel={screen === "streaming"} aria-current={screen === "streaming" ? "page" : undefined} onclick={() => (screen = "streaming")}>{t("nav.streaming")}</button>
+        <button class:sel={screen === "streaming"} aria-current={screen === "streaming" ? "page" : undefined} data-label={t("nav.streaming")} onclick={() => (screen = "streaming")}>{t("nav.streaming")}</button>
       {/if}
-      <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
+      <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} data-label={t("nav.eq")} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
     </nav>
     <div class="controls">
       <Enhancers settings={dsp} {eqName} {ir} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
       <DevicePicker {devices} bind:selected bind:exclusive bind:dopDevices onrefresh={() => refreshDevices(true)} onchanneltest={channelTest} />
-      <Settings />
+      <RemoteButton />
+      <button class="trigger gear" class:open={screen === "settings"} onclick={toggleSettings} aria-pressed={screen === "settings"} aria-label={t("settings.label")} title={t("settings.label")}>
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M6.9 1.5h2.2l.4 1.8 1.2.5 1.6-1 1.5 1.5-1 1.6.5 1.2 1.8.4v2.2l-1.8.4-.5 1.2 1 1.6-1.5 1.5-1.6-1-1.2.5-.4 1.8H6.9l-.4-1.8-1.2-.5-1.6 1-1.5-1.5 1-1.6-.5-1.2-1.8-.4V6.9l1.8-.4.5-1.2-1-1.6 1.5-1.5 1.6 1 1.2-.5z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.3"
+            stroke-linejoin="round"
+          />
+          <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3" />
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -632,6 +670,10 @@
     <main class="lib">
       <Equalizer {devices} device={selected} convolution={ir} onsignal={eqSignal} onstate={(s) => (eqState = s)} onpickir={pickIr} onclearir={() => applyDsp({ ...dsp, convolution: null })} />
     </main>
+  {:else if screen === "settings"}
+    <main class="lib">
+      <Settings {fades} onfades={setFades} onclose={toggleSettings} />
+    </main>
   {:else if screen === "streaming" && streaming?.available}
     <main class="lib">
       <Streaming status={streaming} currentPath={testing ? null : (now?.path ?? null)} onstatus={refreshStreaming} onplay={playPaths} onenqueue={enqueue} />
@@ -700,6 +742,7 @@
   </nav>
 
   <UpdateNotice playing={status.active && !status.paused} />
+  <CrashNotice />
 
   {#if dragOver}
     <div class="drop-hint" aria-hidden="true"><p>{t("queue.drop")}</p></div>
@@ -755,11 +798,24 @@
     margin-inline-end: auto;
   }
   .tabs button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
     white-space: nowrap;
     padding: 6px 12px;
     border-radius: var(--r-md);
     font-size: var(--t-sm);
     color: var(--mist);
+  }
+  /* Every tab is as wide as its label set bold, chosen or not: the row keeps its width
+     whichever tab is chosen, and when none is (the settings screen). */
+  .tabs button::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    pointer-events: none;
   }
   .tabs button:hover {
     color: var(--porcelain);
@@ -897,6 +953,25 @@
     gap: 10px;
     align-items: center;
     min-width: 0;
+  }
+  /* Settings: a screen of its own, opened and closed by the gear. */
+  .gear {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--slate-600);
+    color: var(--mist);
+  }
+  .gear:hover,
+  .gear.open {
+    color: var(--porcelain);
+    border-color: var(--slate-500);
+  }
+  .gear.open {
+    background: var(--slate-600);
   }
   /* What the row still lacks after fitRow comes out of the device name (it ellipsizes). */
   header :global(.picker),
@@ -1245,6 +1320,11 @@
       margin-inline-start: auto;
       min-width: 0;
       gap: 8px;
+    }
+    /* a bare icon: the header is tight */
+    .gear {
+      width: 26px;
+      border-color: transparent;
     }
     header :global(.enh .state) {
       display: none;

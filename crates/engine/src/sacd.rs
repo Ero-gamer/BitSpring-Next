@@ -70,6 +70,7 @@ fn meta(disc: &Disc<BufReader<File>>, track: &scarletbook::Track) -> TrackMeta {
         track_number: Some(track.number as u64),
         disc_number: (m.album_set_size > 1).then_some(m.album_sequence_number as u64),
         cover: None,
+        gain: Default::default(),
     }
 }
 

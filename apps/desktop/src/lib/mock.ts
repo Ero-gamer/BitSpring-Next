@@ -11,6 +11,7 @@ import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack,
 const UNKNOWN_ARTIST = "Unknown artist";
 /** ?store: look like an App Store / Microsoft Store build (no streaming, no self-updating). */
 const storeBuild = new URLSearchParams(location.search).has("store");
+let mockCrash = new URLSearchParams(location.search).has("crash");
 const LIB: [string, string, string | null, string | null, string, number, number | null, string | null, string[]][] = [
   ["Ada Marlow", "Paper Moons", "2017", "Folk", "ALAC", 48000, 24, "#6b5d2e", ["Kite Strings", "Harbour", "Paper Moons"]],
   ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, "#16233a", ["Carrier", "Sideband", "Noise Floor"]],
@@ -67,7 +68,17 @@ const devices: Device[] = [
   { uid: "cast:shield", name: "Living Room TV", transport: "Network", channels: 2, rates: [44100, 48000, 88200, 96000], nominalRate: 0, isDefault: false, bitPerfectCapable: true, maxDop: null, network: true, model: "SHIELD Android TV", protocol: "Chromecast" },
 ];
 
-let dsp: DspSettings = { upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false };
+let dsp: DspSettings = { upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true };
+/** The pretend library analysis: when it started (null: not running) and how much was done before. */
+let measuring: number | null = null;
+let measured = 0;
+/** What volume levelling does to the pretend track. */
+function mockLevel(): Pick<Signal, "levelDb" | "levelBasis" | "levelLimited"> {
+  if (dsp.level) return { levelDb: dsp.level === "album" ? -6.1 : -7.3, levelBasis: dsp.level, levelLimited: false };
+  const reshapes = !!(dsp.upsampleKhz || dsp.crossfeed || dsp.convolution || eqOn());
+  if (dsp.peakHeadroom && reshapes) return { levelDb: -0.8, levelBasis: "peak", levelLimited: true };
+  return { levelDb: null, levelBasis: null, levelLimited: false };
+}
 let lastDevice: Device | null = null;
 let lastExclusive = true;
 
@@ -131,6 +142,7 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
       exclusive, transport: dev.transport, resampled: deviceRate !== 176400,
       eq: dop ? null : eqOn(), eqLinear: false, convolution: dop ? null : convName(), crossfeed: dop ? null : dsp.crossfeed,
       sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null,
+      ...(dop ? { levelDb: null, levelBasis: null, levelLimited: false } : mockLevel()),
       dsdRate, dop, dsdNote, layout: "Stereo", downmix: null, bitPerfect: dop,
     };
   }
@@ -144,9 +156,10 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
     exclusive, transport: dev.transport, resampled: rate !== src,
     eq: eqOn(), eqLinear: eqSnapshot().presets.find((p) => p.name === eqOn())?.phase === "linear", convolution: convName(), crossfeed: dsp.crossfeed,
     sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null,
+    ...mockLevel(),
     dsdRate: null, dop: false, dsdNote: null,
     layout: surround ? "5.1" : "Stereo", downmix: surround ? { to: "Stereo", gainDb: -7.7 } : null,
-    bitPerfect: !surround && !air && exclusive && rate === src && !eqOn() && !dsp.convolution && !dsp.crossfeed,
+    bitPerfect: !surround && !air && exclusive && rate === src && !eqOn() && !dsp.convolution && !dsp.crossfeed && !dsp.level,
   };
 }
 
@@ -211,6 +224,33 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return libAlbums as T;
     case "library_tracks":
       return libTracks as T;
+    case "crash_report":
+      // http://localhost:1420/?crash shows the notice.
+      return (mockCrash
+        ? "BitSpring 0.19.0 — error report\nTime: 2026-11-18 12:40 UTC\nSystem: macOS 15.1, aarch64\nThread: hifi-render\nError: index out of bounds: the len is 3 but the index is 7\nWhere: engine/src/output.rs:912"
+        : null) as T;
+    case "crash_dismiss":
+      mockCrash = false;
+      return undefined as T;
+    case "loudness_status": {
+      // The pretend analysis takes about 12 s for the whole library.
+      const total = libTracks.length;
+      if (measuring !== null) {
+        const now = Math.min(total, measured + Math.floor(((performance.now() - measuring) / 12000) * total));
+        if (now >= total) {
+          measured = total;
+          measuring = null;
+        } else return { analysed: now, tracks: total, running: [now - measured, total - measured] } as T;
+      }
+      return { analysed: measured, tracks: total, running: null } as T;
+    }
+    case "loudness_analyze":
+      if (args.start) measuring = performance.now();
+      else if (measuring !== null) {
+        measured = Math.min(libTracks.length, measured + Math.floor(((performance.now() - measuring) / 12000) * libTracks.length));
+        measuring = null;
+      }
+      return undefined as T;
     case "quality_cached":
       return (args.paths as string[]).map((p) => mockChecks[p] ?? null) as T;
     case "quality_check": {
@@ -308,10 +348,13 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "stop":
       duration = 0;
       return undefined as T;
+    case "set_fades":
+      return undefined as T;
     case "set_dsp": {
       dsp = {
         upsampleKhz: args.upsampleKhz as number | null, crossfeed: args.crossfeed as DspSettings["crossfeed"],
         convolution: args.convolution as string | null, headroom: !!args.headroom, restoreHighs: !!args.restoreHighs,
+        level: (args.level as DspSettings["level"]) ?? null, peakHeadroom: !!args.peakHeadroom,
       };
       return {
         signal: duration > 0 && lastDevice ? mockSignal(lastDevice, lastExclusive, lastPath, lastDop) : null,
@@ -392,7 +435,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "eq_export_text":
       return "Preamp: -6.4 dB\nFilter 1: ON LSC Fc 105 Hz Gain 5.5 dB Q 0.7\n" as T;
     case "channel_test":
-      return { sourceRate: 44100, sourceBits: 24, deviceRate: 44100, dacBits: 32, dacFloat: false, integerMode: true, exclusive: true, transport: "Usb", resampled: false, eq: null, eqLinear: false, convolution: null, crossfeed: null, sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null, dsdRate: null, dop: false, dsdNote: null, layout: "Stereo", downmix: null, bitPerfect: true } as T;
+      return { sourceRate: 44100, sourceBits: 24, deviceRate: 44100, dacBits: 32, dacFloat: false, integerMode: true, exclusive: true, transport: "Usb", resampled: false, eq: null, eqLinear: false, convolution: null, crossfeed: null, sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null, levelDb: null, levelBasis: null, levelLimited: false, dsdRate: null, dop: false, dsdNote: null, layout: "Stereo", downmix: null, bitPerfect: true } as T;
     case "playlists_list":
       return [...mockLists].sort((a, b) => b.updated - a.updated).map(mockSummary) as T;
     case "playlist_get": {

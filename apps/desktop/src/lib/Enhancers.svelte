@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Crossfeed, DspSettings, IrInfo } from "./api";
+  import { api, type Crossfeed, type DspSettings, type IrInfo, type LevelMode, type LoudnessStatus } from "./api";
   import { list, num, t } from "./i18n.svelte";
   import { liquidPill } from "./liquid";
 
@@ -27,6 +27,7 @@
       eqName && t("enh.on.eq"),
       settings.convolution && t("enh.on.convolution"),
       settings.crossfeed && t("enh.on.crossfeed"),
+      settings.level && t("enh.on.level"),
     ].filter(Boolean) as string[],
   );
 
@@ -34,6 +35,34 @@
 
   const UPSAMPLE: (number | null)[] = [null, 192, 384, 768];
   const CROSSFEED: (Crossfeed | null)[] = [null, "light", "medium", "strong"];
+  const LEVEL: (LevelMode | null)[] = [null, "track", "album"];
+
+  // How much of the library is measured: asked while the panel is open and levelling is on,
+  // more often while the analysis runs.
+  let loudness = $state<LoudnessStatus | null>(null);
+  $effect(() => {
+    if (!open || !settings.level) return;
+    let timer: ReturnType<typeof setTimeout>;
+    let gone = false;
+    const ask = async () => {
+      try {
+        loudness = await api.loudnessStatus();
+      } catch {
+        loudness = null;
+      }
+      if (!gone) timer = setTimeout(ask, loudness?.running ? 700 : 4000);
+    };
+    ask();
+    return () => {
+      gone = true;
+      clearTimeout(timer);
+    };
+  });
+
+  async function analyze(start: boolean) {
+    await api.loudnessAnalyze(start);
+    loudness = await api.loudnessStatus();
+  }
 
   function set(patch: Partial<DspSettings>) {
     onchange({ ...settings, ...patch });
@@ -90,6 +119,41 @@
         <p class="help">{t("enh.crossfeedHelp")}</p>
       </fieldset>
 
+      <!-- Right after the three it protects against: it acts only while one of them is on. -->
+      <fieldset>
+        <label class="toggle lead">
+          <input type="checkbox" role="switch" checked={settings.peakHeadroom} onchange={(e) => set({ peakHeadroom: e.currentTarget.checked })} />
+          <span class="knob" aria-hidden="true"></span>
+          <span class="t-label">{t("enh.peak")}</span>
+        </label>
+        <p class="help">{t("enh.peakHelp")}</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>{t("enh.level")}</legend>
+        <div class="seg" role="radiogroup" aria-label={t("enh.level")} use:liquidPill={settings.level}>
+          {#each LEVEL as v (v)}
+            <button role="radio" aria-checked={settings.level === v} class:sel={settings.level === v} onclick={() => set({ level: v })}>
+              {v ? t(`enh.level.${v}`) : t("enh.offShort")}
+            </button>
+          {/each}
+        </div>
+        <p class="help">{t("enh.levelHelp")}</p>
+        {#if settings.level && loudness && loudness.tracks > 0}
+          <div class="measure">
+            {#if loudness.running}
+              <span>{t("enh.levelRunning", { done: num(loudness.running[0]), total: num(loudness.running[1]) })}</span>
+              <button onclick={() => analyze(false)}>{t("enh.levelStop")}</button>
+            {:else}
+              <span>{t("enh.levelStatus", { done: num(loudness.analysed), total: num(loudness.tracks) })}</span>
+              {#if loudness.analysed < loudness.tracks}
+                <button onclick={() => analyze(true)}>{t("enh.levelAnalyze")}</button>
+              {/if}
+            {/if}
+          </div>
+        {/if}
+      </fieldset>
+
       <fieldset>
         <legend>{t("enh.lossy")}</legend>
         <label class="toggle">
@@ -111,7 +175,9 @@
         {#if active.length === 0}
           {t(lossyOn ? "enh.footerLossy" : "enh.footerPure")}
         {:else}
-          {t("enh.footerOn")}
+          <!-- Names what breaks bit-perfect: the MP3 switches and the headroom don't, and
+               needn't be turned off to get it back. -->
+          {t("enh.footerOn", { what: list(active) })}
         {/if}
       </p>
     </div>
@@ -255,6 +321,33 @@
   }
   .toggle:first-of-type {
     margin-top: 0;
+  }
+  /* A block that is one switch: the switch's name stands where a block's title does. */
+  .toggle.lead {
+    font-weight: 600;
+    font-size: inherit;
+  }
+
+  .measure {
+    clear: both;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 10px;
+    font-size: var(--t-xs);
+    color: var(--mist);
+    font-variant-numeric: tabular-nums;
+  }
+  .measure button {
+    font-size: var(--t-xs);
+    color: var(--porcelain);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .measure button:hover {
+    color: var(--violet);
   }
   .toggle input {
     position: absolute;
