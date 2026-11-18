@@ -11,19 +11,24 @@ skip() { echo "Skipping: $1"; exit 0; }
 
 git rev-parse --git-dir >/dev/null 2>&1 || build "no git history in the build folder"
 
+# Vercel's clone has no usable remote; the repository is public, so fetch
+# missing history straight from GitHub.
+REPO="https://github.com/${VERCEL_GIT_REPO_OWNER:-crash2bash}/${VERCEL_GIT_REPO_SLUG:-bitspring}.git"
+echo "Clone holds $(git rev-list --count HEAD) commits"
+
 # Compare with the branch's last successful deployment, so a push of several
 # commits is judged as a whole, not only by its last commit.
 BASE="$VERCEL_GIT_PREVIOUS_SHA"
 if [ -z "$BASE" ]; then
   # A branch's first deployment: compare with where it left main.
   [ "$VERCEL_GIT_COMMIT_REF" = "main" ] && build "first deployment of main"
-  git fetch --quiet --depth=500 origin main 2>/dev/null || build "could not fetch main"
+  git fetch --quiet --depth=500 "$REPO" main || build "could not fetch main"
   BASE=$(git merge-base HEAD FETCH_HEAD 2>/dev/null) || build "branch has no common commit with main"
 fi
 
 # Vercel clones shallow; reach further back when the base is older than that.
 if ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-  git fetch --quiet --deepen=500 origin 2>/dev/null
+  git fetch --quiet --deepen=500 "$REPO" "${VERCEL_GIT_COMMIT_REF:-main}"
   git cat-file -e "$BASE^{commit}" 2>/dev/null || build "base commit $BASE is not in the clone"
 fi
 
