@@ -1,7 +1,7 @@
 // Rebuilds src/releases.json, the data behind /releases/, from the GitHub releases of the app.
 // Each entry keeps the "What's new" part of the release notes; the install instructions and
-// checksums that follow it stay on GitHub. Run: npm run releases (GH_TOKEN is used if set).
-// The releases workflow runs it whenever a release is published or edited.
+// checksums that follow it stay on GitHub. Run after each release: npm run releases
+// (GH_TOKEN is used if set).
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

@@ -42,8 +42,8 @@ Mac → the choice on `/download/`).
 `/releases/` lists every app version, newest first, from `src/releases.json`: the "What's new"
 part of each GitHub release (install notes and checksums stay on GitHub). The notes are in English
 on every language's page; the dates and the page around them are translated.
-`npm run releases` rebuilds the file from GitHub. The `Release notes page` workflow does that by
-itself whenever a release is published or edited, and commits the result to main.
+After publishing a release, run `npm run releases` to rebuild the file from GitHub and merge the
+change into main (main takes pull requests only, and GitHub Actions may not open them here).
 
 ## Hosting (Vercel)
 
