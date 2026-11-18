@@ -1058,7 +1058,9 @@ impl Shared {
                 let mut done = 0;
                 let mut peaks = [0f32; 2];
                 // What is about to be cut off (a pause, a jump elsewhere) fades out first.
-                if fade_len > 0 && sounding && level > 0 && (paused || seek != NO_SEEK) {
+                // (Not for a seek meant for a track that no longer plays: nothing is cut.)
+                let jumping = seek != NO_SEEK && slots.seek_track.load(Ordering::Acquire) == cur;
+                if fade_len > 0 && sounding && level > 0 && (paused || jumping) {
                     // SAFETY: `cur` is in a slot, so the Playback owns it.
                     let track = unsafe { &*cur };
                     let pos = track.claim(st.pos.load(Ordering::Relaxed));
@@ -1875,6 +1877,21 @@ mod tests {
             // …and from there on it is the file, bit for bit.
             assert!((2 * FADE - 1..2_000).all(|i| b[i] == value(at + i - FADE)));
             assert!((p.position_secs() - (at + 2_000 - FADE) as f64 / FS as f64).abs() < 1e-9);
+        }
+
+        /// A seek left over for a track that has since been replaced is dropped without a
+        /// sound: no fade out and back in at the same place.
+        #[test]
+        fn a_seek_for_another_track_is_not_heard() {
+            let p = playback(ramp(FS as usize), false, 0, true);
+            callback(&p, 1_000);
+            let other = ramp(100);
+            let slots = &p.shared().slots;
+            slots.seek_track.store(ptr(&other), Ordering::Release);
+            slots.seek_req.store(50, Ordering::Release);
+            let out = callback(&p, 1_000);
+            assert!(out.iter().enumerate().all(|(i, &v)| v == value(1_000 + i)), "plays straight on");
+            assert_eq!(slots.seek_req.load(Ordering::Acquire), NO_SEEK, "and the request is gone");
         }
 
         #[test]

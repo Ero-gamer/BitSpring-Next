@@ -39,8 +39,11 @@
   });
 
   function onKey(e: KeyboardEvent) {
-    // (A select closes its own list on Escape.)
-    if (e.key === "Escape" && !e.defaultPrevented && (e.target as HTMLElement).tagName !== "SELECT") onclose();
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    // A select closes its own list on Escape; an open popover in the header (enhancers, the
+    // output, the phone remote) takes this press for itself.
+    if ((e.target as HTMLElement).tagName === "SELECT" || document.querySelector(".app > header [role='dialog']")) return;
+    onclose();
   }
 </script>
 

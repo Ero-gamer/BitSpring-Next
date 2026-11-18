@@ -1231,6 +1231,10 @@ fn restart_locked(state: &AppState, at: Option<f64>) -> CmdResult<Option<SignalD
     // The settings may be new, or the track just opened: its gain under them. (Measured on
     // the spot only if it is in memory whole already.)
     set_level(&settings, &cur.path, &cur.track, Duration::ZERO);
+    // So does what is lined up to follow it: it joins the new player as it is.
+    for next in state.lined_up.lock().unwrap().iter() {
+        set_level(&settings, std::path::Path::new(&next.path), &next.track, Duration::ZERO);
+    }
     let opts = PlayOptions { exclusive: cur.exclusive, dsp: settings, start_at: pos, start_paused: paused, fades: !state.fades_off.load(Ordering::Relaxed) };
     let mut signal = start(state, &device, cur.track.clone(), opts)?;
     signal.dsd_note = cur.dsd_note.clone();

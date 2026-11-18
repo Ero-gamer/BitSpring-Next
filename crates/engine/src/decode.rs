@@ -536,6 +536,14 @@ impl Track {
         held && (frame <= ready + SEEK_AHEAD_SECS * self.sample_rate as usize || self.is_complete() && frame <= ready)
     }
 
+    /// Whether the whole track will be in memory once decoding ends (so it can be measured
+    /// there): decoded from its first frame, and no longer than what the window lets the
+    /// decoder get ahead of a reader that hasn't started. A length the container didn't state
+    /// counts as fitting.
+    pub fn loads_whole(&self) -> bool {
+        !self.dop && self.origin == 0 && self.window.is_none_or(|w| self.expected.load(Ordering::Relaxed) <= w.ahead)
+    }
+
     /// The decoder has decoded as far ahead of the reader as the window allows.
     fn window_full(&self) -> bool {
         self.window.is_some_and(|w| self.ready_frames() >= self.playhead.load(Ordering::Relaxed) + w.ahead)
@@ -1143,6 +1151,19 @@ pub(crate) mod tests {
 
     /// The decoder stays a window ahead of the reader and frees what is well behind it, so a
     /// long file never sits whole in memory — and every frame the reader reads is right.
+    #[test]
+    fn only_a_track_that_fits_from_its_top_loads_whole() {
+        let path = std::env::temp_dir().join(format!("hifi-whole-{}.wav", std::process::id()));
+        ramp_wav(&path, 48_000, 48_000 * 20);
+        // As the app opens it: 20 s of 48 kHz stereo is far inside the window.
+        assert!(open_track(&path).unwrap().loads_whole());
+        // Opened in the middle: what came before is never decoded.
+        assert!(!open_track_at(&path, 5.0).unwrap().loads_whole());
+        // A window of about 5 s: the decoder stops ahead of the reader long before the end.
+        assert!(!open_windowed(&path, 2 << 20).loads_whole());
+        let _ = std::fs::remove_file(&path);
+    }
+
     #[test]
     fn a_long_file_is_held_in_a_window() {
         let path = std::env::temp_dir().join(format!("hifi-window-{}.wav", std::process::id()));
