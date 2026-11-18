@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volum utjevnet per album, {db} dB (så langt toppen tillater)",
   "step.level.peak": "{db} dB headroom for topper",
   "step.level.unknown": "volumutjevning: dette sporet er ikke målt ennå",
-  "dsd.level": "volumutjevning jobber med PCM"
+  "dsd.level": "volumutjevning jobber med PCM",
+  "crash.title": "BitSpring støtte på en feil forrige gang",
+  "crash.sub": "En rapport er lagret på denne enheten, og appen sender den ingen steder. Den inneholder appversjonen, systemet ditt og stedet i koden – ingen filnavn, baner eller tagger. Send den selv hvis du vil hjelpe til med å rette feilen.",
+  "crash.show": "Vis rapporten",
+  "crash.hide": "Skjul rapporten",
+  "crash.copy": "Kopier",
+  "crash.github": "Rapporter på GitHub",
+  "crash.delete": "Slett"
 }

@@ -14,6 +14,7 @@
   import Enhancers from "$lib/Enhancers.svelte";
   import Equalizer from "$lib/Equalizer.svelte";
   import UpdateNotice from "$lib/UpdateNotice.svelte";
+  import CrashNotice from "$lib/CrashNotice.svelte";
   import { startUpdateChecks } from "$lib/updates.svelte";
   import { look } from "$lib/look.svelte";
   import { fade } from "svelte/transition";
@@ -700,6 +701,7 @@
   </nav>
 
   <UpdateNotice playing={status.active && !status.paused} />
+  <CrashNotice />
 
   {#if dragOver}
     <div class="drop-hint" aria-hidden="true"><p>{t("queue.drop")}</p></div>

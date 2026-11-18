@@ -678,5 +678,12 @@
   "step.level.albumLimited": "hlasitost vyrovnána podle alba, {db} dB (kolik dovolí špička)",
   "step.level.peak": "rezerva {db} dB pro špičky",
   "step.level.unknown": "vyrovnání hlasitosti: tato skladba ještě není změřena",
-  "dsd.level": "vyrovnání hlasitosti pracuje s PCM"
+  "dsd.level": "vyrovnání hlasitosti pracuje s PCM",
+  "crash.title": "V BitSpringu minule došlo k chybě",
+  "crash.sub": "Hlášení je uložené v tomto zařízení a aplikace ho nikam neodesílá. Obsahuje verzi aplikace, váš systém a místo v kódu — žádné názvy souborů, cesty ani tagy. Pošlete ho sami, pokud chcete pomoci chybu opravit.",
+  "crash.show": "Zobrazit hlášení",
+  "crash.hide": "Skrýt hlášení",
+  "crash.copy": "Kopírovat",
+  "crash.github": "Nahlásit na GitHubu",
+  "crash.delete": "Smazat"
 }

@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volym utjämnad per album, {db} dB (så långt toppen tillåter)",
   "step.level.peak": "{db} dB marginal för toppar",
   "step.level.unknown": "volymutjämning: den här låten är inte uppmätt än",
-  "dsd.level": "volymutjämning arbetar med PCM"
+  "dsd.level": "volymutjämning arbetar med PCM",
+  "crash.title": "BitSpring stötte på ett fel förra gången",
+  "crash.sub": "En rapport är sparad på den här enheten, och appen skickar den ingenstans. Den innehåller appversionen, ditt system och stället i koden – inga filnamn, sökvägar eller taggar. Skicka den själv om du vill hjälpa till att rätta felet.",
+  "crash.show": "Visa rapporten",
+  "crash.hide": "Dölj rapporten",
+  "crash.copy": "Kopiera",
+  "crash.github": "Rapportera på GitHub",
+  "crash.delete": "Ta bort"
 }

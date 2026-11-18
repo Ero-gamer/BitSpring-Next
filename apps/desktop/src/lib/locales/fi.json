@@ -673,5 +673,12 @@
   "step.level.albumLimited": "äänenvoimakkuus tasattu albumeittain, {db} dB (niin paljon kuin huippu sallii)",
   "step.level.peak": "{db} dB pelivaraa huipuille",
   "step.level.unknown": "äänenvoimakkuuden tasaus: tätä kappaletta ei ole vielä mitattu",
-  "dsd.level": "äänenvoimakkuuden tasaus toimii PCM:llä"
+  "dsd.level": "äänenvoimakkuuden tasaus toimii PCM:llä",
+  "crash.title": "BitSpringissä tapahtui viimeksi virhe",
+  "crash.sub": "Raportti on tallennettu tälle laitteelle, eikä sovellus lähetä sitä minnekään. Siinä on sovelluksen versio, järjestelmäsi ja kohta koodissa – ei tiedostonimiä, polkuja eikä tunnisteita. Lähetä se itse, jos haluat auttaa virheen korjaamisessa.",
+  "crash.show": "Näytä raportti",
+  "crash.hide": "Piilota raportti",
+  "crash.copy": "Kopioi",
+  "crash.github": "Ilmoita GitHubissa",
+  "crash.delete": "Poista"
 }

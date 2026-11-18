@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volume genivelleerd per album, {db} dB (zover de piek het toelaat)",
   "step.level.peak": "{db} dB marge voor pieken",
   "step.level.unknown": "volumenivellering: dit nummer is nog niet gemeten",
-  "dsd.level": "volumenivellering werkt met PCM"
+  "dsd.level": "volumenivellering werkt met PCM",
+  "crash.title": "BitSpring liep de vorige keer tegen een fout aan",
+  "crash.sub": "Er is een rapport op dit apparaat opgeslagen; de app stuurt het nergens heen. Het bevat de appversie, je systeem en de plek in de code, zonder bestandsnamen, paden of tags. Stuur het zelf op als je wilt helpen de fout te verhelpen.",
+  "crash.show": "Rapport tonen",
+  "crash.hide": "Rapport verbergen",
+  "crash.copy": "Kopiëren",
+  "crash.github": "Melden op GitHub",
+  "crash.delete": "Verwijderen"
 }

@@ -673,5 +673,12 @@
   "step.level.albumLimited": "앨범별 음량 평준화, {db} dB (피크가 허용하는 만큼)",
   "step.level.peak": "피크용 헤드룸 {db} dB",
   "step.level.unknown": "음량 평준화: 이 곡은 아직 측정되지 않았습니다",
-  "dsd.level": "음량 평준화는 PCM에서 작동합니다"
+  "dsd.level": "음량 평준화는 PCM에서 작동합니다",
+  "crash.title": "지난번에 BitSpring에서 오류가 발생했습니다",
+  "crash.sub": "보고서는 이 기기에 저장되어 있으며 앱은 이를 어디에도 보내지 않습니다. 앱 버전, 사용 중인 시스템, 코드상의 위치가 들어 있고 파일 이름, 경로, 태그는 없습니다. 버그 수정에 도움을 주고 싶다면 직접 보내 주세요.",
+  "crash.show": "보고서 보기",
+  "crash.hide": "보고서 숨기기",
+  "crash.copy": "복사",
+  "crash.github": "GitHub에 신고",
+  "crash.delete": "삭제"
 }

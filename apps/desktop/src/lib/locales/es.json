@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volumen nivelado por álbum, {db} dB (hasta donde permite el pico)",
   "step.level.peak": "margen de {db} dB para picos",
   "step.level.unknown": "nivelación de volumen: esta pista aún no está medida",
-  "dsd.level": "la nivelación de volumen trabaja con PCM"
+  "dsd.level": "la nivelación de volumen trabaja con PCM",
+  "crash.title": "BitSpring tuvo un error la última vez",
+  "crash.sub": "Hay un informe guardado en este dispositivo; la app no lo envía a ningún sitio. Incluye la versión de la app, tu sistema y el lugar del código, sin nombres de archivo, rutas ni etiquetas. Envíalo tú mismo si quieres ayudar a corregir el fallo.",
+  "crash.show": "Ver el informe",
+  "crash.hide": "Ocultar el informe",
+  "crash.copy": "Copiar",
+  "crash.github": "Informar en GitHub",
+  "crash.delete": "Eliminar"
 }

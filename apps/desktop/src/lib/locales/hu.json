@@ -673,5 +673,12 @@
   "step.level.albumLimited": "hangerő albumonként kiegyenlítve, {db} dB (amennyit a csúcs enged)",
   "step.level.peak": "{db} dB tartalék a csúcsoknak",
   "step.level.unknown": "hangerő-kiegyenlítés: ez a szám még nincs megmérve",
-  "dsd.level": "a hangerő-kiegyenlítés PCM-en dolgozik"
+  "dsd.level": "a hangerő-kiegyenlítés PCM-en dolgozik",
+  "crash.title": "A BitSpring legutóbb hibába ütközött",
+  "crash.sub": "A jelentés ezen az eszközön van elmentve, az alkalmazás sehová sem küldi el. Az alkalmazás verzióját, a rendszeredet és a kód érintett helyét tartalmazza — fájlnevek, elérési utak és címkék nélkül. Küldd el magad, ha segíteni szeretnél a hiba kijavításában.",
+  "crash.show": "Jelentés megjelenítése",
+  "crash.hide": "Jelentés elrejtése",
+  "crash.copy": "Másolás",
+  "crash.github": "Bejelentés a GitHubon",
+  "crash.delete": "Törlés"
 }

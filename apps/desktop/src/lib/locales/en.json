@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volume levelled by album, {db} dB (as far as the peak allows)",
   "step.level.peak": "{db} dB of headroom for peaks",
   "step.level.unknown": "volume levelling: this track isn't measured yet",
-  "dsd.level": "volume levelling works on PCM"
+  "dsd.level": "volume levelling works on PCM",
+  "crash.title": "BitSpring ran into an error last time",
+  "crash.sub": "A report is saved on this device, and the app sends it nowhere. It has the app version, your system and the place in the code — no file names, paths or tags. Send it yourself if you want to help fix the bug.",
+  "crash.show": "Show the report",
+  "crash.hide": "Hide the report",
+  "crash.copy": "Copy",
+  "crash.github": "Report on GitHub",
+  "crash.delete": "Delete"
 }

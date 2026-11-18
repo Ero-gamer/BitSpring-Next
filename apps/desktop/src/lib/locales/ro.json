@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volum nivelat pe album, {db} dB (cât permite vârful)",
   "step.level.peak": "headroom de {db} dB pentru vârfuri",
   "step.level.unknown": "nivelarea volumului: această piesă nu este încă măsurată",
-  "dsd.level": "nivelarea volumului lucrează pe PCM"
+  "dsd.level": "nivelarea volumului lucrează pe PCM",
+  "crash.title": "Data trecută BitSpring a întâmpinat o eroare",
+  "crash.sub": "Un raport este salvat pe acest dispozitiv, iar aplicația nu îl trimite nicăieri. Conține versiunea aplicației, sistemul tău și locul din cod — fără nume de fișiere, căi sau etichete. Trimite-l chiar tu dacă vrei să ajuți la remedierea erorii.",
+  "crash.show": "Arată raportul",
+  "crash.hide": "Ascunde raportul",
+  "crash.copy": "Copiază",
+  "crash.github": "Raportează pe GitHub",
+  "crash.delete": "Șterge"
 }

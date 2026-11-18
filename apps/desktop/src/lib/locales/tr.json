@@ -673,5 +673,12 @@
   "step.level.albumLimited": "ses düzeyi albüme göre eşitlendi, {db} dB (tepe noktasının izin verdiği kadar)",
   "step.level.peak": "tepeler için {db} dB headroom",
   "step.level.unknown": "ses düzeyi eşitleme: bu parça henüz ölçülmedi",
-  "dsd.level": "ses düzeyi eşitleme PCM üzerinde çalışır"
+  "dsd.level": "ses düzeyi eşitleme PCM üzerinde çalışır",
+  "crash.title": "BitSpring geçen sefer bir hatayla karşılaştı",
+  "crash.sub": "Bir rapor bu cihaza kaydedildi; uygulama onu hiçbir yere göndermez. İçinde uygulama sürümü, sistemin ve koddaki yer var; dosya adı, yol veya etiket yok. Hatanın düzeltilmesine yardım etmek istersen kendin gönder.",
+  "crash.show": "Raporu göster",
+  "crash.hide": "Raporu gizle",
+  "crash.copy": "Kopyala",
+  "crash.github": "GitHub'da bildir",
+  "crash.delete": "Sil"
 }

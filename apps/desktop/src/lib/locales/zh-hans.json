@@ -673,5 +673,12 @@
   "step.level.albumLimited": "已按专辑均衡音量，{db} dB（以峰值允许为限）",
   "step.level.peak": "为峰值预留 {db} dB 余量",
   "step.level.unknown": "音量均衡：这首歌曲尚未测量",
-  "dsd.level": "音量均衡只能处理 PCM"
+  "dsd.level": "音量均衡只能处理 PCM",
+  "crash.title": "BitSpring 上次运行时出错了",
+  "crash.sub": "报告保存在这台设备上，应用不会把它发送到任何地方。其中包含应用版本、你的系统和出错的代码位置，不含文件名、路径或标签。如果愿意帮助修复问题，可以自行发送。",
+  "crash.show": "查看报告",
+  "crash.hide": "隐藏报告",
+  "crash.copy": "复制",
+  "crash.github": "在 GitHub 上报告",
+  "crash.delete": "删除"
 }

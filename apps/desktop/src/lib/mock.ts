@@ -11,6 +11,7 @@ import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack,
 const UNKNOWN_ARTIST = "Unknown artist";
 /** ?store: look like an App Store / Microsoft Store build (no streaming, no self-updating). */
 const storeBuild = new URLSearchParams(location.search).has("store");
+let mockCrash = new URLSearchParams(location.search).has("crash");
 const LIB: [string, string, string | null, string | null, string, number, number | null, string | null, string[]][] = [
   ["Ada Marlow", "Paper Moons", "2017", "Folk", "ALAC", 48000, 24, "#6b5d2e", ["Kite Strings", "Harbour", "Paper Moons"]],
   ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, "#16233a", ["Carrier", "Sideband", "Noise Floor"]],
@@ -223,6 +224,14 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return libAlbums as T;
     case "library_tracks":
       return libTracks as T;
+    case "crash_report":
+      // http://localhost:1420/?crash shows the notice.
+      return (mockCrash
+        ? "BitSpring 0.19.0 — error report\nTime: 2026-11-18 12:40 UTC\nSystem: macOS 15.1, aarch64\nThread: hifi-render\nError: index out of bounds: the len is 3 but the index is 7\nWhere: engine/src/output.rs:912"
+        : null) as T;
+    case "crash_dismiss":
+      mockCrash = false;
+      return undefined as T;
     case "loudness_status": {
       // The pretend analysis takes about 12 s for the whole library.
       const total = libTracks.length;

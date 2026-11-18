@@ -673,5 +673,12 @@
   "step.level.albumLimited": "lydstyrke udjævnet pr. album, {db} dB (så langt spidsen tillader)",
   "step.level.peak": "{db} dB headroom til spidser",
   "step.level.unknown": "lydstyrkeudjævning: dette nummer er ikke målt endnu",
-  "dsd.level": "lydstyrkeudjævning arbejder med PCM"
+  "dsd.level": "lydstyrkeudjævning arbejder med PCM",
+  "crash.title": "BitSpring stødte på en fejl sidste gang",
+  "crash.sub": "En rapport er gemt på denne enhed, og appen sender den ingen steder hen. Den indeholder appversionen, dit system og stedet i koden – ingen filnavne, stier eller tags. Send den selv, hvis du vil hjælpe med at rette fejlen.",
+  "crash.show": "Vis rapporten",
+  "crash.hide": "Skjul rapporten",
+  "crash.copy": "Kopiér",
+  "crash.github": "Rapportér på GitHub",
+  "crash.delete": "Slet"
 }

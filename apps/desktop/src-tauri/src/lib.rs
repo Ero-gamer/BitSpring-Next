@@ -12,6 +12,7 @@ mod windows_media;
 #[cfg(target_os = "linux")]
 mod linux_media;
 mod bookmarks;
+mod crash;
 mod eq;
 mod library;
 mod loudness;
@@ -1299,6 +1300,8 @@ pub fn run() {
         .manage(AppState::default())
         .setup(|app| {
             use tauri::Manager;
+            // First: whatever breaks from here on leaves a report (on this device only).
+            crash::install(app.handle());
             let lib = library::Library::load(app.handle());
             app.manage(lib);
             app.manage(playlists::Playlists::default());
@@ -1413,6 +1416,8 @@ pub fn run() {
             quality::quality_check,
             loudness::loudness_status,
             loudness::loudness_analyze,
+            crash::crash_report,
+            crash::crash_dismiss,
             playlists::playlists_list,
             playlists::playlist_get,
             playlists::playlist_create,

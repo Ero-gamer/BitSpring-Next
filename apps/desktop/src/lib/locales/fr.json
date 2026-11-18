@@ -673,5 +673,12 @@
   "step.level.albumLimited": "volume normalisé par album, {db} dB (autant que la crête le permet)",
   "step.level.peak": "marge de {db} dB pour les crêtes",
   "step.level.unknown": "normalisation du volume : ce morceau n’est pas encore mesuré",
-  "dsd.level": "la normalisation du volume travaille en PCM"
+  "dsd.level": "la normalisation du volume travaille en PCM",
+  "crash.title": "BitSpring a rencontré une erreur la dernière fois",
+  "crash.sub": "Un rapport est enregistré sur cet appareil, et l’application ne l’envoie nulle part. Il contient la version de l’application, votre système et l’endroit dans le code — sans noms de fichiers, chemins ni tags. Envoyez-le vous-même si vous voulez aider à corriger le bug.",
+  "crash.show": "Afficher le rapport",
+  "crash.hide": "Masquer le rapport",
+  "crash.copy": "Copier",
+  "crash.github": "Signaler sur GitHub",
+  "crash.delete": "Supprimer"
 }

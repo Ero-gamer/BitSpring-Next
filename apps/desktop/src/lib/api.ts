@@ -559,6 +559,9 @@ export const api = {
   libraryRescan: () => call<LibraryStatus>("library_rescan"),
   qualityCached: (paths: string[]) => call<(QualityReport | null)[]>("quality_cached", { paths }),
   qualityCheck: (path: string) => call<QualityReport>("quality_check", { path }),
+  /** Error reports kept on this device from earlier runs (null: none). The app never sends them. */
+  crashReport: () => call<string | null>("crash_report"),
+  crashDismiss: () => call<void>("crash_dismiss"),
   loudnessStatus: () => call<LoudnessStatus>("loudness_status"),
   /** Measure every library track not measured yet, in the background (false: stop). */
   loudnessAnalyze: (start: boolean) => call<void>("loudness_analyze", { start }),

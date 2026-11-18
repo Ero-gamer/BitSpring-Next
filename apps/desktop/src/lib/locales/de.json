@@ -673,5 +673,12 @@
   "step.level.albumLimited": "Lautstärke pro Album angepasst, {db} dB (so weit die Spitze es zulässt)",
   "step.level.peak": "{db} dB Reserve für Spitzen",
   "step.level.unknown": "Lautstärkeanpassung: Dieser Titel ist noch nicht gemessen",
-  "dsd.level": "die Lautstärkeanpassung arbeitet mit PCM"
+  "dsd.level": "die Lautstärkeanpassung arbeitet mit PCM",
+  "crash.title": "Beim letzten Mal ist in BitSpring ein Fehler aufgetreten",
+  "crash.sub": "Ein Bericht ist auf diesem Gerät gespeichert, die App sendet ihn nirgendwohin. Er enthält die App-Version, dein System und die Stelle im Code – keine Dateinamen, Pfade oder Tags. Schick ihn selbst, wenn du beim Beheben des Fehlers helfen möchtest.",
+  "crash.show": "Bericht anzeigen",
+  "crash.hide": "Bericht ausblenden",
+  "crash.copy": "Kopieren",
+  "crash.github": "Auf GitHub melden",
+  "crash.delete": "Löschen"
 }

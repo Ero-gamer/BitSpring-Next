@@ -678,5 +678,12 @@
   "step.level.albumLimited": "głośność wyrównana według albumu, {db} dB (na ile pozwala szczyt)",
   "step.level.peak": "zapas {db} dB na szczyty",
   "step.level.unknown": "wyrównywanie głośności: ten utwór nie został jeszcze zmierzony",
-  "dsd.level": "wyrównywanie głośności działa na PCM"
+  "dsd.level": "wyrównywanie głośności działa na PCM",
+  "crash.title": "Ostatnim razem w BitSpring wystąpił błąd",
+  "crash.sub": "Raport jest zapisany na tym urządzeniu, a aplikacja nigdzie go nie wysyła. Zawiera wersję aplikacji, twój system i miejsce w kodzie — bez nazw plików, ścieżek i tagów. Wyślij go samodzielnie, jeśli chcesz pomóc naprawić błąd.",
+  "crash.show": "Pokaż raport",
+  "crash.hide": "Ukryj raport",
+  "crash.copy": "Kopiuj",
+  "crash.github": "Zgłoś na GitHubie",
+  "crash.delete": "Usuń"
 }

@@ -673,5 +673,12 @@
   "step.level.albumLimited": "アルバムごとに音量を均一化、{db} dB（ピークが許す範囲で）",
   "step.level.peak": "ピーク用に{db} dBのヘッドルーム",
   "step.level.unknown": "音量の均一化：この曲はまだ測定されていません",
-  "dsd.level": "音量の均一化はPCMで動作します"
+  "dsd.level": "音量の均一化はPCMで動作します",
+  "crash.title": "前回、BitSpringでエラーが発生しました",
+  "crash.sub": "レポートはこのデバイスに保存されており、アプリがどこかに送信することはありません。内容はアプリのバージョン、お使いのシステム、コード上の場所で、ファイル名・パス・タグは含みません。不具合の修正にご協力いただける場合は、ご自身で送信してください。",
+  "crash.show": "レポートを表示",
+  "crash.hide": "レポートを隠す",
+  "crash.copy": "コピー",
+  "crash.github": "GitHubで報告",
+  "crash.delete": "削除"
 }
