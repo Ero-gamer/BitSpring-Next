@@ -634,7 +634,8 @@
     place-items: center;
     width: 14px;
     height: 14px;
-    border-radius: var(--r-sm);
+    /* A tick box in every look (the glass look's small radius would round it into a radio button). */
+    border-radius: 4px;
     border: 1.5px solid var(--mist);
   }
   .hires.on .box {
