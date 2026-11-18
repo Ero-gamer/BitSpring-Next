@@ -344,9 +344,7 @@
   }
 
   /* The wide controls — a list to pick from, a row of choices — are one size and one shape,
-     so a column of them lines up on both edges. The list is drawn by us for that (the
-     system's own is smaller and looks like nothing else here); it still opens the system's
-     menu, hence the up-and-down chevrons. */
+     so a column of them lines up on both edges. */
   select,
   .seg {
     flex: none;
@@ -358,34 +356,17 @@
     font-size: var(--t-sm);
   }
   select {
-    appearance: none;
-    -webkit-appearance: none;
-    margin: 0;
-    padding: 0 34px 0 14px;
-    font-family: inherit;
-    line-height: 1.2;
-    color: var(--porcelain);
-    text-overflow: ellipsis;
-    cursor: pointer;
+    --select-chevron: 34px;
+    padding: 0 14px;
     background-color: var(--slate-800);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='14' viewBox='0 0 10 14'%3E%3Cpath d='M1.5 5.2 5 1.8l3.5 3.4M1.5 8.8 5 12.2l3.5-3.4' fill='none' stroke='%238fa3a8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
     background-position: right 13px center;
   }
-  select:hover {
-    border-color: var(--slate-500);
-  }
-  select:focus-visible {
-    outline: 2px solid var(--porcelain);
-    outline-offset: 2px;
-  }
   :global([dir="rtl"]) select {
-    padding: 0 14px 0 34px;
     background-position: left 13px center;
   }
   :global(html[data-look="glass"]) select {
     border-radius: 999px;
-    padding-inline-start: 16px;
+    padding: 0 16px;
   }
   .seg {
     display: flex;

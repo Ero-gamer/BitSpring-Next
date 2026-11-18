@@ -410,12 +410,7 @@
     max-width: 180px;
   }
   .quality select {
-    font: inherit;
-    color: var(--porcelain);
-    background: var(--slate-900);
-    border: 1px solid var(--slate-600);
-    border-radius: var(--r-md);
-    padding: 4px 6px;
+    padding: 4px 8px;
   }
   .link {
     color: var(--mist);

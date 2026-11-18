@@ -583,13 +583,10 @@
     font-size: var(--t-sm);
     color: var(--mist);
   }
+  /* The size of the search field beside it. */
   .sort select {
-    font: inherit;
-    color: var(--porcelain);
-    background: var(--slate-900);
-    border: 1px solid var(--slate-600);
-    border-radius: var(--r-md);
-    padding: 4px 6px;
+    font-size: var(--t-sm);
+    padding: 7px 12px;
   }
   .hires input {
     accent-color: var(--porcelain);

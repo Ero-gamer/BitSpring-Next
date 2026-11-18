@@ -119,6 +119,16 @@
         <p class="help">{t("enh.crossfeedHelp")}</p>
       </fieldset>
 
+      <!-- Right after the three it protects against: it acts only while one of them is on. -->
+      <fieldset>
+        <label class="toggle lead">
+          <input type="checkbox" role="switch" checked={settings.peakHeadroom} onchange={(e) => set({ peakHeadroom: e.currentTarget.checked })} />
+          <span class="knob" aria-hidden="true"></span>
+          <span class="t-label">{t("enh.peak")}</span>
+        </label>
+        <p class="help">{t("enh.peakHelp")}</p>
+      </fieldset>
+
       <fieldset>
         <legend>{t("enh.level")}</legend>
         <div class="seg" role="radiogroup" aria-label={t("enh.level")} use:liquidPill={settings.level}>
@@ -142,12 +152,6 @@
             {/if}
           </div>
         {/if}
-        <label class="toggle after-help">
-          <input type="checkbox" role="switch" checked={settings.peakHeadroom} onchange={(e) => set({ peakHeadroom: e.currentTarget.checked })} />
-          <span class="knob" aria-hidden="true"></span>
-          <span class="t-label">{t("enh.peak")}</span>
-        </label>
-        <p class="help">{t("enh.peakHelp")}</p>
       </fieldset>
 
       <fieldset>
@@ -316,8 +320,10 @@
   .toggle:first-of-type {
     margin-top: 0;
   }
-  .toggle.after-help {
-    margin-top: 14px;
+  /* A block that is one switch: the switch's name stands where a block's title does. */
+  .toggle.lead {
+    font-weight: 600;
+    font-size: inherit;
   }
 
   .measure {

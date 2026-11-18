@@ -1246,14 +1246,23 @@
     min-width: 40px;
     color: var(--mist);
   }
+  /* In a band's row: the size and shape of the number fields beside it. */
   select {
-    font: inherit;
     font-size: var(--t-sm);
-    color: var(--porcelain);
-    background: var(--slate-900);
-    border: 1px solid var(--slate-600);
     border-radius: var(--r-sm);
-    padding: 3px 6px;
+    padding: 4px 8px;
+  }
+  /* Beside the scale's segmented row: its height and its shape. */
+  .device select {
+    box-sizing: border-box;
+    height: 29px;
+    padding: 0 10px;
+    border-radius: var(--r-md);
+  }
+  :global(html[data-look="glass"]) .device select {
+    height: 31px;
+    padding: 0 12px;
+    border-radius: 999px;
   }
   .warn {
     margin: 0;
@@ -1266,8 +1275,13 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* The table needs ~520px; in a narrow window it scrolls on its own instead of widening the page. */
+    /* The table needs ~520px; in a narrow window it scrolls sideways on its own instead of
+       widening the page. Only sideways: it keeps its full height (a scrolling box would
+       otherwise be squeezed to what is left of the window and scroll its rows inside itself),
+       and the whole editor scrolls as one page. */
+    flex: none;
     overflow-x: auto;
+    overflow-y: hidden;
   }
   .layer {
     display: flex;

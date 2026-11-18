@@ -178,7 +178,7 @@
     font: inherit;
     font-size: var(--t-sm);
     color: var(--porcelain);
-    background: var(--slate-700);
+    background-color: var(--slate-700);
     border: 1px solid var(--slate-600);
     border-radius: var(--r-sm);
     padding: 6px 8px;
