@@ -680,5 +680,14 @@
   "crash.hide": "Ocultar o relatório",
   "crash.copy": "Copiar",
   "crash.github": "Relatar no GitHub",
-  "crash.delete": "Excluir"
+  "crash.delete": "Excluir",
+  "settings.playback": "Reprodução",
+  "settings.fades": "Pausa e avanço suaves",
+  "settings.fadesHelp": "Faz um fade de 10 ms ao pausar, avançar ou voltar na faixa, parar ou trocar de faixa, para o som não terminar com um clique.",
+  "settings.fadesSignal": "Uma faixa que toca sem interrupções e a emenda entre duas faixas não são alteradas.",
+  "settings.appearance": "Aparência",
+  "settings.network": "Rede",
+  "settings.about": "Sobre",
+  "remote.scan": "Aponte a câmera do telefone para o código ou abra o endereço no navegador dele.",
+  "remote.where": "A partir de agora, o código e o endereço ficam no ícone de telefone, no alto da janela."
 }

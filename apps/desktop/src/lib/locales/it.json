@@ -680,5 +680,14 @@
   "crash.hide": "Nascondi il rapporto",
   "crash.copy": "Copia",
   "crash.github": "Segnala su GitHub",
-  "crash.delete": "Elimina"
+  "crash.delete": "Elimina",
+  "settings.playback": "Riproduzione",
+  "settings.fades": "Pausa e ricerca morbide",
+  "settings.fadesHelp": "Sfuma il suono in 10 ms quando metti in pausa, ti sposti nel brano, fermi o cambi brano, così non finisce con un clic.",
+  "settings.fadesSignal": "Un brano che suona senza interruzioni e il passaggio tra due brani non vengono toccati.",
+  "settings.appearance": "Aspetto",
+  "settings.network": "Rete",
+  "settings.about": "Informazioni",
+  "remote.scan": "Inquadra il codice con la fotocamera del telefono o apri l’indirizzo nel suo browser.",
+  "remote.where": "D’ora in poi il codice e l’indirizzo sono sotto l’icona del telefono, in alto nella finestra."
 }

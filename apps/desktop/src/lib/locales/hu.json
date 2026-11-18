@@ -680,5 +680,14 @@
   "crash.hide": "Jelentés elrejtése",
   "crash.copy": "Másolás",
   "crash.github": "Bejelentés a GitHubon",
-  "crash.delete": "Törlés"
+  "crash.delete": "Törlés",
+  "settings.playback": "Lejátszás",
+  "settings.fades": "Lágy szünet és tekerés",
+  "settings.fadesHelp": "Szüneteltetéskor, tekeréskor, leállításkor és számváltáskor 10 ms alatt halkítja el a hangot, hogy ne kattanással érjen véget.",
+  "settings.fadesSignal": "A megszakítás nélkül szóló számhoz és a két szám közötti átmenethez nem nyúl.",
+  "settings.appearance": "Megjelenés",
+  "settings.network": "Hálózat",
+  "settings.about": "Névjegy",
+  "remote.scan": "Olvasd be a kódot a telefon kamerájával, vagy nyisd meg a címet a böngészőjében.",
+  "remote.where": "Ezentúl a kód és a cím az ablak tetején, a telefon ikon alatt található."
 }

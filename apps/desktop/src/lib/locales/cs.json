@@ -685,5 +685,14 @@
   "crash.hide": "Skrýt hlášení",
   "crash.copy": "Kopírovat",
   "crash.github": "Nahlásit na GitHubu",
-  "crash.delete": "Smazat"
+  "crash.delete": "Smazat",
+  "settings.playback": "Přehrávání",
+  "settings.fades": "Plynulá pauza a přetáčení",
+  "settings.fadesHelp": "Při pauze, přetáčení, zastavení a změně skladby ztlumí zvuk během 10 ms, aby neskončil lupnutím.",
+  "settings.fadesSignal": "Skladba, která hraje bez přerušení, a přechod mezi dvěma skladbami zůstávají nedotčené.",
+  "settings.appearance": "Vzhled",
+  "settings.network": "Síť",
+  "settings.about": "O aplikaci",
+  "remote.scan": "Naskenujte kód fotoaparátem telefonu nebo otevřete adresu v jeho prohlížeči.",
+  "remote.where": "Od teď najdete kód i adresu pod ikonou telefonu nahoře v okně."
 }

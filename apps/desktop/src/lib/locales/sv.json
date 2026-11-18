@@ -680,5 +680,14 @@
   "crash.hide": "Dölj rapporten",
   "crash.copy": "Kopiera",
   "crash.github": "Rapportera på GitHub",
-  "crash.delete": "Ta bort"
+  "crash.delete": "Ta bort",
+  "settings.playback": "Uppspelning",
+  "settings.fades": "Mjuk paus och spolning",
+  "settings.fadesHelp": "Tonar ljudet över 10 ms när du pausar, spolar, stoppar eller byter låt, så att det inte slutar med ett klick.",
+  "settings.fadesSignal": "En låt som spelas rakt igenom och skarven mellan två låtar rörs aldrig.",
+  "settings.appearance": "Utseende",
+  "settings.network": "Nätverk",
+  "settings.about": "Om",
+  "remote.scan": "Skanna koden med telefonens kamera eller öppna adressen i dess webbläsare.",
+  "remote.where": "Från och med nu finns koden och adressen under telefonikonen högst upp i fönstret."
 }

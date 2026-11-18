@@ -685,5 +685,14 @@
   "crash.hide": "Ukryj raport",
   "crash.copy": "Kopiuj",
   "crash.github": "Zgłoś na GitHubie",
-  "crash.delete": "Usuń"
+  "crash.delete": "Usuń",
+  "settings.playback": "Odtwarzanie",
+  "settings.fades": "Płynna pauza i przewijanie",
+  "settings.fadesHelp": "Wycisza dźwięk w ciągu 10 ms przy pauzie, przewijaniu, zatrzymaniu i zmianie utworu, żeby nie kończył się trzaskiem.",
+  "settings.fadesSignal": "Utwór grany bez przerw i połączenie między dwoma utworami pozostają nietknięte.",
+  "settings.appearance": "Wygląd",
+  "settings.network": "Sieć",
+  "settings.about": "O aplikacji",
+  "remote.scan": "Zeskanuj kod aparatem telefonu albo otwórz adres w jego przeglądarce.",
+  "remote.where": "Od teraz kod i adres znajdziesz pod ikoną telefonu u góry okna."
 }

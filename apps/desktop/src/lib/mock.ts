@@ -348,6 +348,8 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "stop":
       duration = 0;
       return undefined as T;
+    case "set_fades":
+      return undefined as T;
     case "set_dsp": {
       dsp = {
         upsampleKhz: args.upsampleKhz as number | null, crossfeed: args.crossfeed as DspSettings["crossfeed"],

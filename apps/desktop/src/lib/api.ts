@@ -531,6 +531,8 @@ export const api = {
     call<Lyrics | null>("lyrics", { path: now.path, title: now.title, artist: now.artist, album: now.album, duration: now.duration, online }),
   importFiles: (paths: string[]) => call<string[]>("import_files", { paths }),
   setDsp: (s: DspSettings) => call<DspResult>("set_dsp", { ...s }),
+  /** Fade over a few ms at pause, seek, stop and a change of track (applies at once). */
+  setFades: (on: boolean) => call<void>("set_fades", { on }),
   eqState: () => call<EqState>("eq_state"),
   eqSave: (id: string | null, preset: EqPreset, persist: boolean) => call<EqChanged>("eq_save", { id, preset, persist }),
   eqDelete: (id: string) => call<EqChanged>("eq_delete", { id }),

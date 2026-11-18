@@ -680,5 +680,14 @@
   "crash.hide": "Raporu gizle",
   "crash.copy": "Kopyala",
   "crash.github": "GitHub'da bildir",
-  "crash.delete": "Sil"
+  "crash.delete": "Sil",
+  "settings.playback": "Oynatma",
+  "settings.fades": "Yumuşak duraklatma ve sarma",
+  "settings.fadesHelp": "Duraklattığında, sardığında, durdurduğunda veya parça değiştirdiğinde sesi 10 ms içinde kısar; böylece ses bir tıkırtıyla bitmez.",
+  "settings.fadesSignal": "Kesintisiz çalan bir parçaya ve iki parça arasındaki geçişe dokunulmaz.",
+  "settings.appearance": "Görünüm",
+  "settings.network": "Ağ",
+  "settings.about": "Hakkında",
+  "remote.scan": "Kodu telefonun kamerasıyla tara ya da adresi telefonun tarayıcısında aç.",
+  "remote.where": "Bundan sonra kod ve adres, pencerenin üst kısmındaki telefon simgesinin altında."
 }

@@ -680,5 +680,14 @@
   "crash.hide": "隱藏報告",
   "crash.copy": "複製",
   "crash.github": "在 GitHub 上回報",
-  "crash.delete": "刪除"
+  "crash.delete": "刪除",
+  "settings.playback": "播放",
+  "settings.fades": "平滑暫停與跳轉",
+  "settings.fadesHelp": "暫停、跳轉、停止或切換歌曲時，聲音在 10 毫秒內淡出淡入，不會以喀噠聲結束。",
+  "settings.fadesSignal": "連續播放的歌曲以及兩首歌曲之間的銜接不受影響。",
+  "settings.appearance": "外觀",
+  "settings.network": "網路",
+  "settings.about": "關於",
+  "remote.scan": "用手機相機掃描 QR 碼，或在手機瀏覽器中打開這個位址。",
+  "remote.where": "之後，QR 碼和位址都在視窗頂部的手機圖示下。"
 }

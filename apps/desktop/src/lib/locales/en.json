@@ -680,5 +680,14 @@
   "crash.hide": "Hide the report",
   "crash.copy": "Copy",
   "crash.github": "Report on GitHub",
-  "crash.delete": "Delete"
+  "crash.delete": "Delete",
+  "settings.playback": "Playback",
+  "settings.fades": "Smooth pause and seek",
+  "settings.fadesHelp": "Fades the sound over 10 ms when you pause, seek, stop or change tracks, so it doesn't end in a click.",
+  "settings.fadesSignal": "A track playing through, and the join between two tracks, are never touched.",
+  "settings.appearance": "Appearance",
+  "settings.network": "Network",
+  "settings.about": "About",
+  "remote.scan": "Scan the code with the phone's camera, or open the address in its browser.",
+  "remote.where": "From now on the code and the address are under the phone icon at the top of the window."
 }

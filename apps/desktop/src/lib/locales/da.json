@@ -680,5 +680,14 @@
   "crash.hide": "Skjul rapporten",
   "crash.copy": "Kopiér",
   "crash.github": "Rapportér på GitHub",
-  "crash.delete": "Slet"
+  "crash.delete": "Slet",
+  "settings.playback": "Afspilning",
+  "settings.fades": "Blød pause og spoling",
+  "settings.fadesHelp": "Toner lyden over 10 ms, når du sætter på pause, spoler, stopper eller skifter nummer, så den ikke ender med et klik.",
+  "settings.fadesSignal": "Et nummer, der spiller igennem, og overgangen mellem to numre røres aldrig.",
+  "settings.appearance": "Udseende",
+  "settings.network": "Netværk",
+  "settings.about": "Om",
+  "remote.scan": "Scan koden med telefonens kamera, eller åbn adressen i dens browser.",
+  "remote.where": "Fremover ligger koden og adressen under telefonikonet øverst i vinduet."
 }

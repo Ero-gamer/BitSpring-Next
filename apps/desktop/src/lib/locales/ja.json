@@ -680,5 +680,14 @@
   "crash.hide": "レポートを隠す",
   "crash.copy": "コピー",
   "crash.github": "GitHubで報告",
-  "crash.delete": "削除"
+  "crash.delete": "削除",
+  "settings.playback": "再生",
+  "settings.fades": "なめらかな一時停止とシーク",
+  "settings.fadesHelp": "一時停止、シーク、停止、曲の切り替えのときに音を10ミリ秒かけてフェードさせ、クリック音で途切れないようにします。",
+  "settings.fadesSignal": "通して再生している曲と、曲と曲のつなぎ目には手を加えません。",
+  "settings.appearance": "外観",
+  "settings.network": "ネットワーク",
+  "settings.about": "このアプリについて",
+  "remote.scan": "スマートフォンのカメラでコードを読み取るか、そのブラウザでアドレスを開いてください。",
+  "remote.where": "今後、コードとアドレスはウインドウ上部のスマートフォンのアイコンから表示できます。"
 }

@@ -442,13 +442,13 @@ html[data-look="glass"] [role="menu"] {
 /* anchored at their trigger's end (Enhancers, output, settings, menus opened from the right) */
 html[data-look="glass"] .enh [role="dialog"],
 html[data-look="glass"] .picker > [role="dialog"],
-html[data-look="glass"] .settings [role="dialog"],
+html[data-look="glass"] .remote [role="dialog"],
 html[data-look="glass"] [role="menu"].end {
   transform-origin: top right;
 }
 html[data-look="glass"][dir="rtl"] .enh [role="dialog"],
 html[data-look="glass"][dir="rtl"] .picker > [role="dialog"],
-html[data-look="glass"][dir="rtl"] .settings [role="dialog"],
+html[data-look="glass"][dir="rtl"] .remote [role="dialog"],
 html[data-look="glass"][dir="rtl"] [role="menu"].end {
   transform-origin: top left;
 }

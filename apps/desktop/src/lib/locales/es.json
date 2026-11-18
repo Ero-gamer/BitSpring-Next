@@ -680,5 +680,14 @@
   "crash.hide": "Ocultar el informe",
   "crash.copy": "Copiar",
   "crash.github": "Informar en GitHub",
-  "crash.delete": "Eliminar"
+  "crash.delete": "Eliminar",
+  "settings.playback": "Reproducción",
+  "settings.fades": "Pausa y salto suaves",
+  "settings.fadesHelp": "Atenúa el sonido durante 10 ms al pausar, saltar dentro de la pista, detener o cambiar de pista, para que no termine con un clic.",
+  "settings.fadesSignal": "Una pista que suena sin interrupciones y la unión entre dos pistas no se tocan.",
+  "settings.appearance": "Apariencia",
+  "settings.network": "Red",
+  "settings.about": "Acerca de",
+  "remote.scan": "Escanea el código con la cámara del teléfono o abre la dirección en su navegador.",
+  "remote.where": "A partir de ahora, el código y la dirección están bajo el icono de teléfono, en la parte superior de la ventana."
 }

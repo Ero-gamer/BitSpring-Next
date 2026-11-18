@@ -42,7 +42,7 @@ use windows_media as media;
 use linux_media as media;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 use std::time::Duration;
 
@@ -121,6 +121,8 @@ struct AppState {
     now_rev: AtomicU64,
     /// One start at a time: a click in the UI and the queue's own advance can't race.
     play_lock: Mutex<()>,
+    /// The user turned off the short fades at pause, seek and stop (on unless they did).
+    fades_off: AtomicBool,
     /// Why the queue stopped at a track it couldn't play.
     advance_error: Mutex<Option<AdvanceError>>,
     /// The last status sent to the UI, answered again while a track is starting.
@@ -651,7 +653,7 @@ fn begin(
     dsd_note: Option<DsdNote>,
 ) -> CmdResult<NowPlayingDto> {
     let dsp = dsp_for(state, device.uid());
-    let opts = PlayOptions { exclusive, dsp, start_at, start_paused, fades: true };
+    let opts = PlayOptions { exclusive, dsp, start_at, start_paused, fades: !state.fades_off.load(Ordering::Relaxed) };
     let mut signal = start(state, device, track.clone(), opts)?;
     signal.dsd_note = dsd_note.clone();
     let current = Current { track, path: file, device_uid: device.uid().to_string(), exclusive, dop, dsd_note };
@@ -1124,6 +1126,16 @@ fn stop(state: State<'_, AppState>) {
     }
 }
 
+/// The short fades at pause, seek, stop and a change of track, on or off. Takes hold on what
+/// plays now, without a restart. Never touches a track playing through: bit-perfect stays.
+#[tauri::command]
+fn set_fades(state: State<'_, AppState>, on: bool) {
+    state.fades_off.store(!on, Ordering::Relaxed);
+    if let Some(p) = state.player.lock().unwrap().as_ref() {
+        p.set_fades(on);
+    }
+}
+
 /// Replace the processing settings. Everything off = bit-perfect. If a track is loaded it
 /// continues from the same position (and pause state) with the new chain.
 #[tauri::command]
@@ -1219,7 +1231,7 @@ fn restart_locked(state: &AppState, at: Option<f64>) -> CmdResult<Option<SignalD
     // The settings may be new, or the track just opened: its gain under them. (Measured on
     // the spot only if it is in memory whole already.)
     set_level(&settings, &cur.path, &cur.track, Duration::ZERO);
-    let opts = PlayOptions { exclusive: cur.exclusive, dsp: settings, start_at: pos, start_paused: paused, fades: true };
+    let opts = PlayOptions { exclusive: cur.exclusive, dsp: settings, start_at: pos, start_paused: paused, fades: !state.fades_off.load(Ordering::Relaxed) };
     let mut signal = start(state, &device, cur.track.clone(), opts)?;
     signal.dsd_note = cur.dsd_note.clone();
     if let Some(now) = state.now.lock().unwrap().as_mut() {
@@ -1382,6 +1394,7 @@ pub fn run() {
             set_paused,
             seek,
             stop,
+            set_fades,
             set_dsp,
             eq::eq_state,
             eq::eq_save,

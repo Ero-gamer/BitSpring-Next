@@ -680,5 +680,14 @@
   "crash.hide": "Masquer le rapport",
   "crash.copy": "Copier",
   "crash.github": "Signaler sur GitHub",
-  "crash.delete": "Supprimer"
+  "crash.delete": "Supprimer",
+  "settings.playback": "Lecture",
+  "settings.fades": "Pause et déplacement en douceur",
+  "settings.fadesHelp": "Fait un fondu de 10 ms quand vous mettez en pause, vous déplacez dans le morceau, arrêtez ou changez de morceau, pour que le son ne se termine pas par un clic.",
+  "settings.fadesSignal": "Un morceau lu sans interruption et l’enchaînement entre deux morceaux ne sont jamais modifiés.",
+  "settings.appearance": "Apparence",
+  "settings.network": "Réseau",
+  "settings.about": "À propos",
+  "remote.scan": "Scannez le code avec l’appareil photo du téléphone ou ouvrez l’adresse dans son navigateur.",
+  "remote.where": "Le code et l’adresse se trouvent désormais sous l’icône de téléphone en haut de la fenêtre."
 }

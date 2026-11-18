@@ -680,5 +680,14 @@
   "crash.hide": "Piilota raportti",
   "crash.copy": "Kopioi",
   "crash.github": "Ilmoita GitHubissa",
-  "crash.delete": "Poista"
+  "crash.delete": "Poista",
+  "settings.playback": "Toisto",
+  "settings.fades": "Pehmeä tauko ja kelaus",
+  "settings.fadesHelp": "Häivyttää äänen 10 ms:n aikana, kun keskeytät, kelaat, pysäytät tai vaihdat kappaletta, jotta ääni ei katkea naksahdukseen.",
+  "settings.fadesSignal": "Keskeytyksettä soivaan kappaleeseen ja kahden kappaleen saumaan ei kosketa.",
+  "settings.appearance": "Ulkoasu",
+  "settings.network": "Verkko",
+  "settings.about": "Tietoja",
+  "remote.scan": "Skannaa koodi puhelimen kameralla tai avaa osoite sen selaimessa.",
+  "remote.where": "Tästä eteenpäin koodi ja osoite löytyvät ikkunan yläreunan puhelinkuvakkeesta."
 }

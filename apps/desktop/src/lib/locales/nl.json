@@ -680,5 +680,14 @@
   "crash.hide": "Rapport verbergen",
   "crash.copy": "Kopiëren",
   "crash.github": "Melden op GitHub",
-  "crash.delete": "Verwijderen"
+  "crash.delete": "Verwijderen",
+  "settings.playback": "Afspelen",
+  "settings.fades": "Vloeiend pauzeren en spoelen",
+  "settings.fadesHelp": "Laat het geluid in 10 ms uit- en infaden wanneer je pauzeert, spoelt, stopt of van nummer wisselt, zodat het niet met een klik eindigt.",
+  "settings.fadesSignal": "Een nummer dat doorspeelt en de overgang tussen twee nummers blijven onaangeroerd.",
+  "settings.appearance": "Weergave",
+  "settings.network": "Netwerk",
+  "settings.about": "Over",
+  "remote.scan": "Scan de code met de camera van de telefoon of open het adres in de browser ervan.",
+  "remote.where": "Vanaf nu vind je de code en het adres onder het telefoonpictogram boven in het venster."
 }

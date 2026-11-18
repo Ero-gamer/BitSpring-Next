@@ -680,5 +680,14 @@
   "crash.hide": "Ascunde raportul",
   "crash.copy": "Copiază",
   "crash.github": "Raportează pe GitHub",
-  "crash.delete": "Șterge"
+  "crash.delete": "Șterge",
+  "settings.playback": "Redare",
+  "settings.fades": "Pauză și derulare line",
+  "settings.fadesHelp": "Estompează sunetul în 10 ms când pui pauză, derulezi, oprești sau schimbi piesa, ca să nu se termine cu un clic.",
+  "settings.fadesSignal": "O piesă care se aude fără întrerupere și trecerea dintre două piese rămân neatinse.",
+  "settings.appearance": "Aspect",
+  "settings.network": "Rețea",
+  "settings.about": "Despre",
+  "remote.scan": "Scanează codul cu camera telefonului sau deschide adresa în browserul lui.",
+  "remote.where": "De acum, codul și adresa se află sub pictograma telefonului, în partea de sus a ferestrei."
 }

@@ -680,5 +680,14 @@
   "crash.hide": "보고서 숨기기",
   "crash.copy": "복사",
   "crash.github": "GitHub에 신고",
-  "crash.delete": "삭제"
+  "crash.delete": "삭제",
+  "settings.playback": "재생",
+  "settings.fades": "부드러운 일시 정지와 탐색",
+  "settings.fadesHelp": "일시 정지, 탐색, 정지, 곡 전환 시 소리를 10ms에 걸쳐 페이드해 딸깍 소리로 끝나지 않게 합니다.",
+  "settings.fadesSignal": "끊김 없이 재생되는 곡과 두 곡 사이의 이음새는 건드리지 않습니다.",
+  "settings.appearance": "모양",
+  "settings.network": "네트워크",
+  "settings.about": "정보",
+  "remote.scan": "휴대폰 카메라로 코드를 스캔하거나 휴대폰 브라우저에서 주소를 여세요.",
+  "remote.where": "앞으로 코드와 주소는 창 위쪽의 휴대폰 아이콘에 있습니다."
 }

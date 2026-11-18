@@ -680,5 +680,14 @@
   "crash.hide": "Skjul rapporten",
   "crash.copy": "Kopier",
   "crash.github": "Rapporter på GitHub",
-  "crash.delete": "Slett"
+  "crash.delete": "Slett",
+  "settings.playback": "Avspilling",
+  "settings.fades": "Myk pause og spoling",
+  "settings.fadesHelp": "Toner lyden over 10 ms når du setter på pause, spoler, stopper eller bytter spor, så den ikke ender med et klikk.",
+  "settings.fadesSignal": "Et spor som spilles rett gjennom, og overgangen mellom to spor, røres aldri.",
+  "settings.appearance": "Utseende",
+  "settings.network": "Nettverk",
+  "settings.about": "Om",
+  "remote.scan": "Skann koden med telefonens kamera, eller åpne adressen i nettleseren på den.",
+  "remote.where": "Fra nå av ligger koden og adressen under telefonikonet øverst i vinduet."
 }

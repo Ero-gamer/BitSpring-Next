@@ -680,5 +680,14 @@
   "crash.hide": "隐藏报告",
   "crash.copy": "复制",
   "crash.github": "在 GitHub 上报告",
-  "crash.delete": "删除"
+  "crash.delete": "删除",
+  "settings.playback": "播放",
+  "settings.fades": "平滑暂停与跳转",
+  "settings.fadesHelp": "暂停、跳转、停止或切换歌曲时，声音在 10 毫秒内淡出淡入，不会以咔哒声结束。",
+  "settings.fadesSignal": "连续播放的歌曲以及两首歌曲之间的衔接不受影响。",
+  "settings.appearance": "外观",
+  "settings.network": "网络",
+  "settings.about": "关于",
+  "remote.scan": "用手机相机扫描二维码，或在手机浏览器中打开这个地址。",
+  "remote.where": "之后，二维码和地址都在窗口顶部的手机图标下。"
 }
