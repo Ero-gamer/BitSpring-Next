@@ -21,12 +21,16 @@ const LIB: [string, string, string | null, string | null, string, number, number
   [UNKNOWN_ARTIST, "Untitled Sketches", null, null, "WAV", 44100, 16, null, ["01 sketch one", "02 sketch two"]],
   ["Halvorsen Quartet", "Surround Sessions 5.1", "2023", "Classical", "FLAC", 48000, 24, "#3b2e6b", ["Room Tone", "Canon in Six"]],
 ];
+// With ?android or ?ios the page plays a phone, whose library has folders of its own.
+const phone = new URLSearchParams(location.search);
+const libRoot = phone.has("android") ? "/storage/emulated/0/Music" : phone.has("ios") ? "/var/mobile/Containers/Data/Application/1/Documents" : "/Music";
+const libFixed = phone.has("android") ? [libRoot, "/storage/emulated/0/Android/data/dev.local.hifi/files/Music"] : phone.has("ios") ? [libRoot] : [];
 const libTracks: LibTrack[] = [];
 const libAlbums: Album[] = LIB.map(([artist, title, year, genre, format, rate, bits, color, names], ai) => {
   const id = `a${ai}`;
   const idx = names.map((name, n) => {
     libTracks.push({
-      path: `/Music/${artist}/${title}/${String(n + 1).padStart(2, "0")} ${name}.${format.toLowerCase()}`,
+      path: `${libRoot}/${artist}/${title}/${String(n + 1).padStart(2, "0")} ${name}.${format.toLowerCase()}`,
       title: name, artist: artist === UNKNOWN_ARTIST ? null : artist, albumArtist: null, album: title, genre, year,
       trackNumber: n + 1, discNumber: null, duration: 27 + n * 7 + ai * 31, sampleRate: rate, bits, channels: 2, format,
       lossless: format !== "MP3", hasCover: !!color, size: 0, mtime: 1700000000 + ai * 1000, albumId: id,
@@ -55,15 +59,10 @@ export function mockCover(id: string): string {
 
 const mockChecks: Record<string, unknown> = {};
 
-// The mock tracks live under /Music; with ?android or ?ios the page plays a phone, whose
-// library has built-in folders.
-const phone = new URLSearchParams(location.search);
-const libRoot = phone.has("android") ? "/storage/emulated/0/Music" : phone.has("ios") ? "/var/mobile/Containers/Data/Application/1/Documents" : "/Music";
-const libFixed = phone.has("android") ? [libRoot, "/storage/emulated/0/Android/data/dev.local.hifi/files/Music"] : phone.has("ios") ? [libRoot] : [];
 let libFolders = libFixed.length ? [...libFixed] : [libRoot];
 let libSkipped: string[] = [];
-/** Where a mock track's folder is under the mock library's root. */
-const libDir = (t: LibTrack) => libRoot + t.path.slice("/Music".length, t.path.lastIndexOf("/"));
+/** The folder a mock track is in. */
+const libDir = (t: LibTrack) => t.path.slice(0, t.path.lastIndexOf("/"));
 const libUnder = (dir: string, parent: string) => dir === parent || dir.startsWith(parent + "/");
 
 let mockVolume = 35;
@@ -230,7 +229,7 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       libFolders = [...libFolders, args.path as string];
       return mock("library_status");
     case "library_pick_folder":
-      libFolders = [...libFolders, "/storage/1A2B-3C4D/Audio/Lossless"];
+      libFolders = [...libFolders, "/storage/1A2B-3C4D/Audio/Vinyl rips 24-96 (cleaned)"];
       return mock("library_status");
     case "library_remove_folder":
       libFolders = libFolders.filter((f) => f !== args.path);

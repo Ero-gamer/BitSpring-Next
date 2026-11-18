@@ -11,6 +11,7 @@
   import AddToPlaylist from "./AddToPlaylist.svelte";
   import Playlists from "./Playlists.svelte";
   import LibraryFolders from "./LibraryFolders.svelte";
+  import { folderLabel, folderName, isInside, parentOf } from "./folderPlace";
   import TrackTable, { type SortKey } from "./TrackTable.svelte";
 
   let {
@@ -133,6 +134,26 @@
   let editingTags = $state(false);
   // After a tag edit the album may get a new id (a new title or artist): follow its tracks.
   let followPath: string | null = null;
+  /** The folder all of the open album's files are in, when it is one that can be skipped:
+   *  inside a library folder, not one itself (those are handled in the folders panel). */
+  const albumFolder = $derived.by(() => {
+    if (!albumTracks.length || !status) return null;
+    let common = parentOf(albumTracks[0].path);
+    for (const tr of albumTracks) {
+      while (!isInside(tr.path, common) && parentOf(common) !== common) common = parentOf(common);
+    }
+    const inLibrary = status.folders.some((f) => f !== common && isInside(common, f));
+    return inLibrary && !status.folders.includes(common) ? common : null;
+  });
+  /** "Don't show this folder" was pressed and waits for a yes. */
+  let hiding = $state(false);
+  async function hideFolder() {
+    if (!albumFolder) return;
+    status = await api.librarySkipFolder(albumFolder);
+    hiding = false;
+    await leaveAlbum();
+  }
+
   let albumQuality = $derived(albumTracks.map((tr) => quality[tr.path]).filter(Boolean));
   let albumChecked = $derived(albumTracks.length > 0 && albumQuality.length === albumTracks.length);
   /** "Upsampled (11), Genuine (1)": the album's verdicts, most common first. */
@@ -213,6 +234,7 @@
   async function enterAlbum(a: Album) {
     gridScroll = body?.scrollTop ?? 0;
     openAlbum = a;
+    hiding = false;
     await tick();
     body?.scrollTo({ top: 0 });
   }
@@ -423,6 +445,20 @@
               <p class="facts quality">{t("q.summary")}: {list(qualitySummary)}</p>
             {/if}
             {#if qualityError}<p class="facts q-err">{qualityError}</p>{/if}
+            {#if albumFolder}
+              <p class="facts folder">
+                {#if hiding}
+                  <span>{t("lib.hideFolderAsk", { name: folderName(albumFolder) })}</span>
+                  <span class="folder-answer">
+                    <button class="quiet-link" onclick={hideFolder}>{t("lib.skip")}</button>
+                    <button class="quiet-link" onclick={() => (hiding = false)}>{t("pl.cancel")}</button>
+                  </span>
+                {:else}
+                  <span class="folder-path" title={albumFolder}>{folderLabel(albumFolder)}</span>
+                  <button class="quiet-link" onclick={() => (hiding = true)}>{t("lib.hideFolder")}</button>
+                {/if}
+              </p>
+            {/if}
           </div>
         </div>
         <TrackTable
@@ -810,6 +846,33 @@
   }
   .facts.q-err {
     color: var(--alarm);
+  }
+  /* Where the album's files are, and a way to leave that folder out of the library. */
+  .facts.folder {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    align-items: baseline;
+  }
+  .folder-path {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--mist-dim);
+  }
+  .folder-answer {
+    display: inline-flex;
+    gap: 14px;
+  }
+  .quiet-link {
+    padding: 6px 0;
+    color: var(--mist);
+    text-decoration: underline;
+    text-decoration-color: var(--slate-500);
+    text-underline-offset: 3px;
+  }
+  .quiet-link:hover {
+    color: var(--porcelain);
   }
   .q-badge {
     flex: none;
