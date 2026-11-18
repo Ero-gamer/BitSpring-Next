@@ -310,7 +310,13 @@
       </label>
     {/if}
 
-    {#if view !== "playlists"}<label class="hires"><input type="checkbox" bind:checked={hiResOnly} />{t("lib.hiresOnly")}</label>{/if}
+    {#if view !== "playlists"}
+      <label class="hires" class:on={hiResOnly}>
+        <input type="checkbox" bind:checked={hiResOnly} />
+        <span class="box" aria-hidden="true"></span>
+        {t("lib.hiresOnly")}
+      </label>
+    {/if}
 
     <div class="folders" bind:this={foldersRoot}>
       <button
@@ -588,8 +594,68 @@
     font-size: var(--t-sm);
     padding: 7px 12px;
   }
+  /* "Hi-res only" is a control of the toolbar's size as well — a box the height of the search
+     field with its own tick mark — instead of the system's small checkbox afloat beside the
+     fields. */
+  .hires {
+    position: relative;
+    box-sizing: border-box;
+    gap: 8px;
+    padding: 7px 12px;
+    border: 1px solid var(--slate-600);
+    border-radius: var(--r-md);
+    background-color: var(--slate-900);
+    cursor: pointer;
+  }
+  .hires:hover {
+    border-color: var(--slate-500);
+  }
+  .hires.on {
+    color: var(--porcelain);
+    border-color: var(--slate-500);
+    background-color: var(--slate-700);
+  }
   .hires input {
-    accent-color: var(--porcelain);
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .hires:has(input:focus-visible) {
+    outline: 2px solid var(--porcelain);
+    outline-offset: 2px;
+  }
+  .box {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: var(--r-sm);
+    border: 1.5px solid var(--mist);
+  }
+  .hires.on .box {
+    background: var(--porcelain);
+    border-color: var(--porcelain);
+  }
+  .hires.on .box::after {
+    content: "";
+    width: 7px;
+    height: 3.5px;
+    margin-top: -2px;
+    border-left: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    transform: rotate(-45deg);
+  }
+  :global(html[data-look="glass"]) .hires {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: var(--glass-edge);
+  }
+  :global(html[data-look="glass"]) .hires.on {
+    background-color: rgba(255, 255, 255, 0.16);
   }
 
   .folders {
