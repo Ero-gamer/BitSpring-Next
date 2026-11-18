@@ -528,12 +528,13 @@
   <header data-tauri-drag-region class:mac={isMac} class:chrome-right={isMac && i18n.system.dir === "rtl"} use:fitRow={["no-wordmark", "no-enh-state"]}>
     <span class="wordmark" data-tauri-drag-region>BitSpring</span>
     <nav class="tabs" aria-label={t("nav.screens")} use:liquidPill={screen}>
-      <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} onclick={() => (screen = "player")}>{t("nav.player")}</button>
-      <button class:sel={screen === "library"} aria-current={screen === "library" ? "page" : undefined} onclick={() => (screen = "library")}>{t("nav.library")}</button>
+      <!-- data-label: the same words in the chosen tab's bold, to keep each tab's width (see .tabs button::after) -->
+      <button class:sel={screen === "player"} aria-current={screen === "player" ? "page" : undefined} data-label={t("nav.player")} onclick={() => (screen = "player")}>{t("nav.player")}</button>
+      <button class:sel={screen === "library"} aria-current={screen === "library" ? "page" : undefined} data-label={t("nav.library")} onclick={() => (screen = "library")}>{t("nav.library")}</button>
       {#if streaming?.available}
-        <button class:sel={screen === "streaming"} aria-current={screen === "streaming" ? "page" : undefined} onclick={() => (screen = "streaming")}>{t("nav.streaming")}</button>
+        <button class:sel={screen === "streaming"} aria-current={screen === "streaming" ? "page" : undefined} data-label={t("nav.streaming")} onclick={() => (screen = "streaming")}>{t("nav.streaming")}</button>
       {/if}
-      <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
+      <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} data-label={t("nav.eq")} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
     </nav>
     <div class="controls">
       <Enhancers settings={dsp} {eqName} {ir} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
@@ -797,11 +798,24 @@
     margin-inline-end: auto;
   }
   .tabs button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
     white-space: nowrap;
     padding: 6px 12px;
     border-radius: var(--r-md);
     font-size: var(--t-sm);
     color: var(--mist);
+  }
+  /* Every tab is as wide as its label set bold, chosen or not: the row keeps its width
+     whichever tab is chosen, and when none is (the settings screen). */
+  .tabs button::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    pointer-events: none;
   }
   .tabs button:hover {
     color: var(--porcelain);
