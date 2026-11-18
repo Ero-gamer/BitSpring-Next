@@ -1490,6 +1490,7 @@ pub fn run() {
             quality::quality_check,
             loudness::loudness_status,
             loudness::loudness_analyze,
+            loudness::loudness_write_tags,
             stats::plays,
             scrobble::scrobble_status,
             scrobble::scrobble_connect_token,
