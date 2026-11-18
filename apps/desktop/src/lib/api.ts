@@ -86,7 +86,7 @@ export type EngineError =
   | {
       code:
         | "deviceBusy" | "audioBusy" | "deviceUnplugged" | "deviceStalled" | "deviceNotFound" | "noDevice"
-        | "formatRefused" | "exclusiveDisabled" | "dopVolume" | "profileEmpty" | "noAppFolder"
+        | "formatRefused" | "exclusiveDisabled" | "dopVolume" | "profileEmpty" | "noAppFolder" | "folderNotOnDevice"
         | "playlistNotFound" | "playlistNoTracks" | "playlistFormat" | "streamingOff" | "signInCancelled"
         | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed";
     }
@@ -257,11 +257,24 @@ export interface Status {
 
 export interface LibraryStatus {
   folders: string[];
+  /** Folders the scan leaves out, with everything in them. */
+  skipped: string[];
+  /** The folders of `folders` a phone always has: they can be skipped, not removed. */
+  fixed: string[];
   scanning: [number, number] | null;
   albums: number;
   tracks: number;
   failed: number;
   revision: number;
+}
+
+/** A folder holding library tracks, in the "skip a folder" list. */
+export interface LibrarySubfolder {
+  path: string;
+  name: string;
+  /** Tracks in it, at any depth. */
+  tracks: number;
+  hasSubfolders: boolean;
 }
 
 export interface Album {
@@ -564,6 +577,12 @@ export const api = {
   libraryTracks: () => call<LibTrack[]>("library_tracks"),
   libraryAddFolder: (path: string) => call<LibraryStatus>("library_add_folder", { path }),
   libraryRemoveFolder: (path: string) => call<LibraryStatus>("library_remove_folder", { path }),
+  /** Android: add a folder chosen in the system's picker. Null: nothing was chosen. */
+  libraryPickFolder: () => call<LibraryStatus | null>("library_pick_folder"),
+  librarySkipFolder: (path: string) => call<LibraryStatus>("library_skip_folder", { path }),
+  libraryUnskipFolder: (path: string) => call<LibraryStatus>("library_unskip_folder", { path }),
+  /** Folders with library tracks right inside `path`; null: the library's own folders. */
+  librarySubfolders: (path: string | null) => call<LibrarySubfolder[]>("library_subfolders", { path }),
   libraryRescan: () => call<LibraryStatus>("library_rescan"),
   qualityCached: (paths: string[]) => call<(QualityReport | null)[]>("quality_cached", { paths }),
   qualityCheck: (path: string) => call<QualityReport>("quality_check", { path }),

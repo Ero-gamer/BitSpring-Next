@@ -10,6 +10,7 @@
   import { remember } from "./labels.svelte";
   import AddToPlaylist from "./AddToPlaylist.svelte";
   import Playlists from "./Playlists.svelte";
+  import LibraryFolders from "./LibraryFolders.svelte";
   import TrackTable, { type SortKey } from "./TrackTable.svelte";
 
   let {
@@ -274,6 +275,17 @@
     if (typeof picked === "string") status = await api.libraryAddFolder(picked);
   }
 
+  let pickError = $state("");
+  /** Android: the system's folder picker. */
+  async function pickFolder() {
+    pickError = "";
+    try {
+      status = (await api.libraryPickFolder()) ?? status;
+    } catch (e) {
+      pickError = errorText(e);
+    }
+  }
+
   function playAlbum(a: Album, start = 0) {
     onplay(a.tracks.map((i) => tracks[i].path), start);
   }
@@ -333,41 +345,7 @@
       </button>
       {#if foldersOpen && status}
         <div class="folders-panel" role="dialog" aria-label={t("lib.foldersDialog")}>
-          {#if isAndroid}
-          <p class="fp-title">{t("lib.androidTitle")}</p>
-          <p class="fp-empty">{t("lib.androidHelp")}</p>
-          <div class="fp-actions">
-            <button onclick={async () => (status = await api.libraryRescan())} disabled={!!status.scanning}>{t("common.rescan")}</button>
-          </div>
-          {:else if isIOS}
-          <p class="fp-title">{t("lib.iosTitle")}</p>
-          <p class="fp-empty">{t("lib.iosHelp")}</p>
-          <div class="fp-actions">
-            <button class="primary" onclick={importFiles}>{t("common.addFiles")}</button>
-            <button onclick={async () => (status = await api.libraryRescan())} disabled={!!status.scanning}>{t("common.rescan")}</button>
-          </div>
-          {:else}
-          <p class="fp-title">{t("lib.foldersTitle")}</p>
-          {#if status.folders.length}
-            <ul>
-              {#each status.folders as f (f)}
-                <li>
-                  <span title={f}>{f}</span>
-                  <button onclick={async () => (status = await api.libraryRemoveFolder(f))} aria-label={t("lib.removeFolder", { path: f })}>{t("lib.remove")}</button>
-                </li>
-              {/each}
-            </ul>
-          {:else}
-            <p class="fp-empty">{t("lib.noFolders")}</p>
-          {/if}
-          <div class="fp-actions">
-            <button class="primary" onclick={addFolder}>{t("lib.addFolder")}</button>
-            <button onclick={async () => (status = await api.libraryRescan())} disabled={!!status.scanning}>{t("common.rescan")}</button>
-          </div>
-          {/if}
-          {#if status.failed}
-            <p class="fp-failed">{tn("lib.failed", status.failed)}</p>
-          {/if}
+          <LibraryFolders bind:status onadd={addFolder} onimport={importFiles} />
         </div>
       {/if}
     </div>
@@ -381,7 +359,13 @@
       <div class="empty">
         <p class="empty-title">{t("lib.empty")}</p>
         <p>{t("lib.emptyAndroid")}</p>
-        <button class="primary" onclick={async () => (status = await api.libraryRescan())}>{t("common.rescan")}</button>
+        <div class="empty-actions">
+          <button class="primary" onclick={async () => (status = await api.libraryRescan())}>{t("common.rescan")}</button>
+          <button class="ghost" onclick={pickFolder}>{t("lib.addFolder")}</button>
+        </div>
+        {#if pickError}
+          <p class="empty-error" role="alert">{pickError}</p>
+        {/if}
       </div>
     {:else if isIOS && status && status.tracks === 0 && !status.scanning}
       <div class="empty">
@@ -687,57 +671,11 @@
     border-radius: var(--r-lg);
     padding: 14px 16px;
     box-shadow: 0 18px 40px rgba(5, 12, 15, 0.55);
+    /* Two lists of folders can outgrow a small window: the panel scrolls, the page stays. */
+    max-height: min(72vh, 600px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
-  .fp-title {
-    margin: 0 0 8px;
-    font-weight: 600;
-  }
-  .folders-panel ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .folders-panel li {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 6px 0;
-    font-size: var(--t-sm);
-    border-bottom: 1px solid var(--slate-600);
-  }
-  .folders-panel li span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    direction: rtl;
-    text-align: start;
-  }
-  .folders-panel li button {
-    color: var(--mist);
-    flex: none;
-  }
-  .folders-panel li button:hover {
-    color: var(--alarm);
-  }
-  .fp-empty,
-  .fp-failed {
-    font-size: var(--t-sm);
-    color: var(--mist);
-  }
-  .fp-actions {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    margin-top: 12px;
-    font-size: var(--t-sm);
-  }
-  .fp-actions button:not(.primary) {
-    color: var(--mist);
-  }
-  .fp-actions button:not(.primary):hover:not(:disabled) {
-    color: var(--porcelain);
-  }
-
   .body {
     flex: 1;
     min-height: 0;
@@ -931,6 +869,15 @@
     color: var(--mist);
     margin: 0 0 20px;
   }
+  .empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .empty p.empty-error {
+    color: var(--alarm);
+    margin: 14px 0 0;
+  }
   .none {
     color: var(--mist);
     padding: 24px;
@@ -964,6 +911,8 @@
       right: 10px;
       top: auto;
       width: auto;
+      /* Ends above the tab bar on a phone. */
+      max-height: 60vh;
     }
     .browse {
       padding: 14px 12px 24px;

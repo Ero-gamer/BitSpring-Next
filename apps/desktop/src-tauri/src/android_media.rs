@@ -2,14 +2,15 @@
 //! - a foreground "media playback" service, so Android keeps us running with the screen off;
 //! - its media notification / lock-screen player (MediaSession), whose buttons and headphone
 //!   keys come back here as [`Java_dev_local_hifi_PlaybackService_nativeCommand`];
-//! - the music folders and the moment storage permission is granted (library rescan).
+//! - the music folders, the system's folder picker for adding more, and the moment storage
+//!   permission is granted (library rescan).
 //!
 //! Same shape as `apple_media.rs` and `windows_media.rs`, so `lib.rs` drives both the same way.
 
 use std::sync::Mutex;
 use std::time::Instant;
 
-use jni::objects::{JClass, JObject, JValue};
+use jni::objects::{JClass, JObject, JString, JValue};
 use jni::sys::{jdouble, jint};
 use jni::{JNIEnv, JavaVM};
 use tauri::{AppHandle, Manager};
@@ -113,8 +114,9 @@ fn updater_class<'a>(env: &mut jni::JNIEnv<'a>, ctx: &JObject) -> jni::errors::R
     Ok(JClass::from(class))
 }
 
-/// The folders the library scans: the shared Music folder (needs the audio permission) and the
-/// app's own one under Android/data (always readable, reachable over USB).
+/// The folders the library always scans: the shared Music folder (needs the audio permission)
+/// and the app's own one under Android/data (always readable, reachable over USB). The user
+/// adds more with [`pick_folder`].
 pub fn music_dirs() -> Vec<String> {
     with_env(|env, ctx| {
         let mut out = Vec::new();
@@ -138,6 +140,49 @@ pub fn music_dirs() -> Vec<String> {
         Ok(out)
     })
     .unwrap_or_default()
+}
+
+/// The root of internal storage ("/storage/emulated/0"), which the folder picker calls
+/// `primary`.
+pub fn storage_root() -> Option<String> {
+    with_env(|env, _| {
+        let dir = env.call_static_method("android/os/Environment", "getExternalStorageDirectory", "()Ljava/io/File;", &[])?.l()?;
+        let p = env.call_method(&dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?.l()?;
+        Ok(env.get_string(&p.into())?.into())
+    })
+}
+
+/// Whoever waits for the folder picker's answer.
+static PICKING: Mutex<Option<std::sync::mpsc::Sender<Option<String>>>> = Mutex::new(None);
+
+/// Show Android's folder picker and wait for the answer: the chosen folder as a `content://`
+/// tree URI (see `folders::tree_uri_path`), or None when the user closed it. Blocks: call it
+/// off the UI thread.
+pub fn pick_folder() -> Option<String> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    // A picker still open from an earlier call answers nobody: its waiter gets None.
+    *PICKING.lock().unwrap() = Some(tx);
+    let shown = with_env(|env, ctx| {
+        let loader = env.call_method(ctx, "getClassLoader", "()Ljava/lang/ClassLoader;", &[])?.l()?;
+        let name = env.new_string("dev.local.hifi.MainActivity")?;
+        let class = env.call_method(&loader, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;", &[JValue::Object(&name)])?.l()?;
+        env.call_static_method(JClass::from(class), "pickFolder", "()Z", &[])?.z()
+    })
+    .unwrap_or(false);
+    if !shown {
+        PICKING.lock().unwrap().take();
+        return None;
+    }
+    rx.recv().ok().flatten()
+}
+
+/// The folder picker closed: `uri` is the chosen folder, null when there is none.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_local_hifi_MainActivity_nativeFolderPicked(mut env: JNIEnv, _class: JClass, uri: JString) {
+    let uri: Option<String> = if uri.is_null() { None } else { env.get_string(&uri).ok().map(Into::into) };
+    if let Some(tx) = PICKING.lock().unwrap().take() {
+        let _ = tx.send(uri);
+    }
 }
 
 struct Published {

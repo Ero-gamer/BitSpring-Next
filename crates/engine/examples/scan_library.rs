@@ -7,10 +7,10 @@ fn main() {
     let dir = std::path::PathBuf::from(std::env::args().nth(1).expect("usage: scan_library <folder>"));
     let covers = AtomicUsize::new(0);
     let t0 = Instant::now();
-    let r = scan(&[dir.clone()], &[], |_, _| {}, |_, _| { covers.fetch_add(1, Ordering::Relaxed); });
+    let r = scan(&[dir.clone()], &[], &[], |_, _| {}, |_, _| { covers.fetch_add(1, Ordering::Relaxed); });
     let cold = t0.elapsed();
     let t1 = Instant::now();
-    let again = scan(&[dir], &r.tracks, |_, _| {}, |_, _| {});
+    let again = scan(&[dir], &[], &r.tracks, |_, _| {}, |_, _| {});
     println!("{} tracks, {} covers, cold {:.0?}, rescan {:.0?}, failed {:?}\n", r.tracks.len(), covers.load(Ordering::Relaxed), cold, t1.elapsed(), r.failed);
     assert_eq!(again.tracks, r.tracks);
     for a in group_albums(&r.tracks) {
