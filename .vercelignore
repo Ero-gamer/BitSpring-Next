@@ -1,6 +1,8 @@
 # Vercel only needs the website: upload nothing else from the repo (engine, apps, test audio).
 /*
 !/vercel.json
+# Keep git history: the ignore step (apps/website/scripts/vercel-ignore.sh) diffs commits.
+!/.git
 !/apps
 /apps/*
 !/apps/website
