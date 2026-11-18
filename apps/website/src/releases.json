@@ -1,0 +1,198 @@
+[
+  {
+    "version": "0.18.5",
+    "name": "BitSpring 0.18.5",
+    "date": "2026-11-17T20:04:55Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.5",
+    "notes": "- **Albums ripped to one file with a CUE sheet no longer lose tracks when the sheet counts hundredths of a second.** Sheets of vinyl rips often write track starts that way instead of in CD frames. BitSpring used to skip such tracks, and their music played as the end of the track before. Rescan the library to get the missing tracks back."
+  },
+  {
+    "version": "0.18.4",
+    "name": "BitSpring 0.18.4",
+    "date": "2026-11-16T16:41:17Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.4",
+    "notes": "- **BitSpring now runs on Linux.** An AppImage that runs on any distribution and updates itself, and a .deb for Ubuntu, Debian and their relatives. A USB DAC plays bit-perfect: BitSpring opens the card directly, past the system mixer, at the track's own rate and in the DAC's own format, and DSD goes out as DoP. Built-in sound and Bluetooth play through the system mixer (System sound).\n- **On Linux, the desktop's media controls and media keys see BitSpring**, with the cover, and a game controller can drive the window.\n\nMac, Windows and Android have no changes in this release."
+  },
+  {
+    "version": "0.18.3",
+    "name": "BitSpring 0.18.3",
+    "date": "2026-11-16T14:42:26Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.3",
+    "notes": "- **Android: the app no longer closes right after opening on phones with 16 KB memory pages.** Newer Android builds on some phones use 16 KB pages, and earlier APKs couldn't load their audio engine there (#6).\n- **Android: the media notification and lock-screen controls work again** in the released APK, and the in-app update can install the new version.\n\nMac and Windows have no changes in this release."
+  },
+  {
+    "version": "0.18.2",
+    "name": "BitSpring 0.18.2",
+    "date": "2026-11-16T13:41:49Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.2",
+    "notes": "- **Glass is now the default look on every system.** Windows and Android open in the Glass look too: translucent panels over a soft backdrop made from the playing album's cover. If you prefer the Classic panel, switch back in Settings → Look. If you already picked a look, BitSpring keeps it."
+  },
+  {
+    "version": "0.18.1",
+    "name": "BitSpring 0.18.1",
+    "date": "2026-11-16T11:50:45Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.1",
+    "notes": "- **The window fits every language, even at its smallest size.** In German, Hungarian, Russian, Greek and other languages, the top bar, the library toolbar and the equalizer no longer push the window sideways. When space runs out, the top bar hides the BitSpring name first. In the library, the toolbar moves to a second line. In the equalizer, the band table scrolls. On phones, long names in the signal path wrap instead of being cut off.\n- **BitSpring has its own website: [bitspring.app](https://bitspring.app).** You'll find the link at the bottom of Settings."
+  },
+  {
+    "version": "0.18.0",
+    "name": "BitSpring 0.18.0",
+    "date": "2026-11-15T20:15:15Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.18.0",
+    "notes": "- **Your keyboard's media keys control BitSpring.** On a Mac, ⏮ ⏯ ⏭ (F7, F8, F9) and the buttons on your headphones now play, pause and change tracks, even when the window is in the background. BitSpring also shows in Control Center under Now Playing, with the cover. On Windows, the media keys work the same way, and the track appears in the player above the volume control.\n- **Keyboard shortcuts in the window.** Space plays and pauses. ⌘→ and ⌘← (Ctrl+→ and Ctrl+← on Windows) go to the next and previous track. ← and → still jump 10 seconds. Hover over the play, previous or next button to see its shortcut."
+  },
+  {
+    "version": "0.17.0",
+    "name": "BitSpring 0.17.0",
+    "date": "2026-11-15T19:42:34Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.17.0",
+    "notes": "- **Lyrics while you listen.** Press the speech-bubble button next to the playback controls, or the L key, and the lyrics appear beside the player. Timed lyrics follow the song and highlight the current line. Click a line to jump there. In a wide window the lyrics get their own column.\n- **Where the lyrics come from.** First an `.lrc` file next to the track, then the lyrics stored in the file's own tags. BitSpring can also look lyrics up on LRCLIB (lrclib.net), but only after you turn on Find lyrics online in Settings, or press Search online when a track has no lyrics. It is off by default, because the app goes online only when you ask. The privacy page says what LRCLIB receives.\n- **One highlight on the tabs.** In the Glass look, the tab you chose lit up before the moving highlight reached it, so a switch looked like two highlights. Now only the moving one shows."
+  },
+  {
+    "version": "0.16.1",
+    "name": "BitSpring 0.16.1",
+    "date": "2026-11-13T01:00:48Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.16.1",
+    "notes": "- **Smoother motion.** The highlight under the chosen tab moves in one stroke and no longer stutters while the app is busy. Panels and screens open without the blur that cost frames, and the rest of the window draws less on every frame.\n- **Settings → Look.** The highlight now sits exactly under the chosen option. Before, it landed off to the side.\n- **The same highlight on every switch.** Library sections, streaming services and sections, Enhancers and the equalizer's options use it too.\n- **The update notice is readable.** It used to be nearly see-through over album covers. It is now frosted like the menus."
+  },
+  {
+    "version": "0.16.0",
+    "name": "BitSpring 0.16.0",
+    "date": "2026-11-12T17:41:09Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.16.0",
+    "notes": "- **Glass that moves like glass.** In the Glass look, the highlight under the chosen tab flows to the next one and stretches like a drop on the way, in the header, on the phone's tab bar and in Settings → Look. Menus and panels grow out of the button that opened them, buttons give under your finger and spring back, play and pause trade places with a small pop, and the signal readout catches the light where your pointer is. Nothing moves on its own, and none of it plays when your system is set to reduce motion. The classic look is unchanged."
+  },
+  {
+    "version": "0.15.0",
+    "name": "BitSpring 0.15.0",
+    "date": "2026-11-12T17:28:04Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.15.0",
+    "notes": "- **Glass.** A new look, on by default on the Mac: translucent panels over the colours of the album that's playing, with a glow from below that is brass while the music reaches the DAC untouched and violet while it is processed. The classic look is still there in Settings → Look.\n- **New icon.** A gold vortex of thin strands curling into a small centre, like a spring seen end-on, replaces the B made of samples, on every platform.\n- **Colours that mean one thing.** Brass and violet now only ever describe the signal. Buttons, selections and highlights are neutral, and the play key and the current track take the colour of the signal path.\n- **Fixes.** The level meter's peak mark no longer flickers between segments. Long equalizer preset names scroll so you can read them to the end. An album now opens at its top, and Back returns you to where you were in the library. Settings scroll when they don't fit the window. Tab bar labels fit on phones in every language."
+  },
+  {
+    "version": "0.14.0",
+    "name": "BitSpring 0.14.0",
+    "date": "2026-11-12T16:06:50Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.14.0",
+    "notes": "- **Multichannel.** 5.1 and 7.1 files (FLAC, WAV, ALAC and others) play channel for channel on a multichannel DAC, audio interface or AV receiver, and stay bit-perfect: each channel goes to the speaker it was made for, following the speaker setup in Audio MIDI Setup (Mac) or Sound settings (Windows). On a stereo DAC or headphones, the centre and surround channels are now mixed into left and right the standard way (ITU-R BS.775), with the level lowered just enough that it can never clip. Before, a 5.1 file on a stereo device played only its front pair. The signal path shows the file's layout and when it is mixed down."
+  },
+  {
+    "version": "0.13.0",
+    "name": "BitSpring 0.13.0",
+    "date": "2026-11-12T15:36:40Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.13.0",
+    "notes": "- **Headphone profiles.** In Equalizer → Import → Headphone profiles, type your headphones' model (\"hd600\", \"lcd 2\", \"blessing 3\") and pick it: BitSpring adds AutoEQ's correction for it as a preset and turns it on. The search covers every headphone and IEM AutoEQ has results for, about 6,000 models; when several people measured a model, you choose whose measurement, the most accurate first. The catalog downloads from our website the first time and is kept for a month; 119 popular models are built in and work offline.\n- Mac: BitSpring now finds network players and remembers that you let it read your music. Earlier Mac builds weren't signed as a whole app, so macOS never asked for local network access and asked about your files on every launch. After this update, macOS asks for each once more."
+  },
+  {
+    "version": "0.12.0",
+    "name": "BitSpring 0.12.0",
+    "date": "2026-11-12T15:07:40Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.12.0",
+    "notes": "- **APE, WavPack and TTA.** Monkey's Audio, WavPack (including 32-bit float) and True Audio files play, bit for bit, with their tags and covers, and gaplessly like everything else. An album ripped to one APE or WavPack file with a CUE sheet plays track by track.\n- **SACD disc images.** A Super Audio CD image (.iso) shows up in the library as an album with the disc's track titles, and plays as DSD: natively over DoP on DACs that take it, or converted to PCM. DST-compressed discs work too.\n- CUE sheets now find their album file when its name has letters like \"й\" or \"é\" (macOS stores them differently from the sheet), so such albums show their tracks instead of one long file."
+  },
+  {
+    "version": "0.11.0",
+    "name": "BitSpring 0.11.0",
+    "date": "2026-11-12T14:44:54Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.11.0",
+    "notes": "- **Smart playlists.** In Library → Playlists, click New smart playlist and set rules: genre, artist, album, year, format, sample rate, bit depth, length, recently added, hi-res, lossless, even the quality check's verdict (\"suspect\" files, say). Match all rules or any, choose the order, cap the number of tracks. The playlist picks its tracks from the library every time it opens, so it keeps up as you add music.\n- The tag editor's working copy is now private to you until it replaces the original file."
+  },
+  {
+    "version": "0.10.0",
+    "name": "BitSpring 0.10.0",
+    "date": "2026-11-12T14:35:32Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.10.0",
+    "notes": "- **Tag editor.** Open an album in the library and click Edit tags to fix its name, album artist, artist, year and genre, and each track's number, title and artist. Works with FLAC, ALAC, AAC, MP3, WAV, AIFF, Ogg and Opus files. The tags go into the files themselves, safely: BitSpring writes a copy, checks that every bit of audio in it is identical to the original, and only then puts it in place. If anything goes wrong, the file stays as it was.\n- WAV and AIFF files now show their own titles and artists in the library instead of their file names."
+  },
+  {
+    "version": "0.9.0",
+    "name": "BitSpring 0.9.0",
+    "date": "2026-11-12T14:17:19Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.9.0",
+    "notes": "- **Phone remote.** Turn it on in Settings → Phone remote and scan the code with your phone's camera: a page opens in the phone's browser with what is playing, play/pause, skip and seek, the network player's volume, your albums and the queue. Nothing to install, and the phone needs only to be on the same network. It is off until you turn it on, and works only with the address it shows; \"New address\" locks out every phone that had the old one."
+  },
+  {
+    "version": "0.8.0",
+    "name": "BitSpring 0.8.0",
+    "date": "2026-11-12T13:52:25Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.8.0",
+    "notes": "- **Chromecast.** Chromecast and other Google Cast devices — Android TV and Google TV boxes such as the NVIDIA SHIELD, Nest speakers, Cast-enabled soundbars and receivers — now appear under Network players next to Sonos, WiiM and other UPnP/DLNA players. Music goes to them as FLAC, up to 96 kHz / 24-bit.\n- **Track titles and covers on network players.** Each track now reaches the player with its title, artist, album and cover, so the TV or the player's app shows what is playing. Players that prepare the next track ahead (WiiM, Bluesound, Linn, Chromecast) still play albums without gaps; others, such as Sonos, start the next track when the current one ends.\n- Albums whose files have no cover inside now use the cover.jpg (or folder.jpg) next to them, on network players and on the lock screen."
+  },
+  {
+    "version": "0.7.0",
+    "name": "BitSpring 0.7.0",
+    "date": "2026-11-12T13:24:38Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.7.0",
+    "notes": "- **Network players.** BitSpring now plays on Sonos, WiiM, Bluesound, Linn, Denon HEOS, Yamaha MusicCast and other UPnP/DLNA streamers and AV receivers on your network. Open the output list: they appear under Network players. The music goes to them as FLAC, sample for sample, albums play without gaps, and the equalizer and the other enhancers work as on a DAC. The player's own volume is in the output list.\n- The first time you open the output list, macOS asks whether BitSpring may find devices on your local network: allow it for network players. On Windows, the firewall may ask the first time music goes to a network player."
+  },
+  {
+    "version": "0.6.1",
+    "name": "BitSpring 0.6.1",
+    "date": "2026-11-12T12:30:03Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.6.1",
+    "notes": "- An open album no longer shows the library's tabs and search bar above it; Back returns to the list."
+  },
+  {
+    "version": "0.6.0",
+    "name": "BitSpring 0.6.0",
+    "date": "2026-11-12T11:35:05Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.6.0",
+    "notes": "- **Quality check.** Open an album and click Check quality to find \"hi-res\" files that aren't: CDs upsampled to 96 or 192 kHz, files made from MP3 or AAC, and 24-bit files that carry only 16 bits. Each track gets a mark, and clicking it shows the spectrum and what gave the file away. The check runs on your computer or phone and remembers its results. Very good lossy files (MP3 320, AAC 256) can't be told apart this way; those show as \"Can't tell\" or as real.\n- Hi-res only is no longer shown inside an album, where it did nothing."
+  },
+  {
+    "version": "0.5.2",
+    "name": "BitSpring 0.5.2",
+    "date": "2026-11-12T08:16:05Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.5.2",
+    "notes": "- **Albums ripped to one file with a CUE sheet play track by track.** An album that EAC or another ripper saved as a single FLAC or WAV with a .cue next to it now shows up as its tracks, with their titles and lengths, instead of one long file. Each track plays bit-perfect, exactly its part of the file, and the next one follows without a gap."
+  },
+  {
+    "version": "0.5.1",
+    "name": "BitSpring 0.5.1",
+    "date": "2026-11-11T20:11:27Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.5.1",
+    "notes": "- **BitSpring has its own icon.** A B drawn from audio samples, in brass on slate, on the Mac, Windows and Android. Until now the app wore the default icon of the framework it's built with.\n- **BitSpring is now MIT-licensed open source.** Anyone can read, change and share the code at github.com/crash2bash/bitspring."
+  },
+  {
+    "version": "0.5.0",
+    "name": "BitSpring 0.5.0",
+    "date": "2026-11-11T19:16:28Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.5.0",
+    "notes": "- **Hifi is now BitSpring.** Same player, new name, ahead of its release in the App Store. Your library, playlists, EQ presets and settings carry over as they are. On Windows the update replaces the old Hifi entry in the Start menu and in Apps. On a Mac that updates itself, the app file can stay named Hifi.app: it opens BitSpring all the same, and you can rename it.\n- **The source code moved with the name**: github.com/crash2bash/bitspring. Old links still work.\n- **The website has a privacy page.** In short: BitSpring collects nothing."
+  },
+  {
+    "version": "0.4.1",
+    "name": "Hifi 0.4.1",
+    "date": "2026-11-11T15:09:03Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.4.1",
+    "notes": "- **Long files no longer fill your memory.** Hifi used to decode a whole file into memory, so an hour of 24/192 took 5.5 GB. Now it keeps a few minutes around what's playing and frees the rest. Most CD-quality tracks still fit whole. DSD files are held the same way.\n- **Seeking in long files is instant.** Jumping far ahead or back opens the file right there instead of decoding everything before it. Switching outputs in the middle of a track does the same.\n- **AAC seeks start clean.** The first moment after a seek in an .m4a file no longer sounds wrong."
+  },
+  {
+    "version": "0.4.0",
+    "name": "Hifi 0.4.0",
+    "date": "2026-11-11T14:13:18Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.4.0",
+    "notes": "- **Gapless playback.** Tracks in the same format now play back to back without a gap, so live albums, DJ mixes, operas and concept albums play the way they were recorded. Bit-perfect stays bit-perfect. With EQ, convolution, crossfeed or upsampling on, the filters keep running across the join, so there's no click. When the next track has a different sample rate, the DAC still retunes between the two, but the next track is already decoded and starts right away.\n- **AAC albums are gapless too.** The short burst of encoder silence between .m4a tracks is gone.\n- **The DAC is released when the queue ends.** 5 seconds after the last track, Hifi lets go of exclusive mode and the sample rate it set, so other apps can use the DAC.\n- **Fixes:**\n  - A file the decoder can't handle no longer leaves the queue stuck on \"buffering\".\n  - Damaged playlist and preset files are set aside instead of being overwritten.\n  - The window no longer freezes while a track starts.\n  - Changing a linear-phase EQ no longer clips for a moment.\n  - Long quiet passages through the EQ no longer cause dropouts."
+  },
+  {
+    "version": "0.3.0",
+    "name": "Hifi 0.3.0",
+    "date": "2026-11-11T08:22:35Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.3.0",
+    "notes": "- **Updates arrive by themselves.** Hifi checks for a new version shortly after launch and once a day, shows what's new, and installs it when you click Install. Updates are signed: a tampered download is refused. Settings → Updates shows your version and checks on demand.\n\nThis is the last version you install by hand: from here on, Hifi updates itself on Mac, Windows and Android."
+  },
+  {
+    "version": "0.2.0",
+    "name": "Hifi 0.2.0",
+    "date": "2026-11-11T05:11:12Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.2.0",
+    "notes": "- **Equalizer.** Parametric bands (peak, shelves, low/high-pass up to 48 dB/oct, notch, band-pass, all-pass), per channel, heard live as you drag them. Minimum or linear phase, auto preamp, a level-matched Compare button, a preset per output device, and convolution with impulse responses (room or headphone correction). Imports Equalizer APO, Peace, AutoEQ, Wavelet, REW, EasyEffects and foobar2000 presets; exports APO, GraphicEQ, EasyEffects, CSV and its own lossless format.\n- **24 languages everywhere:** besides the app itself, the Mac menu bar, the Windows installer, Android's per-app language setting and the playback notification."
+  },
+  {
+    "version": "0.1.0",
+    "name": "Hifi 0.1.0",
+    "date": "2026-11-09T19:33:06Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.1.0",
+    "notes": "First public build of Hifi, a free bit-perfect music player."
+  }
+]

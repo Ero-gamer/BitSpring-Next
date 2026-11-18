@@ -37,6 +37,14 @@ texts in `src/i18n/locales/<code>.json` (`en.json` is the source; missing keys f
 The home page's main button does the same in one step (iPhone → App Store, Windows → .exe,
 Mac → the choice on `/download/`).
 
+## Release notes
+
+`/releases/` lists every app version, newest first, from `src/releases.json`: the "What's new"
+part of each GitHub release (install notes and checksums stay on GitHub). The notes are in English
+on every language's page; the dates and the page around them are translated.
+After publishing a release, run `npm run releases` to rebuild the file from GitHub and merge the
+change into main (main takes pull requests only, and GitHub Actions may not open them here).
+
 ## Hosting (Vercel)
 
 `vercel.json` at the repository root builds this folder, so importing the repo into Vercel needs

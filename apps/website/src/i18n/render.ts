@@ -9,6 +9,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { DEFAULT_LOCALE, LOCALES, localeUrl, type Locale } from "./locales";
+import { releasesHtml } from "./releases";
 
 type Dict = Record<string, string>;
 
@@ -123,6 +124,9 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
       (l) =>
         `<option value="${l.path}" lang="${l.tag}"${l === locale ? " selected" : ""}>${escapeHtml(l.name)}</option>`,
     ).join(""),
+    releases: opts.page === "releases/" ? releasesHtml(locale, t) : "",
+    // The notes themselves are in English; say so on every other language's page.
+    "releases-english": locale === DEFAULT_LOCALE ? "" : `<p class="rel-english">${escapeHtml(t("releases.english"))}</p>`,
     runtime: `<script type="application/json" id="i18n">${escapeJson({ numbers: locale.numbers, strings: runtime })}</script>`,
   };
 
@@ -130,6 +134,7 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
     home: localeUrl(locale),
     download: localeUrl(locale) + "download/",
     privacy: localeUrl(locale) + "privacy/",
+    releases: localeUrl(locale) + "releases/",
   };
 
   return template

@@ -133,6 +133,7 @@
   "dl.other": "Diğer platformlar",
   "dl.back": "Siteye dön",
   "footer.source": "Kaynak kodu",
+  "footer.releases": "Sürüm notları",
   "footer.privacy": "Gizlilik",
   "footer.support": "Destek",
   "privacy.meta_title": "BitSpring gizlilik politikası",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring açık kaynaklıdır, bu yüzden bunların hepsini herkes kodundan kontrol edebilir.",
   "privacy.contact": "Sorun mu var?",
   "privacy.contact_link": "GitHub'da sor",
-  "privacy.updated": "Son güncelleme: 16 Kasım 2026."
+  "privacy.updated": "Son güncelleme: 16 Kasım 2026.",
+  "releases.meta_title": "BitSpring sürüm notları",
+  "releases.meta_description": "BitSpring’in tüm sürümleri, en yenisi önce: her birinin neler eklediği ya da düzelttiği ve ne zaman çıktığı.",
+  "releases.title": "Sürüm notları",
+  "releases.lead": "BitSpring’in tüm sürümleri, en yenisi önce: neler eklediği ya da düzelttiği ve ne zaman çıktığı.",
+  "releases.english": "Sürüm notları İngilizcedir.",
+  "releases.files": "İndirmeler ve sağlama toplamları",
+  "releases.as_hifi": "Hifi adıyla çıktı"
 }

@@ -133,6 +133,7 @@
   "dl.other": "Άλλες πλατφόρμες",
   "dl.back": "Επιστροφή στον ιστότοπο",
   "footer.source": "Πηγαίος κώδικας",
+  "footer.releases": "Σημειώσεις εκδόσεων",
   "footer.privacy": "Απόρρητο",
   "footer.support": "Υποστήριξη",
   "privacy.meta_title": "Πολιτική απορρήτου του BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "Το BitSpring είναι ανοιχτού κώδικα, οπότε οποιοσδήποτε μπορεί να τα ελέγξει όλα αυτά στον κώδικά του.",
   "privacy.contact": "Ερωτήσεις;",
   "privacy.contact_link": "Ρωτήστε στο GitHub",
-  "privacy.updated": "Τελευταία ενημέρωση: 16 Νοεμβρίου 2026."
+  "privacy.updated": "Τελευταία ενημέρωση: 16 Νοεμβρίου 2026.",
+  "releases.meta_title": "Σημειώσεις εκδόσεων του BitSpring",
+  "releases.meta_description": "Όλες οι εκδόσεις του BitSpring, από τη νεότερη: τι πρόσθεσε ή διόρθωσε η καθεμία και πότε κυκλοφόρησε.",
+  "releases.title": "Σημειώσεις εκδόσεων",
+  "releases.lead": "Όλες οι εκδόσεις του BitSpring, από τη νεότερη: τι πρόσθεσαν ή διόρθωσαν και πότε κυκλοφόρησαν.",
+  "releases.english": "Οι σημειώσεις εκδόσεων είναι στα αγγλικά.",
+  "releases.files": "Λήψεις και αθροίσματα ελέγχου",
+  "releases.as_hifi": "Κυκλοφόρησε ως Hifi"
 }

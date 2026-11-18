@@ -12,6 +12,7 @@ const PAGES: Record<string, string> = {
   "": "index.html",
   "download/": "download/index.html",
   "privacy/": "privacy/index.html",
+  "releases/": "releases/index.html",
 };
 
 const LOCALE_PATH = "[a-z]{2}(?:-[a-z]+)?";
@@ -44,8 +45,9 @@ function i18nPages(): Plugin {
     configureServer(server) {
       const root = server.config.root;
       server.watcher.add(resolve(root, "src/i18n/locales"));
+      server.watcher.add(resolve(root, "src/releases.json"));
       server.watcher.on("change", (file) => {
-        if (file.endsWith(".json") && file.includes("/i18n/locales/")) server.ws.send({ type: "full-reload" });
+        if (file.endsWith(".json") && (file.includes("/i18n/locales/") || file.endsWith("/releases.json"))) server.ws.send({ type: "full-reload" });
       });
       server.middlewares.use(async (req, res, next) => {
         const url = (req.url ?? "/").split("?")[0];

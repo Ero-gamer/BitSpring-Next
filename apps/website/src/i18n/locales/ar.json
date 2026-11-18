@@ -133,6 +133,7 @@
   "dl.other": "منصات أخرى",
   "dl.back": "العودة إلى الموقع",
   "footer.source": "الشيفرة المصدرية",
+  "footer.releases": "ملاحظات الإصدارات",
   "footer.privacy": "الخصوصية",
   "footer.support": "الدعم",
   "privacy.meta_title": "سياسة خصوصية BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring مفتوح المصدر، لذا يمكن لأي شخص التحقق من كل هذا في شيفرته.",
   "privacy.contact": "لديك أسئلة؟",
   "privacy.contact_link": "اسأل على GitHub",
-  "privacy.updated": "آخر تحديث: 16 نوفمبر 2026."
+  "privacy.updated": "آخر تحديث: 16 نوفمبر 2026.",
+  "releases.meta_title": "ملاحظات إصدارات BitSpring",
+  "releases.meta_description": "كل إصدارات BitSpring، الأحدث أولًا: ما أضافه كل إصدار أو أصلحه، ومتى صدر.",
+  "releases.title": "ملاحظات الإصدارات",
+  "releases.lead": "كل إصدارات BitSpring، الأحدث أولًا: ما أضافته أو أصلحته، ومتى صدرت.",
+  "releases.english": "ملاحظات الإصدارات مكتوبة بالإنجليزية.",
+  "releases.files": "التنزيلات ومجاميع التحقق",
+  "releases.as_hifi": "صدر باسم Hifi"
 }

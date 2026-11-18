@@ -133,6 +133,7 @@
   "dl.other": "Andre plattformer",
   "dl.back": "Tilbake til nettstedet",
   "footer.source": "Kildekode",
+  "footer.releases": "Versjonsmerknader",
   "footer.privacy": "Personvern",
   "footer.support": "Støtte",
   "privacy.meta_title": "BitSprings personvernerklæring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring er åpen kildekode, så alle kan sjekke alt dette i koden.",
   "privacy.contact": "Spørsmål?",
   "privacy.contact_link": "Spør på GitHub",
-  "privacy.updated": "Sist oppdatert 16. november 2026."
+  "privacy.updated": "Sist oppdatert 16. november 2026.",
+  "releases.meta_title": "Versjonsmerknader for BitSpring",
+  "releases.meta_description": "Alle versjoner av BitSpring, den nyeste først: hva hver versjon la til eller rettet, og når den kom.",
+  "releases.title": "Versjonsmerknader",
+  "releases.lead": "Alle versjoner av BitSpring, den nyeste først: hva de la til eller rettet, og når de kom.",
+  "releases.english": "Versjonsmerknadene er på engelsk.",
+  "releases.files": "Nedlastinger og sjekksummer",
+  "releases.as_hifi": "Utgitt som Hifi"
 }

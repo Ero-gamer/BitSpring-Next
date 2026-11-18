@@ -133,6 +133,7 @@
   "dl.other": "Andere Plattformen",
   "dl.back": "Zurück zur Website",
   "footer.source": "Quellcode",
+  "footer.releases": "Versionshinweise",
   "footer.privacy": "Datenschutz",
   "footer.support": "Support",
   "privacy.meta_title": "Datenschutzerklärung von BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring ist Open Source, also kann jeder all das im Code nachprüfen.",
   "privacy.contact": "Fragen?",
   "privacy.contact_link": "Auf GitHub fragen",
-  "privacy.updated": "Zuletzt aktualisiert am 16. November 2026."
+  "privacy.updated": "Zuletzt aktualisiert am 16. November 2026.",
+  "releases.meta_title": "BitSpring – Versionshinweise",
+  "releases.meta_description": "Alle BitSpring-Versionen, die neueste zuerst: was jede gebracht oder behoben hat und wann sie erschienen ist.",
+  "releases.title": "Versionshinweise",
+  "releases.lead": "Alle Versionen von BitSpring, die neueste zuerst: was sie gebracht oder behoben haben und wann sie erschienen sind.",
+  "releases.english": "Die Versionshinweise selbst sind auf Englisch.",
+  "releases.files": "Downloads und Prüfsummen",
+  "releases.as_hifi": "Erschienen als Hifi"
 }

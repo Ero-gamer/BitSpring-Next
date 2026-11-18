@@ -133,6 +133,7 @@
   "dl.other": "Más platformok",
   "dl.back": "Vissza a webhelyre",
   "footer.source": "Forráskód",
+  "footer.releases": "Kiadási megjegyzések",
   "footer.privacy": "Adatvédelem",
   "footer.support": "Támogatás",
   "privacy.meta_title": "A BitSpring adatvédelmi irányelvei",
@@ -145,5 +146,12 @@
   "privacy.open": "A BitSpring nyílt forráskódú, így bárki ellenőrizheti mindezt a kódjában.",
   "privacy.contact": "Kérdésed van?",
   "privacy.contact_link": "Kérdezz a GitHubon",
-  "privacy.updated": "Utolsó frissítés: 2026. november 16."
+  "privacy.updated": "Utolsó frissítés: 2026. november 16.",
+  "releases.meta_title": "A BitSpring kiadási megjegyzései",
+  "releases.meta_description": "A BitSpring összes verziója, a legújabbal kezdve: mit hozott vagy javított mindegyik, és mikor jelent meg.",
+  "releases.title": "Kiadási megjegyzések",
+  "releases.lead": "A BitSpring összes verziója, a legújabbal kezdve: mit hoztak vagy javítottak, és mikor jelentek meg.",
+  "releases.english": "A kiadási megjegyzések angol nyelvűek.",
+  "releases.files": "Letöltések és ellenőrzőösszegek",
+  "releases.as_hifi": "Hifi néven jelent meg"
 }

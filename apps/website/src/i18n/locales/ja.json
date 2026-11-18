@@ -133,6 +133,7 @@
   "dl.other": "その他のプラットフォーム",
   "dl.back": "サイトに戻る",
   "footer.source": "ソースコード",
+  "footer.releases": "リリースノート",
   "footer.privacy": "プライバシー",
   "footer.support": "サポート",
   "privacy.meta_title": "BitSpringのプライバシーポリシー",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpringはオープンソースなので、これらすべてを誰でもコードで確認できます。",
   "privacy.contact": "ご質問は？",
   "privacy.contact_link": "GitHubで質問する",
-  "privacy.updated": "最終更新日：2026年11月16日"
+  "privacy.updated": "最終更新日：2026年11月16日",
+  "releases.meta_title": "BitSpring リリースノート",
+  "releases.meta_description": "BitSpring の全バージョンを新しい順に。それぞれで加わった機能と修正、公開日。",
+  "releases.title": "リリースノート",
+  "releases.lead": "BitSpring の全バージョンを新しい順に。加わった機能と修正、そして公開日。",
+  "releases.english": "リリースノートは英語です。",
+  "releases.files": "ダウンロードとチェックサム",
+  "releases.as_hifi": "Hifi として公開"
 }

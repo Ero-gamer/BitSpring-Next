@@ -133,6 +133,7 @@
   "dl.other": "Alte platforme",
   "dl.back": "Înapoi la site",
   "footer.source": "Cod sursă",
+  "footer.releases": "Note de versiune",
   "footer.privacy": "Confidențialitate",
   "footer.support": "Asistență",
   "privacy.meta_title": "Politica de confidențialitate BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring este open source, deci oricine poate verifica toate acestea în codul său.",
   "privacy.contact": "Ai întrebări?",
   "privacy.contact_link": "Întreabă pe GitHub",
-  "privacy.updated": "Ultima actualizare: 16 noiembrie 2026."
+  "privacy.updated": "Ultima actualizare: 16 noiembrie 2026.",
+  "releases.meta_title": "Notele de versiune BitSpring",
+  "releases.meta_description": "Toate versiunile BitSpring, de la cea mai nouă: ce a adus sau a reparat fiecare și când a apărut.",
+  "releases.title": "Note de versiune",
+  "releases.lead": "Toate versiunile BitSpring, de la cea mai nouă: ce au adus sau au reparat și când au apărut.",
+  "releases.english": "Notele de versiune sunt în engleză.",
+  "releases.files": "Descărcări și sume de control",
+  "releases.as_hifi": "Lansată ca Hifi"
 }

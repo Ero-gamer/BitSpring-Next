@@ -133,6 +133,7 @@
   "dl.other": "Інші платформи",
   "dl.back": "Повернутися на сайт",
   "footer.source": "Вихідний код",
+  "footer.releases": "Історія версій",
   "footer.privacy": "Конфіденційність",
   "footer.support": "Підтримка",
   "privacy.meta_title": "Політика конфіденційності BitSpring",
@@ -145,5 +146,12 @@
   "privacy.open": "BitSpring має відкритий вихідний код, тож будь-хто може перевірити все це в ньому.",
   "privacy.contact": "Є запитання?",
   "privacy.contact_link": "Запитайте на GitHub",
-  "privacy.updated": "Востаннє оновлено 16 листопада 2026 р."
+  "privacy.updated": "Востаннє оновлено 16 листопада 2026 р.",
+  "releases.meta_title": "Історія версій BitSpring",
+  "releases.meta_description": "Усі версії BitSpring, від найновішої: що кожна додала чи виправила і коли вийшла.",
+  "releases.title": "Історія версій",
+  "releases.lead": "Усі версії BitSpring, від найновішої: що вони додали чи виправили і коли вийшли.",
+  "releases.english": "Описи версій — англійською.",
+  "releases.files": "Файли й контрольні суми",
+  "releases.as_hifi": "Вийшла як Hifi"
 }
