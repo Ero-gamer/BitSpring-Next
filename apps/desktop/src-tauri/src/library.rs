@@ -293,6 +293,29 @@ impl Library {
         out
     }
 
+    /// The paths of the album `path` belongs to, itself included. Empty when it isn't a
+    /// library track.
+    pub fn album_of(&self, path: &str) -> Vec<String> {
+        let g = self.0.lock().unwrap();
+        let Some(i) = g.tracks.iter().position(|t| t.path == path) else { return Vec::new() };
+        match g.albums.iter().find(|a| a.tracks.contains(&i)) {
+            Some(a) => a.tracks.iter().filter_map(|&j| g.tracks.get(j)).map(|t| t.path.clone()).collect(),
+            None => vec![path.to_string()],
+        }
+    }
+
+    /// A library of these tracks, for tests.
+    #[cfg(test)]
+    pub fn of(tracks: Vec<TrackInfo>) -> Self {
+        let lib = Library::default();
+        {
+            let mut g = lib.0.lock().unwrap();
+            g.albums = Arc::new(group_albums(&tracks));
+            g.tracks = Arc::new(tracks);
+        }
+        lib
+    }
+
     /// Every track path in the library (what the remote may ask to play).
     pub fn known_paths(&self) -> std::collections::HashSet<String> {
         self.0.lock().unwrap().tracks.iter().map(|t| t.path.clone()).collect()

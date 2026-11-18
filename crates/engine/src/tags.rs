@@ -315,6 +315,29 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
+    /// ReplayGain tags, as a scanner (foobar2000, rsgain) leaves them, reach the track.
+    #[test]
+    fn replaygain_tags_are_read_for_levelling() {
+        let d = tmpdir("gain");
+        let p = flac_file(&d);
+        assert!(crate::decode::open_track(&p).unwrap().meta.gain.is_empty());
+        let mut file = lofty::read_from_path(&p).unwrap();
+        file.insert_tag(Tag::new(file.primary_tag_type()));
+        let tag = file.primary_tag_mut().unwrap();
+        tag.insert_text(ItemKey::ReplayGainTrackGain, "-7.25 dB".into());
+        tag.insert_text(ItemKey::ReplayGainTrackPeak, "0.988553".into());
+        tag.insert_text(ItemKey::ReplayGainAlbumGain, "-6.10 dB".into());
+        tag.insert_text(ItemKey::ReplayGainAlbumPeak, "1.000000".into());
+        file.save_to_path(&p, lofty::config::WriteOptions::default()).unwrap();
+        let gain = crate::decode::open_track(&p).unwrap().meta.gain;
+        assert_eq!((gain.track_db, gain.track_peak), (Some(-7.25), Some(0.988553)));
+        assert_eq!((gain.album_db, gain.album_peak), (Some(-6.1), Some(1.0)));
+        // A CUE track of that file: the file's values describe the whole image.
+        let image = gain.of_image();
+        assert_eq!((image.track_db, image.album_db, image.album_peak), (None, Some(-6.1), Some(1.0)));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
     #[test]
     fn a_failed_write_leaves_the_file_alone() {
         let d = tmpdir("fail");

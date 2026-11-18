@@ -42,6 +42,12 @@ export interface Signal {
   headroomDb: number | null;
   headroomMeasured: boolean;
   restoreFromHz: number | null;
+  /** The gain this track plays at (volume levelling or peak headroom), dB. */
+  levelDb: number | null;
+  /** What it is based on; "peak": headroom only; "unknown": not measured yet, plays as it is. */
+  levelBasis: "track" | "album" | "peak" | "unknown" | null;
+  /** The gain was held back to keep the track's peak under full scale. */
+  levelLimited: boolean;
   /** DSD source: its 1-bit rate in Hz. */
   dsdRate: number | null;
   /** DSD goes to the DAC as DoP (otherwise it was converted to PCM). */
@@ -62,6 +68,7 @@ export type DsdNote =
   | { kind: "exclusive" }
   | { kind: "volume" }
   | { kind: "dsp" }
+  | { kind: "level" }
   | { kind: "rate"; device: string; khz: number; dsd: string }
   | { kind: "channels"; channels: number };
 
@@ -170,6 +177,20 @@ export interface DspSettings {
   headroom: boolean;
   /** Lossy files only: synthesise the octave above the encoder's low-pass. */
   restoreHighs: boolean;
+  /** Volume levelling (ReplayGain / EBU R128): every track, or every album, equally loud. */
+  level: LevelMode | null;
+  /** With other processing on: lower a track whose true peak would overshoot full scale. */
+  peakHeadroom: boolean;
+}
+
+export type LevelMode = "track" | "album";
+
+/** How much of the library has its loudness measured. */
+export interface LoudnessStatus {
+  analysed: number;
+  tracks: number;
+  /** [done, total] while the background analysis runs. */
+  running: [number, number] | null;
 }
 
 export interface DspResult {
@@ -538,6 +559,9 @@ export const api = {
   libraryRescan: () => call<LibraryStatus>("library_rescan"),
   qualityCached: (paths: string[]) => call<(QualityReport | null)[]>("quality_cached", { paths }),
   qualityCheck: (path: string) => call<QualityReport>("quality_check", { path }),
+  loudnessStatus: () => call<LoudnessStatus>("loudness_status"),
+  /** Measure every library track not measured yet, in the background (false: stop). */
+  loudnessAnalyze: (start: boolean) => call<void>("loudness_analyze", { start }),
   meter: () => call<[number, number]>("meter"),
   playlists: () => call<PlaylistSummary[]>("playlists_list"),
   playlist: (id: string) => call<PlaylistDetail>("playlist_get", { id }),

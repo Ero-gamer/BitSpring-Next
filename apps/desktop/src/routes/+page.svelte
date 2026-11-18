@@ -55,7 +55,7 @@
   const savedDsp = load<Partial<DspSettings> & { eqPath?: string | null }>("dsp", {});
   const legacyEqPath = savedDsp.eqPath ?? null;
   delete savedDsp.eqPath;
-  let dsp = $state<DspSettings>({ upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, ...savedDsp });
+  let dsp = $state<DspSettings>({ upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true, ...savedDsp });
   let ir = $state<IrInfo | null>(null);
   let eqState = $state<EqState | null>(null);
   /** The EQ preset that plays on the picked output (null = EQ off there). */

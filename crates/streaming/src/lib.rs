@@ -428,6 +428,7 @@ impl Streaming {
             disc_number: info.disc_number,
             cover: cover.map(|b| ("image/jpeg".to_string(), (*b).clone())),
             genre: None,
+            gain: Default::default(),
         };
         hifi_engine::open_stream(source, hint, Some(info.duration).filter(|d| *d > 0.0), meta)
     }

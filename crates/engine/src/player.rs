@@ -191,6 +191,21 @@ impl Player {
     pub fn seek(&self, secs: f64) -> bool {
         each!(self, p => p.seek(secs))
     }
+    /// Fades at pause, seek and stop on or off, for what plays now (a network player has
+    /// none: it does its own muting).
+    pub fn set_fades(&self, on: bool) {
+        if let Kind::Device(p) = &self.kind {
+            p.set_fades(on);
+        }
+    }
+
+    /// Before dropping a player that sounds: let it fade out (see [`output::Playback::fade_out`]).
+    /// A network player stops by itself when told to.
+    pub fn fade_out(&self) {
+        if let Kind::Device(p) = &self.kind {
+            p.fade_out();
+        }
+    }
     pub fn output_peak(&self) -> Option<f32> {
         each!(self, p => p.output_peak())
     }

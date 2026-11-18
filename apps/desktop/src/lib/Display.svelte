@@ -41,6 +41,12 @@
     if (signal.headroomDb !== null)
       steps.push(t(signal.headroomMeasured ? "step.headroom" : "step.headroomPending", { db: num(signal.headroomDb) }));
     if (signal.restoreFromHz !== null) steps.push(t("step.restore", { rate: khz(signal.restoreFromHz) }));
+    if (signal.levelBasis !== null && signal.levelDb !== null) {
+      // A gain shows its sign: +2.1 dB lifts a quiet track, −6.3 dB tames a loud one.
+      const db = (signal.levelDb > 0.05 ? "+" : "") + num(signal.levelDb);
+      const limited = signal.levelLimited && signal.levelBasis !== "peak" ? "Limited" : "";
+      steps.push(t(`step.level.${signal.levelBasis}${signal.levelBasis === "unknown" ? "" : limited}`, { db }));
+    }
     return steps;
   });
 

@@ -207,8 +207,9 @@ impl NetPlayer {
         // The player must reach us: check before telling it where.
         http::server()?;
         // Pausing is the pump's (and the player's) business: the playback itself never
-        // pauses, or it would hand the pump silence.
-        let playback = Playback::new(track.clone(), &PlayOptions { start_paused: false, ..opts.clone() }, &plan, rate as f64)?;
+        // pauses, or it would hand the pump silence. No fades either: a seek starts a new
+        // stream, and the player does its own muting.
+        let playback = Playback::new(track.clone(), &PlayOptions { start_paused: false, fades: false, ..opts.clone() }, &plan, rate as f64)?;
         let physical = StreamFormat { sample_rate: rate as f64, bits: bits as u32, float: false, channels: format.channels as u32, non_mixable: true };
         let out = if bits == 16 { OutFormat::I16 } else { OutFormat::I24Packed };
         let path = output::signal_path(&track, opts, &plan, rate as f64, Some(physical), out, true, Transport::Network);
@@ -789,6 +790,33 @@ mod tests {
         check_streams(&fake, &s1, &s2);
         let g = fake.shared.lock().unwrap();
         assert_eq!(g.actions.iter().filter(|a| *a == "SetAVTransportURI").count(), 2, "{:?}", g.actions);
+    }
+
+    /// Volume levelling reaches a network player too: the stream carries the samples at the
+    /// track's gain — as 24 bits, so nothing of a 16-bit source is rounded away.
+    #[test]
+    fn levelling_reaches_a_network_player() {
+        use crate::dsp::DspSettings;
+        use crate::dsp::loudness::{Basis, Level, LevelMode, LevelSettings};
+        let fake = FakeRenderer::start("http-get:*:audio/flac:*", BPS, true);
+        let renderer = Target::Upnp(upnp::describe_at(&fake.location()).unwrap());
+        let (t, s) = track(5, 30_000, "Loud");
+        t.set_level(Some(Level { gain: 0.5, basis: Basis::Track, limited: false }));
+        let dsp = DspSettings { level: LevelSettings { mode: LevelMode::Track, headroom: false }, ..Default::default() };
+        let p = NetPlayer::start(renderer, t, &PlayOptions { dsp, ..Default::default() }).unwrap();
+        assert!(!p.path.bit_perfect);
+        assert_eq!(p.path.level.map(|l| l.gain), Some(0.5));
+        let start = Instant::now();
+        while !p.is_finished() {
+            assert!(start.elapsed() < Duration::from_secs(10), "never finished");
+            assert_eq!(p.output_error(), None);
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let g = fake.shared.lock().unwrap();
+        let (_, got) = decode(g.received[&g.uri].clone(), "flac", 24);
+        // Half of a 16-bit sample, in a 24-bit stream: the same number times 128.
+        assert_eq!(got.len(), s.len());
+        assert!(got.iter().zip(&s).all(|(a, b)| *a == b * 128), "every sample at half level, exactly");
     }
 
     #[test]

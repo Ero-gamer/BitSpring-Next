@@ -19,6 +19,7 @@ use crate::decode::{DsdSource, Track};
 use crate::dsd::{DOP_IDLE, PCM_GAIN};
 use crate::dsp::crossfeed::CrossfeedLevel;
 use crate::dsp::lossy::LossyPlan;
+use crate::dsp::loudness::Level;
 use crate::dsp::eq::{EqPreset, EqStage, IirPlan, Phase};
 use crate::dsp::fir::{FirControl, FirDesigner};
 use crate::dsp::{Chain, DspSettings, Upsample};
@@ -98,11 +99,15 @@ pub struct PlayOptions {
     /// without a blip of the track's beginning.
     pub start_at: f64,
     pub start_paused: bool,
+    /// Fade over a few milliseconds where playback is cut off or picked up mid-sound (pause,
+    /// seek, stop), instead of a click. A track playing through, and a gapless join, are never
+    /// touched. Off for a network stream: there the player on the other end does the pausing.
+    pub fades: bool,
 }
 
 impl Default for PlayOptions {
     fn default() -> Self {
-        Self { exclusive: true, dsp: DspSettings::default(), start_at: 0.0, start_paused: false }
+        Self { exclusive: true, dsp: DspSettings::default(), start_at: 0.0, start_paused: false, fades: true }
     }
 }
 
@@ -137,11 +142,15 @@ pub struct SignalPath {
     pub lossy: Option<LossyPlan>,
     /// The source is DSD: its rate, and whether it goes out as DoP or was converted to PCM.
     pub dsd: Option<DsdSource>,
+    /// The gain this track plays at (volume levelling, peak headroom), when one applies.
+    pub level: Option<Level>,
     pub bit_perfect: bool,
     /// Significant bits of the samples we write (for a following track's bit-perfect check).
     out_bits: u32,
     /// Bit-perfect apart from the source's bit depth (rate, access, transport, no processing).
     pcm_clean: bool,
+    /// This playback applies each track's level.
+    leveled: bool,
 }
 
 /// A multichannel source folded down to the speakers the device has.
@@ -165,6 +174,7 @@ impl SignalPath {
             source_bits: track.bits_per_sample,
             source_lossy: track.lossy,
             dsd: track.dsd,
+            level: if self.leveled { track.level() } else { None },
             bit_perfect: if track.is_dop() { self.bit_perfect } else { self.pcm_clean && bits_ok },
             ..self.clone()
         }
@@ -344,6 +354,8 @@ pub(crate) fn signal_path(
     transport: Transport,
 ) -> SignalPath {
     let src_hz = track.sample_rate as f64;
+    // (Never for DoP: the DSD bits can't be scaled.)
+    let leveled = plan.processing && opts.dsp.levels();
     let pcm_clean = !plan.processing
         && (device_rate - src_hz).abs() < 0.5
         && exclusive
@@ -375,11 +387,13 @@ pub(crate) fn signal_path(
         source_lossy: track.lossy,
         lossy: plan.lossy,
         dsd: track.dsd,
+        level: if leveled { track.level() } else { None },
         // DoP gets this far only with the exact rate, a ≥24-bit integer format and exclusive
         // access (the backend checked).
         bit_perfect: (plan.dop && transport.can_be_bit_perfect()) || pcm_clean && bits_ok,
         out_bits: out.bits(),
         pcm_clean,
+        leveled,
     }
 }
 
@@ -440,6 +454,49 @@ pub(crate) struct Shared {
     /// The lossy enhancers are on: they measure each track, so no track may follow another
     /// in the same chain when either is lossy.
     lossy_enhancers: bool,
+    /// Length of a fade in device frames (see [`PlayOptions::fades`]); 0 = no fades now.
+    /// Set from the control side (`Playback::set_fades`), read by the callback.
+    fade_len: AtomicU32,
+    /// What `fade_len` is with fades on; 0 = this playback never fades (DoP: the DSD bits
+    /// can't be scaled, and the DAC mutes by itself).
+    fade_max: u32,
+    /// Where the fade stands: 0 (silent) ..= `fade_len` (full level). Written by the callback
+    /// only.
+    fade: AtomicU32,
+    /// Sound is going out (written by the callback only). Only then is there something to
+    /// fade out: a playback that starts paused, or is still waiting for its first audio,
+    /// has made no sound yet.
+    sounding: AtomicBool,
+}
+
+/// How long a fade takes.
+const FADE_SECS: f64 = 0.010;
+
+/// Where the fade stands at the end of a callback. With fades on, where the callback left it.
+/// With fades off it follows the sound instead — full while it plays, down once it has
+/// stopped — so that turning fades on in the middle of things neither dips what is playing
+/// nor replays a tail of what was cut.
+#[inline(always)]
+fn settled(level: u32, fade_len: u32, fade_max: u32, was_sounding: bool, sounding: bool) -> u32 {
+    if fade_len > 0 {
+        level
+    } else if sounding {
+        fade_max
+    } else if was_sounding {
+        0
+    } else {
+        level
+    }
+}
+
+/// The gain `pos` frames into a fade of `len`: half a cosine, so it starts and ends without a
+/// corner. Exactly 1.0 at the end (and a sample times 1.0 is that sample, bit for bit).
+#[inline(always)]
+fn fade_gain(pos: u32, len: u32) -> f32 {
+    if pos >= len {
+        return 1.0;
+    }
+    0.5 - 0.5 * (std::f32::consts::PI * pos as f32 / len as f32).cos()
 }
 
 /// Hand-off between the render thread (producer) and the callback (consumer).
@@ -557,9 +614,10 @@ impl Playback {
                 let (slots, rs) = (slots.clone(), rs.clone());
                 let start = plan.start_frame;
                 let route = plan.route.clone();
+                let leveled = opts.dsp.levels();
                 std::thread::Builder::new()
                     .name("hifi-render".into())
-                    .spawn(move || render_loop(slots, rs, chain, start, route))?
+                    .spawn(move || render_loop(slots, rs, chain, start, route, leveled))?
             };
             // Let the ring fill a little before IO starts, so playback doesn't open on silence.
             let deadline = Instant::now() + Duration::from_millis(500);
@@ -573,6 +631,7 @@ impl Playback {
         } else {
             (None, None)
         };
+        let fade_max = if plan.dop { 0 } else { ((device_rate * FADE_SECS) as u32).max(1) };
         let shared = Box::new(Shared {
             slots,
             pos: AtomicUsize::new(plan.start_frame),
@@ -584,6 +643,12 @@ impl Playback {
             route: plan.route.clone(),
             dop_phase: AtomicBool::new(false),
             lossy_enhancers: opts.dsp.lossy.any(),
+            fade_len: AtomicU32::new(if opts.fades { fade_max } else { 0 }),
+            fade_max,
+            // A track from its top starts at full level: its first samples are its own. One
+            // picked up in the middle (a seek that reopened the file, new settings) fades in.
+            fade: AtomicU32::new(if plan.start_frame == 0 { fade_max } else { 0 }),
+            sounding: AtomicBool::new(false),
         });
         Ok(Self { shared, render, tracks: Mutex::new(vec![track]) })
     }
@@ -738,6 +803,30 @@ impl Playback {
         self.shared.paused.store(paused, Ordering::Relaxed);
     }
 
+    /// Turn the fades on or off for what plays now (see [`PlayOptions::fades`]). A playback
+    /// that never fades (DoP) stays that way.
+    pub fn set_fades(&self, on: bool) {
+        let st = &self.shared;
+        st.fade_len.store(if on { st.fade_max } else { 0 }, Ordering::Relaxed);
+    }
+
+    /// Before this playback is dropped while it sounds (stop, another track picked): pause it
+    /// and wait for the fade to reach the device, so the sound doesn't end in a click. Returns
+    /// at once when there is nothing to fade, and within a tenth of a second in any case.
+    pub fn fade_out(&self) {
+        let st = &self.shared;
+        if st.fade_len.load(Ordering::Relaxed) == 0 || self.is_paused() || self.is_finished() || !st.sounding.load(Ordering::Relaxed) {
+            return;
+        }
+        st.paused.store(true, Ordering::Relaxed);
+        let deadline = Instant::now() + Duration::from_millis(100);
+        while st.sounding.load(Ordering::Relaxed) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        // The callback has written the fade; give the device a moment to play it.
+        std::thread::sleep(Duration::from_millis(15));
+    }
+
     /// Jump within the track being heard. False when this playback can't — then open the
     /// track anew at that point and start it there:
     /// - the point is far from the part of a long file held in memory;
@@ -824,7 +913,9 @@ impl Drop for Playback {
 /// At the end of a track it carries straight on with the one lined up next, through the same
 /// chain (no reset: filters ring on across the join as they would within a track), and tells
 /// the callback at which output frame the new track begins to be heard.
-fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_frame: usize, route: Route) {
+///
+/// `leveled`: each track goes in at its own gain (volume levelling, peak headroom).
+fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_frame: usize, route: Route, leveled: bool) {
     // Our own thread: flush-to-zero for its whole life (the FIR's tails, see fpu.rs).
     let _ftz = crate::fpu::FlushDenormals::on();
     const BLOCK: usize = 2048;
@@ -894,7 +985,7 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
                         rs.tail_out.store(false, Ordering::Release);
                         continue;
                     }
-                    let processed = chain.process(&[], true);
+                    let processed = chain.process(&[], 1.0, true);
                     out.clear();
                     out.extend(processed.iter().map(|&v| v as f32));
                     sent = 0;
@@ -922,11 +1013,12 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
         }
         rs.starved.store(false, Ordering::Relaxed);
         src += input.len() / track.channels;
+        let gain = if leveled { track.gain() as f64 } else { 1.0 };
         let processed = if route.folds() {
             route.fold_block(input, &mut folded);
-            chain.process(&folded, false)
+            chain.process(&folded, gain, false)
         } else {
-            chain.process(input, false)
+            chain.process(input, gain, false)
         };
         out.clear();
         // Not clamped yet: the callback's EQ may still lower the level (its preamp).
@@ -957,16 +1049,47 @@ impl Shared {
         match &st.ring {
             // Bit-perfect path: straight from the decoded track, on into the next one.
             None => {
+                let fade_len = st.fade_len.load(Ordering::Relaxed);
+                let mut level = st.fade.load(Ordering::Relaxed);
+                let was_sounding = st.sounding.load(Ordering::Relaxed);
+                let mut sounding = was_sounding;
                 let mut cur = slots.cur.load(Ordering::Acquire);
                 let seek = slots.seek_req.load(Ordering::Acquire);
+                let mut done = 0;
+                let mut peaks = [0f32; 2];
+                // What is about to be cut off (a pause, a jump elsewhere) fades out first.
+                if fade_len > 0 && sounding && level > 0 && (paused || seek != NO_SEEK) {
+                    // SAFETY: `cur` is in a slot, so the Playback owns it.
+                    let track = unsafe { &*cur };
+                    let pos = track.claim(st.pos.load(Ordering::Relaxed));
+                    let want = (level as usize).min(frames);
+                    let n = track.ready_frames().saturating_sub(pos).min(want);
+                    let (route, from) = (&st.route, level);
+                    peaks = fill(buffers, 0..n, n, |f, dc| track_sample(track, route, pos + f, dc) * fade_gain(from - 1 - f as u32, fade_len));
+                    st.pos.store(pos + n, Ordering::Relaxed);
+                    done = n;
+                    // (Fewer than wanted: the track ended or is still decoding — silence anyway.)
+                    level = if n < want { 0 } else { level - n as u32 };
+                    if level > 0 {
+                        // The buffer is shorter than the fade: the rest next time.
+                        st.fade.store(level, Ordering::Relaxed);
+                        st.meter(peaks);
+                        return done;
+                    }
+                    sounding = false;
+                }
                 if seek != NO_SEEK
                     && slots.seek_req.compare_exchange(seek, NO_SEEK, Ordering::AcqRel, Ordering::Relaxed).is_ok()
                     && slots.seek_track.load(Ordering::Acquire) == cur
                 {
                     st.pos.store(seek, Ordering::Relaxed);
+                    // Into the middle of the track: fade in. To its top: its first samples
+                    // as they are.
+                    if fade_len > 0 {
+                        level = if seek == 0 { fade_len } else { 0 };
+                    }
+                    sounding = false;
                 }
-                let mut done = 0;
-                let mut peaks = [0f32; 2];
                 loop {
                     // SAFETY: `cur` is in a slot, so the Playback owns it.
                     let track = unsafe { &*cur };
@@ -984,10 +1107,26 @@ impl Shared {
                     let route = &st.route;
                     let p = if st.dop {
                         fill_dop(buffers, done..to, avail, &st.dop_phase, |f, dc| dop_sample(track, route, pos + f, dc))
+                    } else if level < fade_len && avail > 0 {
+                        // Picking up after a pause or a jump: fade in.
+                        let from = level;
+                        level = level.saturating_add(avail as u32).min(fade_len);
+                        fill(buffers, done..to, avail, |f, dc| track_sample(track, route, pos + f, dc) * fade_gain(from + 1 + f as u32, fade_len))
                     } else {
                         fill(buffers, done..to, avail, |f, dc| track_sample(track, route, pos + f, dc))
                     };
                     peaks = [peaks[0].max(p[0]), peaks[1].max(p[1])];
+                    if avail > 0 {
+                        sounding = true;
+                    }
+                    // Ran out mid-track while playing (a stream still loading): the sound was
+                    // cut off, so it fades in when it is back.
+                    if !paused && !ended && done + avail < frames {
+                        if sounding {
+                            level = 0;
+                        }
+                        sounding = false;
+                    }
                     done += avail;
                     st.pos.store(pos + avail, Ordering::Relaxed);
                     if next.is_null() {
@@ -1008,6 +1147,11 @@ impl Shared {
                         break;
                     }
                 }
+                if paused {
+                    sounding = false;
+                }
+                st.fade.store(settled(level, fade_len, st.fade_max, was_sounding, sounding), Ordering::Relaxed);
+                st.sounding.store(sounding, Ordering::Relaxed);
                 st.meter(peaks);
                 done
             }
@@ -1015,8 +1159,56 @@ impl Shared {
             Some(rs) => {
                 // SAFETY: only this (IO) thread ever touches `scratch`.
                 let scratch = unsafe { &mut *rs.scratch.get() };
+                let fade_len = st.fade_len.load(Ordering::Relaxed);
+                let mut level = st.fade.load(Ordering::Relaxed);
+                let was_sounding = st.sounding.load(Ordering::Relaxed);
+                let mut sounding = was_sounding;
+                let ch = rs.channels;
+                let piece = scratch.len() / ch;
+                let route = &st.route;
+                let mut got = 0;
+                // Frames written that don't count as played: the old sound fading out in
+                // front of a seek.
+                let mut before_seek = 0;
+                let mut peaks = [0f32; 2];
+                // The EQ, or just the clamp to full scale; returns the block's peak.
+                let finish = |block: &mut [f32]| match &rs.eq {
+                    // SAFETY: this is the callback thread.
+                    Some(eq) => unsafe { eq.live() }.process(&eq.mailbox, block),
+                    None => block.iter_mut().fold(0f32, |m, s| {
+                        let p = m.max(s.abs());
+                        *s = s.clamp(-1.0, 1.0);
+                        p
+                    }),
+                };
                 let generation = rs.flush_gen.load(Ordering::Acquire);
-                if generation != rs.flush_ack.load(Ordering::Relaxed) {
+                let flush = generation != rs.flush_ack.load(Ordering::Relaxed);
+                // What is about to be cut off (a pause, a seek throwing the queue away) fades
+                // out first.
+                if fade_len > 0 && sounding && level > 0 && (paused || flush) {
+                    let want = (level as usize).min(frames).min(piece);
+                    let n = rs.ring.pop(&mut scratch[..want * ch]) / ch;
+                    let block = &mut scratch[..n * ch];
+                    rs.peak.fetch_max(finish(block).to_bits(), Ordering::Relaxed);
+                    for (f, frame) in block.chunks_exact_mut(ch).enumerate() {
+                        let g = fade_gain(level - 1 - f as u32, fade_len);
+                        frame.iter_mut().for_each(|s| *s *= g);
+                    }
+                    peaks = fill(buffers, 0..n, n, |f, dc| source_sample(scratch, ch, route, f, dc));
+                    got = n;
+                    if flush {
+                        before_seek = n;
+                    }
+                    // (Fewer than wanted: the ring ran dry — silence anyway.)
+                    level = if n < want { 0 } else { level - n as u32 };
+                    if level == 0 {
+                        sounding = false;
+                    }
+                }
+                // Still fading out (a buffer shorter than the fade): the rest next time, and a
+                // seek waits for it.
+                let fading_out = fade_len > 0 && sounding && level > 0 && (paused || flush);
+                if flush && !fading_out {
                     if let Some(eq) = &rs.eq {
                         // SAFETY: this is the callback thread.
                         unsafe { eq.live() }.reset();
@@ -1025,37 +1217,57 @@ impl Shared {
                     rs.played.store(0, Ordering::Relaxed);
                     rs.flush_ack.store(generation, Ordering::Release);
                     rs.refilling.store(true, Ordering::Relaxed);
+                    // Into the middle of the track: fade in. To its top: its first samples
+                    // as they are.
+                    if fade_len > 0 {
+                        level = if rs.base_frame.load(Ordering::Relaxed) == 0 { fade_len } else { 0 };
+                    }
+                    sounding = false;
                 }
-                let ch = rs.channels;
-                let piece = scratch.len() / ch;
-                let mut got = 0;
-                let mut peaks = [0f32; 2];
+                let hold = paused || fading_out;
                 // In pieces of the scratch size; once the ring runs short, the rest is silence.
                 while got < frames {
                     let want = (frames - got).min(piece);
-                    let n = if paused { 0 } else { rs.ring.pop(&mut scratch[..want * ch]) / ch };
+                    let n = if hold { 0 } else { rs.ring.pop(&mut scratch[..want * ch]) / ch };
                     let block = &mut scratch[..n * ch];
-                    let peak = match &rs.eq {
-                        // SAFETY: this is the callback thread.
-                        Some(eq) => unsafe { eq.live() }.process(&eq.mailbox, block),
-                        None => block.iter_mut().fold(0f32, |m, s| {
-                            let p = m.max(s.abs());
-                            *s = s.clamp(-1.0, 1.0);
-                            p
-                        }),
-                    };
-                    rs.peak.fetch_max(peak.to_bits(), Ordering::Relaxed);
+                    rs.peak.fetch_max(finish(block).to_bits(), Ordering::Relaxed);
+                    if level < fade_len && n > 0 {
+                        // Picking up after a pause or a seek: fade in.
+                        for (f, frame) in block.chunks_exact_mut(ch).enumerate() {
+                            let g = fade_gain(level + 1 + f as u32, fade_len);
+                            frame.iter_mut().for_each(|s| *s *= g);
+                        }
+                        level = level.saturating_add(n as u32).min(fade_len);
+                    }
+                    if n > 0 {
+                        sounding = true;
+                    }
                     let to = if n < want { frames } else { got + want };
-                    let route = &st.route;
                     let p = fill(buffers, got..to, n, |f, dc| source_sample(scratch, ch, route, f, dc));
                     peaks = [peaks[0].max(p[0]), peaks[1].max(p[1])];
                     got += n;
                     if n < want {
+                        // Ran dry mid-stream (a dropout, a stream still loading): the sound was
+                        // cut off, so it fades in when it is back. (Before any sound — the
+                        // ring first filling — the level stays: a track from its top starts
+                        // at full level.)
+                        if !hold {
+                            if sounding {
+                                level = 0;
+                            }
+                            sounding = false;
+                        }
                         break;
                     }
                 }
+                if paused && !fading_out {
+                    sounding = false;
+                }
+                st.fade.store(settled(level, fade_len, st.fade_max, was_sounding, sounding), Ordering::Relaxed);
+                st.sounding.store(sounding, Ordering::Relaxed);
                 st.meter(peaks);
-                let played = rs.played.fetch_add(got as u64, Ordering::Relaxed) + got as u64;
+                let counted = (got - before_seek) as u64;
+                let played = rs.played.fetch_add(counted, Ordering::Relaxed) + counted;
                 // The next track's first frame has reached the device: it is what plays now.
                 let boundary = rs.boundary.load(Ordering::Acquire);
                 if boundary != NO_BOUNDARY && played >= boundary {
@@ -1066,7 +1278,10 @@ impl Shared {
                     slots.switches.fetch_add(1, Ordering::AcqRel);
                 }
                 if got == frames {
-                    rs.refilling.store(false, Ordering::Relaxed);
+                    // (Not while the old sound still fades out in front of a seek.)
+                    if !flush {
+                        rs.refilling.store(false, Ordering::Relaxed);
+                    }
                 } else if !paused
                     && !rs.refilling.load(Ordering::Relaxed)
                     && !rs.starved.load(Ordering::Relaxed)
@@ -1493,9 +1708,12 @@ mod tests {
             assert!(!p.seek(1.0), "the start is long gone");
             assert!(!p.seek(59.0), "the end isn't decoded yet");
             assert!(p.seek(39.0), "just behind: still held");
-            let out = callback(&p, 16);
-            let want = ((39 * 48_000) % 30_000) as f32 / 32_768.0;
-            assert_eq!(out[0], want);
+            // 10 ms of the old place fading out, 10 ms of the new one fading in, then every
+            // sample as it is in the file.
+            let out = callback(&p, 2_000);
+            let want = |i: usize| ((39 * 48_000 + i - 480) % 30_000) as f32 / 32_768.0;
+            assert_eq!(out[960], want(960));
+            assert_eq!(out[1_999], want(1_999));
             drop(p);
             let _ = std::fs::remove_file(&path);
         }
@@ -1540,6 +1758,359 @@ mod tests {
 
     fn stereo_route() -> Route {
         Route::new(&crate::channels::default_layout(2), &crate::channels::default_layout(2))
+    }
+
+    /// Pause, seek and stop fade over 10 ms instead of clicking. A track playing through, and
+    /// every sample once a fade is over, is untouched.
+    mod fades {
+        use super::*;
+        use crate::decode::TrackMeta;
+
+        const FS: u32 = 48_000;
+        /// 10 ms at 48 kHz.
+        const FADE: usize = 480;
+        /// The steepest step a 10 ms fade of a 0.5 signal makes between two samples.
+        const SMOOTH: f32 = 0.5 * std::f32::consts::PI / 2.0 / FADE as f32 * 1.05;
+
+        /// A steady 0.5 on both channels: a fade shows as its own shape.
+        fn steady(frames: usize) -> Arc<Track> {
+            Arc::new(Track::from_samples(FS, 2, Some(24), &vec![0.5; frames * 2], TrackMeta::default()))
+        }
+
+        /// Every sample distinct: (i + 1) / 2^20.
+        fn ramp(frames: usize) -> Arc<Track> {
+            let samples: Vec<f32> = (0..frames).flat_map(|i| [value(i), -value(i)]).collect();
+            Arc::new(Track::from_samples(FS, 2, Some(24), &samples, TrackMeta::default()))
+        }
+
+        fn value(frame: usize) -> f32 {
+            (frame + 1) as f32 / 1_048_576.0
+        }
+
+        fn playback(track: Arc<Track>, processing: bool, start_frame: usize, fades: bool) -> Playback {
+            let plan = Plan { target: FS as f64, start_frame, lossy: None, resampled: false, processing, dop: false, route: stereo_route() };
+            Playback::new(track, &PlayOptions { fades, ..Default::default() }, &plan, FS as f64).unwrap()
+        }
+
+        /// One callback of `frames` stereo F32 frames; returns the left channel.
+        fn callback(p: &Playback, frames: usize) -> Vec<f32> {
+            let mut data = vec![0u8; frames * 8];
+            p.shared().render(&mut [OutBuf { data: &mut data, channels: 2, format: OutFormat::F32 }]);
+            data.chunks_exact(8).map(|f| f32::from_le_bytes(f[..4].try_into().unwrap())).collect()
+        }
+
+        /// Callbacks of 512 frames from the processed path, each once the ring can serve it
+        /// (or has been told to start over), like a device's clock would ask.
+        fn pull(p: &Playback, frames: usize) -> Vec<f32> {
+            let rs = p.shared().ring.as_ref().unwrap();
+            let mut out = Vec::new();
+            while out.len() < frames {
+                let deadline = Instant::now() + Duration::from_secs(5);
+                while rs.ring.available() < 512 * 2 && !rs.render_done.load(Ordering::Acquire) {
+                    assert!(Instant::now() < deadline, "the render thread stalled");
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                out.extend(callback(p, 512));
+            }
+            out
+        }
+
+        fn steepest(x: &[f32]) -> f32 {
+            x.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0f32, f32::max)
+        }
+
+        #[test]
+        fn pause_fades_out_and_resume_fades_in() {
+            let p = playback(steady(FS as usize), false, 0, true);
+            let a = callback(&p, 1_000);
+            assert!(a.iter().all(|&v| v == 0.5), "a track from its top starts at full level");
+            p.set_paused(true);
+            let b = callback(&p, 1_000);
+            assert!(b[0] > 0.49 && b[FADE - 1] == 0.0);
+            assert!(b[..FADE].windows(2).all(|w| w[1] <= w[0]), "falls all the way");
+            assert!(b[FADE..].iter().all(|&v| v == 0.0));
+            // What faded out was played: the position counts it.
+            assert!((p.position_secs() - (1_000 + FADE) as f64 / FS as f64).abs() < 1e-9);
+            assert!(callback(&p, 300).iter().all(|&v| v == 0.0));
+            p.set_paused(false);
+            let c = callback(&p, 1_000);
+            assert!(c[0] > 0.0 && c[0] < 0.01);
+            assert!(c[..FADE].windows(2).all(|w| w[1] >= w[0]), "rises all the way");
+            assert!(c[FADE - 1..].iter().all(|&v| v == 0.5), "then every sample as it is");
+            let all: Vec<f32> = a.into_iter().chain(b).chain(c).collect();
+            assert!(steepest(&all) < SMOOTH, "a step of {}", steepest(&all));
+        }
+
+        #[test]
+        fn a_fade_longer_than_the_buffer_carries_over() {
+            let p = playback(steady(FS as usize), false, 0, true);
+            callback(&p, 64);
+            p.set_paused(true);
+            let out: Vec<f32> = (0..10).flat_map(|_| callback(&p, 64)).collect();
+            assert!(out[0] > 0.49 && out[FADE - 1] == 0.0 && out[FADE..].iter().all(|&v| v == 0.0));
+            assert!(steepest(&out) < SMOOTH);
+            // Resumed halfway down: back up from where it was, not from silence.
+            p.set_paused(false);
+            callback(&p, 64);
+            p.set_paused(true);
+            let down = callback(&p, 32);
+            p.set_paused(false);
+            let up = callback(&p, 64);
+            assert!(down[31] > 0.0 && (up[0] - down[31]).abs() < SMOOTH);
+        }
+
+        #[test]
+        fn a_seek_fades_out_then_in_and_lands_on_the_exact_samples() {
+            let p = playback(ramp(FS as usize), false, 0, true);
+            let a = callback(&p, 1_000);
+            assert!(a.iter().enumerate().all(|(i, &v)| v == value(i)));
+            assert!(p.seek(0.5));
+            let b = callback(&p, 2_000);
+            // The old place goes on for 10 ms, falling…
+            assert!(b[0] > value(1_000) * 0.99 && b[FADE - 1] == 0.0);
+            // …the new one comes up over the next 10…
+            let at = FS as usize / 2;
+            assert!(b[FADE] > 0.0 && b[FADE] < value(at) * 0.01);
+            assert!(b[FADE..2 * FADE].windows(2).all(|w| w[1] > w[0]));
+            // …and from there on it is the file, bit for bit.
+            assert!((2 * FADE - 1..2_000).all(|i| b[i] == value(at + i - FADE)));
+            assert!((p.position_secs() - (at + 2_000 - FADE) as f64 / FS as f64).abs() < 1e-9);
+        }
+
+        #[test]
+        fn a_track_picked_up_in_the_middle_fades_in() {
+            let p = playback(ramp(FS as usize), false, 10_000, true);
+            let a = callback(&p, 1_000);
+            assert!(a[0] < value(10_000) * 0.01);
+            assert!((FADE - 1..1_000).all(|i| a[i] == value(10_000 + i)));
+        }
+
+        /// Started paused (the app restoring where it was): silent and still until resumed,
+        /// then the track's first samples exactly — on both paths.
+        #[test]
+        fn a_playback_started_paused_makes_no_sound_and_starts_exact() {
+            for processing in [false, true] {
+                let plan = Plan { target: FS as f64, start_frame: 0, lossy: None, resampled: false, processing, dop: false, route: stereo_route() };
+                let p = Playback::new(ramp(FS as usize), &PlayOptions { start_paused: true, ..Default::default() }, &plan, FS as f64).unwrap();
+                for _ in 0..3 {
+                    assert!(callback(&p, 512).iter().all(|&v| v == 0.0), "paused: silence");
+                }
+                assert_eq!(p.position_secs(), 0.0);
+                p.fade_out(); // nothing sounds: nothing to wait for
+                p.set_paused(false);
+                let out = if processing { pull(&p, 2_048) } else { callback(&p, 2_048) };
+                assert!(out.iter().enumerate().all(|(i, &v)| v == value(i)), "processing {processing}: from the first sample, as it is");
+            }
+        }
+
+        /// Back to the top of the track (the "previous" button): the old place fades out, the
+        /// track then starts with its own first samples, untouched.
+        #[test]
+        fn a_seek_to_the_top_starts_the_track_exact() {
+            let p = playback(ramp(FS as usize), false, 0, true);
+            callback(&p, 5_000);
+            assert!(p.seek(0.0));
+            let out = callback(&p, 2_000);
+            assert_eq!(out[FADE - 1], 0.0);
+            assert!((FADE..2_000).all(|i| out[i] == value(i - FADE)));
+            // Seeking while paused, before anything sounded since: no fade-out of the old place.
+            p.set_paused(true);
+            callback(&p, 1_000);
+            assert!(p.seek(0.5));
+            assert!(callback(&p, 1_000).iter().all(|&v| v == 0.0));
+            p.set_paused(false);
+            let out = callback(&p, 1_000);
+            assert!(out[0] < value(FS as usize / 2) * 0.01, "picked up mid-track: fades in");
+            assert_eq!(out[999], value(FS as usize / 2 + 999));
+        }
+
+        /// The setting takes hold on what plays, without a restart — and switching it in the
+        /// middle of things makes no sound of its own.
+        #[test]
+        fn fades_can_be_switched_while_playing() {
+            for processing in [false, true] {
+                let p = playback(steady(FS as usize * 4), processing, 0, true);
+                let play = |n: usize| if processing { pull(&p, n) } else { callback(&p, n) };
+                assert!(play(1_024).iter().all(|&v| v == 0.5));
+                // Off: a pause cuts at once, a resume starts at once.
+                p.set_fades(false);
+                assert!(play(1_024).iter().all(|&v| v == 0.5), "switching off is not heard");
+                p.set_paused(true);
+                assert!(callback(&p, 512).iter().all(|&v| v == 0.0));
+                // On again while paused: still silent (no tail of what was cut), then a fade in.
+                p.set_fades(true);
+                assert!(callback(&p, 512).iter().all(|&v| v == 0.0), "processing {processing}");
+                p.set_paused(false);
+                let up = play(1_024);
+                assert!(up[0] < 0.01 && up[FADE - 1..].iter().all(|&v| v == 0.5));
+                // Off and on again while it plays: not heard either.
+                p.set_fades(false);
+                assert!(play(1_024).iter().all(|&v| v == 0.5));
+                p.set_fades(true);
+                assert!(play(1_024).iter().all(|&v| v == 0.5), "switching on is not heard");
+                p.set_paused(true);
+                let down = callback(&p, 1_024);
+                assert!(down[0] > 0.49 && down[FADE - 1] == 0.0);
+            }
+        }
+
+        #[test]
+        fn without_fades_nothing_is_shaped() {
+            let p = playback(ramp(FS as usize), false, 10_000, false);
+            assert_eq!(callback(&p, 16)[0], value(10_000));
+            assert!(p.seek(0.5));
+            assert_eq!(callback(&p, 16)[0], value(FS as usize / 2));
+            p.set_paused(true);
+            assert!(callback(&p, 16).iter().all(|&v| v == 0.0));
+            p.fade_out(); // nothing to wait for
+        }
+
+        #[test]
+        fn the_processed_path_fades_the_same_way() {
+            let p = playback(steady(FS as usize * 4), true, 0, true);
+            let mut all = pull(&p, 4_096);
+            assert!(all.iter().all(|&v| v == 0.5));
+            p.set_paused(true);
+            let b = callback(&p, 1_024);
+            assert!(b[0] > 0.49 && b[FADE - 1] == 0.0 && b[FADE..].iter().all(|&v| v == 0.0));
+            let before = p.position_secs();
+            assert!((before - (4_096 + FADE) as f64 / FS as f64).abs() < 1e-9);
+            all.extend(b);
+            p.set_paused(false);
+            let c = pull(&p, 1_024);
+            assert!(c[0] < 0.01 && c[FADE - 1..].iter().all(|&v| v == 0.5));
+            all.extend(c);
+            // A seek: the queued sound fades out before it is thrown away, the new place fades in.
+            assert!(p.seek(2.0));
+            // (The render thread takes the seek up a moment later.)
+            let rs = p.shared().ring.as_ref().unwrap();
+            while rs.flush_gen.load(Ordering::Acquire) == rs.flush_ack.load(Ordering::Acquire) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            let d = pull(&p, 8_192);
+            assert!(d[0] > 0.49 && d[FADE - 1] == 0.0);
+            assert!(d[d.len() - 512..].iter().all(|&v| v == 0.5));
+            all.extend(d);
+            assert!(steepest(&all) < SMOOTH, "a step of {}", steepest(&all));
+            // The position starts over at the seek: the faded-out tail isn't counted into it.
+            let pos = p.position_secs();
+            assert!((2.0..2.0 + (8_192 - FADE) as f64 / FS as f64 + 1e-9).contains(&pos), "{pos}");
+            assert_eq!(p.underruns(), 0);
+        }
+
+        #[test]
+        fn fade_out_waits_for_the_device_to_get_the_fade() {
+            let p = playback(steady(FS as usize * 4), false, 0, true);
+            let stop = AtomicBool::new(false);
+            let heard = std::thread::scope(|s| {
+                let device = s.spawn(|| {
+                    let mut out = Vec::new();
+                    while !stop.load(Ordering::Acquire) {
+                        out.extend(callback(&p, 256));
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                    out
+                });
+                std::thread::sleep(Duration::from_millis(30));
+                let started = Instant::now();
+                p.fade_out();
+                assert!(started.elapsed() < Duration::from_millis(200));
+                stop.store(true, Ordering::Release);
+                device.join().unwrap()
+            });
+            assert!(p.is_paused());
+            assert_eq!(*heard.last().unwrap(), 0.0);
+            assert!(steepest(&heard) < SMOOTH);
+        }
+    }
+
+    /// Volume levelling: each track at the gain set on it.
+    mod levelling {
+        use super::*;
+        use crate::decode::TrackMeta;
+        use crate::dsp::loudness::{Basis, Level, LevelMode, LevelSettings};
+
+        fn ramp(start: usize, frames: usize) -> Arc<Track> {
+            let samples: Vec<f32> = (start..start + frames).flat_map(|i| [value(i), -value(i)]).collect();
+            Arc::new(Track::from_samples(48_000, 2, Some(24), &samples, TrackMeta::default()))
+        }
+
+        fn value(frame: usize) -> f32 {
+            (frame + 1) as f32 / 1_048_576.0
+        }
+
+        fn at(gain: f64) -> Option<Level> {
+            Some(Level { gain, basis: Basis::Track, limited: false })
+        }
+
+        fn levelled() -> PlayOptions {
+            let level = LevelSettings { mode: LevelMode::Track, headroom: false };
+            PlayOptions { dsp: DspSettings { level, ..Default::default() }, ..Default::default() }
+        }
+
+        /// Play `a` then `b` joined, through the processed path; returns the left channel.
+        fn play(a: Arc<Track>, b: Arc<Track>, opts: &PlayOptions, frames: usize) -> Vec<f32> {
+            let plan = Plan { target: 48_000.0, start_frame: 0, lossy: None, resampled: false, processing: true, dop: false, route: stereo_route() };
+            let p = Playback::new(a, opts, &plan, 48_000.0).unwrap();
+            assert!(p.queue_next(b));
+            let rs = p.shared().ring.as_ref().unwrap();
+            let mut out = Vec::new();
+            while out.len() < frames {
+                while rs.ring.available() < 512 * 2 && !rs.render_done.load(Ordering::Acquire) {
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+                let mut data = vec![0u8; 512 * 8];
+                p.shared().render(&mut [OutBuf { data: &mut data, channels: 2, format: OutFormat::F32 }]);
+                out.extend(data.chunks_exact(8).map(|f| f32::from_le_bytes(f[..4].try_into().unwrap())));
+            }
+            out
+        }
+
+        #[test]
+        fn each_track_plays_at_its_own_gain_to_the_sample() {
+            // A is longer than the ring, so B is lined up before the render thread gets to its end.
+            let (a, b) = (ramp(0, 60_000), ramp(60_000, 20_000));
+            a.set_level(at(0.5));
+            b.set_level(at(0.25));
+            let out = play(a, b, &levelled(), 80_000);
+            // (Halving and quartering are exact in floating point.)
+            assert!((0..60_000).all(|i| out[i] == value(i) * 0.5), "the first track at its gain");
+            assert!((60_000..80_000).all(|i| out[i] == value(i) * 0.25), "the next one at its own, from its first sample");
+        }
+
+        #[test]
+        fn a_gain_left_on_a_track_does_nothing_with_levelling_off() {
+            let (a, b) = (ramp(0, 60_000), ramp(60_000, 20_000));
+            a.set_level(at(0.5));
+            let out = play(a, b, &PlayOptions::default(), 80_000);
+            assert!((0..80_000).all(|i| out[i] == value(i)));
+        }
+
+        #[test]
+        fn levelling_takes_the_processed_path_and_says_so() {
+            let rates = [RateRange::exact(48_000.0)];
+            let speakers = crate::channels::default_layout(2);
+            let t = ramp(0, 48_000);
+            let plain = plan(&t, &PlayOptions::default(), &rates, "DAC", true, &speakers).unwrap();
+            assert!(!plain.processing);
+            // On, with nothing known about the track yet: it still goes through the chain, so
+            // the next one can join at its own gain.
+            let opts = levelled();
+            let pl = plan(&t, &opts, &rates, "DAC", true, &speakers).unwrap();
+            assert!(pl.processing);
+            t.set_level(at(0.5));
+            let physical = StreamFormat { sample_rate: 48_000.0, bits: 24, float: false, channels: 2, non_mixable: true };
+            let path = signal_path(&t, &opts, &pl, 48_000.0, Some(physical), OutFormat::I24Packed, true, Transport::Usb);
+            assert!(!path.bit_perfect);
+            assert_eq!(path.level, at(0.5));
+            // The track after it shows its own.
+            let next = ramp(0, 100);
+            next.set_level(at(0.25));
+            assert_eq!(path.for_next(&next).level, at(0.25));
+            // With levelling off the path is bit-perfect and shows no gain, whatever the track carries.
+            let clean = signal_path(&t, &PlayOptions::default(), &plain, 48_000.0, Some(physical), OutFormat::I24Packed, true, Transport::Usb);
+            assert!(clean.bit_perfect && clean.level.is_none());
+        }
     }
 
     /// Multichannel: 5.1 straight onto a 5.1 device, folded onto a stereo one.

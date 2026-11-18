@@ -22,6 +22,7 @@ use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::{MetadataOptions, MetadataRevision, StandardTag, StandardVisualKey};
 
 use crate::cue::Range;
+use crate::dsp::loudness::Level;
 
 /// Frames per storage chunk. Chunks never move once allocated, so a reader holding a frame
 /// index below `ready` can always find its sample — the buffer grows without reallocating.
@@ -80,6 +81,10 @@ pub struct Track {
     pub dsd: Option<DsdSource>,
     /// Carries raw DSD for DoP: 2 bytes per channel per frame, oldest bit in the MSB.
     dop: bool,
+    /// The gain this track plays at when levelling or headroom is on (see `set_level`).
+    level: Mutex<Option<Level>>,
+    /// `level`'s linear gain as f32 bits, for the render thread (1.0 when there is none).
+    gain: AtomicU32,
 }
 
 /// How much of a local file is kept decoded, in frames.
@@ -142,6 +147,8 @@ pub struct TrackMeta {
     pub disc_number: Option<u64>,
     /// (MIME type, image bytes) — front cover if tagged as such, else the first picture.
     pub cover: Option<(String, Vec<u8>)>,
+    /// ReplayGain / R128 values from the tags, for volume levelling.
+    pub gain: crate::dsp::loudness::TagGain,
 }
 
 pub(crate) fn read_meta(format: &mut dyn FormatReader) -> TrackMeta {
@@ -153,8 +160,27 @@ pub(crate) fn read_meta(format: &mut dyn FormatReader) -> TrackMeta {
 }
 
 pub(crate) fn meta_from_revision(rev: &MetadataRevision) -> TrackMeta {
+    use crate::dsp::loudness::{parse_gain, parse_peak, parse_r128};
     let mut m = TrackMeta::default();
+    // R128 tags (Opus-style) count only where there is no ReplayGain one.
+    let (mut r128_track, mut r128_album) = (None, None);
     for tag in &rev.media.tags {
+        let g = &mut m.gain;
+        match &tag.std {
+            Some(StandardTag::ReplayGainTrackGain(v)) => g.track_db = g.track_db.or_else(|| parse_gain(v)),
+            Some(StandardTag::ReplayGainTrackPeak(v)) => g.track_peak = g.track_peak.or_else(|| parse_peak(v)),
+            Some(StandardTag::ReplayGainAlbumGain(v)) => g.album_db = g.album_db.or_else(|| parse_gain(v)),
+            Some(StandardTag::ReplayGainAlbumPeak(v)) => g.album_peak = g.album_peak.or_else(|| parse_peak(v)),
+            _ => {
+                if let symphonia::core::meta::RawValue::String(v) = &tag.raw.value {
+                    if tag.raw.key.eq_ignore_ascii_case("R128_TRACK_GAIN") {
+                        r128_track = r128_track.or_else(|| parse_r128(v));
+                    } else if tag.raw.key.eq_ignore_ascii_case("R128_ALBUM_GAIN") {
+                        r128_album = r128_album.or_else(|| parse_r128(v));
+                    }
+                }
+            }
+        }
         match &tag.std {
             Some(StandardTag::TrackTitle(v)) => m.title.get_or_insert_with(|| v.to_string()),
             Some(StandardTag::Artist(v)) => m.artist.get_or_insert_with(|| v.to_string()),
@@ -178,6 +204,8 @@ pub(crate) fn meta_from_revision(rev: &MetadataRevision) -> TrackMeta {
             _ => continue,
         };
     }
+    m.gain.track_db = m.gain.track_db.or(r128_track);
+    m.gain.album_db = m.gain.album_db.or(r128_album);
     let visuals = &rev.media.visuals;
     m.cover = visuals
         .iter()
@@ -214,6 +242,8 @@ impl Track {
             peak: AtomicU32::new(0),
             dsd: None,
             dop: false,
+            level: Mutex::new(None),
+            gain: AtomicU32::new(1f32.to_bits()),
         }
     }
 
@@ -239,6 +269,8 @@ impl Track {
             peak: AtomicU32::new(0),
             dsd: Some(DsdSource { rate: dsd_rate, dop: true }),
             dop: true,
+            level: Mutex::new(None),
+            gain: AtomicU32::new(1f32.to_bits()),
         }
     }
 
@@ -386,6 +418,24 @@ impl Track {
     /// Largest |sample| decoded so far (1.0 = full scale; above = the decode clips).
     pub fn peak(&self) -> f32 {
         f32::from_bits(self.peak.load(Ordering::Relaxed))
+    }
+
+    /// Set the gain this track plays at (volume levelling, peak headroom — see
+    /// [`crate::dsp::loudness::resolve`]), before it is started or lined up. It is applied only
+    /// by a playback whose settings have levelling or headroom on. None = as it is.
+    pub fn set_level(&self, level: Option<Level>) {
+        self.gain.store(level.map_or(1.0, |l| l.gain as f32).to_bits(), Ordering::Release);
+        *self.level.lock().unwrap_or_else(|p| p.into_inner()) = level;
+    }
+
+    pub fn level(&self) -> Option<Level> {
+        *self.level.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// Linear gain of [`level`](Self::level). Lock-free, for the render thread.
+    #[inline]
+    pub fn gain(&self) -> f32 {
+        f32::from_bits(self.gain.load(Ordering::Acquire))
     }
 
     /// Why decoding stopped early, if it did.
@@ -925,6 +975,11 @@ fn open_stream_trimmed(source: Box<dyn MediaSource>, hint: Hint, expected_secs: 
         track_number: meta.track_number.or(own.track_number),
         disc_number: meta.disc_number.or(own.disc_number),
         cover: meta.cover.or(own.cover).or_else(|| path.as_deref().and_then(folder_cover)),
+        gain: match (meta.gain.is_empty(), range.is_some()) {
+            (false, _) => meta.gain,
+            (true, true) => own.gain.of_image(),
+            (true, false) => own.gain,
+        },
     };
     if track.expected.load(Ordering::Relaxed) == 0 {
         if let Some(s) = expected_secs {
