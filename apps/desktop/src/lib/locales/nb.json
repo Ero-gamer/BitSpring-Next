@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Finner hvor kodeken kuttet diskanten (16–19 kHz for MP3 i 128–256 kbps), og bygger opp oktaven over ut fra overtonene i båndet under. Det er en troverdig rekonstruksjon, ikke en gjenoppretting av det som gikk tapt. Filer som er kuttet over 20 kHz, blir ikke rørt.",
   "enh.losslessNote": "Tapsfrie filer påvirkes ikke av disse innstillingene; de spilles som før.",
   "enh.footerLossy": "Tapsfrie filer går bit-perfect til DAC-en, MP3 og AAC med korrigeringer.",
-  "enh.footerPure": "Alt er slått av: signalet går bit-perfect til DAC-en.",
-  "enh.footerOn": "Forbedringer slår av bit-perfect. Slå av alle for å få tilbake det urørte signalet.",
+  "enh.footerPure": "Ingen behandling er på: signalet går bit-perfect til DAC-en.",
+  "enh.footerOn": "Bit-perfect er slått av på grunn av: {what}. Uten det går tapsfrie filer urørt til DAC-en igjen.",
 
   "dev.choose": "Velg en utgang",
   "dev.dialog": "Lydutgang",

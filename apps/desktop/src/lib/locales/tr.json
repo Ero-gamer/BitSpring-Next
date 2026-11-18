@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Kodeğin tizleri nerede kestiğini bulur (128–256 kbps MP3'te 16–19 kHz) ve üstteki oktavı alttaki bandın harmoniklerinden yeniden oluşturur. Bu, kaybolanın geri gelmesi değil, inandırıcı bir yeniden yapılandırmadır. 20 kHz'in üzerinde kesilmiş dosyalara dokunmaz.",
   "enh.losslessNote": "Kayıpsız dosyalar bu ayarlardan etkilenmez; eskisi gibi çalar.",
   "enh.footerLossy": "Kayıpsız dosyalar DAC'a bit-perfect gider, MP3 ve AAC ise düzeltmelerle.",
-  "enh.footerPure": "Her şey kapalı: sinyal DAC'a bit-perfect gidiyor.",
-  "enh.footerOn": "İyileştirmeler bit-perfect'i kapatır. Dokunulmamış sinyale dönmek için hepsini kapat.",
+  "enh.footerPure": "Hiçbir işleme açık değil: sinyal DAC'a bit-perfect gidiyor.",
+  "enh.footerOn": "Bit-perfect şu nedenle kapalı: {what}. Bu kapatılınca kayıpsız dosyalar DAC'a yeniden dokunulmadan gider.",
 
   "dev.choose": "Çıkış seç",
   "dev.dialog": "Ses çıkışı",

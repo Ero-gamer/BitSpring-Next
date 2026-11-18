@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Najde místo, kde kodek ořízl výšky (16–19 kHz u MP3 s 128–256 kbps), a dopočítá oktávu nad ním z harmonických pásma pod ním. Je to věrohodná rekonstrukce, ne návrat ztraceného. Souborů oříznutých nad 20 kHz se nedotkne.",
   "enh.losslessNote": "Bezeztrátových souborů se tato nastavení netýkají; hrají jako dřív.",
   "enh.footerLossy": "Bezeztrátové soubory jdou do převodníku bit-perfect, MP3 a AAC s korekcemi.",
-  "enh.footerPure": "Vše je vypnuté: signál jde do převodníku bit-perfect.",
-  "enh.footerOn": "Vylepšení vypínají bit-perfect. Vypněte všechna a dostanete zpět nedotčený signál.",
+  "enh.footerPure": "Žádné zpracování není zapnuté: signál jde do převodníku bit-perfect.",
+  "enh.footerOn": "Bit-perfect je vypnutý kvůli: {what}. Bez toho jdou bezeztrátové soubory do převodníku zase nedotčené.",
 
   "dev.choose": "Vyberte výstup",
   "dev.dialog": "Zvukový výstup",

@@ -183,8 +183,8 @@
   "enh.restoreHelp": "找到编码器截掉高频的位置（128–256 kbps 的 MP3 通常在 16–19 kHz），再根据下方频段的谐波重建上方一个八度。这是合理的重建，并不能找回已丢失的内容。截止频率高于 20 kHz 的文件不做处理。",
   "enh.losslessNote": "这些设置不影响无损文件，它们照常播放。",
   "enh.footerLossy": "无损文件以 bit-perfect 送往 DAC，MP3 和 AAC 则经过修正。",
-  "enh.footerPure": "全部关闭：信号以 bit-perfect 送往 DAC。",
-  "enh.footerOn": "开启音效增强后就不再是 bit-perfect。全部关闭即可恢复原封不动的信号。",
+  "enh.footerPure": "未开启任何处理：信号以 bit-perfect 送往 DAC。",
+  "enh.footerOn": "bit-perfect 已关闭，原因：{what}。关掉之后，无损文件会重新原封不动地送往 DAC。",
 
   "dev.choose": "选择输出",
   "dev.dialog": "音频输出",

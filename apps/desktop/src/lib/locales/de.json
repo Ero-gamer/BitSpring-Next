@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Findet, wo der Codec die Höhen abgeschnitten hat (16–19 kHz bei MP3 mit 128–256 kbps), und baut die Oktave darüber aus den Obertönen des Bands darunter neu auf. Das ist eine plausible Rekonstruktion, keine Rückkehr des Verlorenen. Dateien mit einer Grenze über 20 kHz bleiben unangetastet.",
   "enh.losslessNote": "Verlustfreie Dateien betreffen diese Einstellungen nicht; sie laufen wie bisher.",
   "enh.footerLossy": "Verlustfreie Dateien gehen bit-perfect an den DAC, MP3 und AAC mit Korrekturen.",
-  "enh.footerPure": "Alles aus: Das Signal geht bit-perfect an den DAC.",
-  "enh.footerOn": "Klangoptionen schalten Bit-perfect ab. Schalte alle aus, um das unberührte Signal zurückzubekommen.",
+  "enh.footerPure": "Keine Bearbeitung aktiv: Das Signal geht bit-perfect an den DAC.",
+  "enh.footerOn": "Bit-perfect ist aus wegen: {what}. Ohne das gehen verlustfreie Dateien wieder unberührt an den DAC.",
 
   "dev.choose": "Ausgang wählen",
   "dev.dialog": "Audioausgang",

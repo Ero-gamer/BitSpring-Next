@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Găsește unde a tăiat codecul înaltele (16–19 kHz la MP3 de 128–256 kbps) și reconstruiește octava de deasupra din armonicele benzii de dedesubt. Este o reconstrucție plauzibilă, nu o recuperare a ceea ce s-a pierdut. Fișierele tăiate peste 20 kHz rămân neatinse.",
   "enh.losslessNote": "Fișierele fără pierderi nu sunt afectate de aceste setări; se redau ca înainte.",
   "enh.footerLossy": "Fișierele fără pierderi ajung la DAC bit-perfect, iar MP3 și AAC, cu corecții.",
-  "enh.footerPure": "Totul e dezactivat: semnalul ajunge la DAC bit-perfect.",
-  "enh.footerOn": "Îmbunătățirile dezactivează redarea bit-perfect. Dezactivează-le pe toate ca să primești înapoi semnalul neatins.",
+  "enh.footerPure": "Nicio procesare nu e activă: semnalul ajunge la DAC bit-perfect.",
+  "enh.footerOn": "Redarea bit-perfect este dezactivată din cauza: {what}. Fără asta, fișierele fără pierderi ajung din nou neatinse la DAC.",
 
   "dev.choose": "Alege o ieșire",
   "dev.dialog": "Ieșire audio",

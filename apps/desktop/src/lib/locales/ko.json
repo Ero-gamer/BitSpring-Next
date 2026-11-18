@@ -183,8 +183,8 @@
   "enh.restoreHelp": "코덱이 고음역을 잘라 낸 주파수(128–256 kbps MP3는 16–19 kHz)를 찾아, 그 아래 대역의 배음으로 위쪽 한 옥타브를 재구성합니다. 그럴듯한 복원일 뿐, 잃어버린 정보를 되찾는 것은 아닙니다. 20 kHz 위에서 잘린 파일은 건드리지 않습니다.",
   "enh.losslessNote": "이 설정은 무손실 파일에는 적용되지 않으며, 무손실 파일은 이전처럼 재생됩니다.",
   "enh.footerLossy": "무손실 파일은 bit-perfect로, MP3와 AAC는 보정을 거쳐 DAC에 전달됩니다.",
-  "enh.footerPure": "모두 꺼짐: 신호가 bit-perfect로 DAC에 전달됩니다.",
-  "enh.footerOn": "사운드 조정을 켜면 bit-perfect가 해제됩니다. 모두 끄면 손대지 않은 신호로 돌아갑니다.",
+  "enh.footerPure": "켜진 처리가 없음: 신호가 bit-perfect로 DAC에 전달됩니다.",
+  "enh.footerOn": "bit-perfect가 해제된 이유: {what}. 이를 끄면 무손실 파일이 다시 손대지 않은 그대로 DAC에 전달됩니다.",
 
   "dev.choose": "출력 선택",
   "dev.dialog": "오디오 출력",

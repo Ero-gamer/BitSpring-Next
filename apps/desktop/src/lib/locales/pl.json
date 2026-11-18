@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Znajduje miejsce, w którym kodek obciął wysokie tony (16–19 kHz dla MP3 128–256 kbps), i odbudowuje oktawę powyżej na podstawie harmonicznych pasma poniżej. To wiarygodna rekonstrukcja, a nie odzyskanie tego, co utracone. Plików obciętych powyżej 20 kHz nie rusza.",
   "enh.losslessNote": "Te ustawienia nie dotyczą plików bezstratnych; grają tak jak wcześniej.",
   "enh.footerLossy": "Pliki bezstratne trafiają do przetwornika bit-perfect, MP3 i AAC z poprawkami.",
-  "enh.footerPure": "Wszystko wyłączone: sygnał trafia do przetwornika bit-perfect.",
-  "enh.footerOn": "Ulepszenia wyłączają bit-perfect. Wyłącz je wszystkie, aby odzyskać nietknięty sygnał.",
+  "enh.footerPure": "Żadne przetwarzanie nie jest włączone: sygnał trafia do przetwornika bit-perfect.",
+  "enh.footerOn": "Bit-perfect jest wyłączony z powodu: {what}. Bez tego pliki bezstratne znów trafiają do przetwornika nietknięte.",
 
   "dev.choose": "Wybierz wyjście",
   "dev.dialog": "Wyjście audio",

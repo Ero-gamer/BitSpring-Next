@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Hittar var codecen skar bort diskanten (16–19 kHz för MP3 i 128–256 kbps) och bygger upp oktaven ovanför utifrån övertonerna i bandet under. Det är en trovärdig rekonstruktion, inte en återgång till det som gått förlorat. Filer som är avskurna ovanför 20 kHz lämnas orörda.",
   "enh.losslessNote": "Förlustfria filer påverkas inte av de här inställningarna; de spelas som förut.",
   "enh.footerLossy": "Förlustfria filer går bit-perfect till DAC:en, MP3 och AAC med korrigeringar.",
-  "enh.footerPure": "Allt är avstängt: signalen går bit-perfect till DAC:en.",
-  "enh.footerOn": "Förbättringarna stänger av bit-perfect. Stäng av alla för att få tillbaka den orörda signalen.",
+  "enh.footerPure": "Ingen bearbetning är på: signalen går bit-perfect till DAC:en.",
+  "enh.footerOn": "Bit-perfect är avstängt på grund av: {what}. Utan det går förlustfria filer orörda till DAC:en igen.",
 
   "dev.choose": "Välj utgång",
   "dev.dialog": "Ljudutgång",

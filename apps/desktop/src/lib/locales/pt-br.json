@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Encontra onde o codec cortou os agudos (16–19 kHz em MP3 de 128–256 kbps) e reconstrói a oitava acima a partir dos harmônicos da banda abaixo. É uma reconstrução plausível, não a volta do que se perdeu. Arquivos com corte acima de 20 kHz não são alterados.",
   "enh.losslessNote": "Essas configurações não afetam arquivos sem perdas; eles tocam como antes.",
   "enh.footerLossy": "Arquivos sem perdas vão para o DAC bit-perfect; MP3 e AAC, com correções.",
-  "enh.footerPure": "Tudo desligado: o sinal vai para o DAC bit-perfect.",
-  "enh.footerOn": "As melhorias desligam o bit-perfect. Desligue todas para ter de volta o sinal intocado.",
+  "enh.footerPure": "Nenhum processamento ligado: o sinal vai para o DAC bit-perfect.",
+  "enh.footerOn": "O bit-perfect está desligado por causa de: {what}. Sem isso, os arquivos sem perdas voltam a ir intocados para o DAC.",
 
   "dev.choose": "Escolha uma saída",
   "dev.dialog": "Saída de áudio",

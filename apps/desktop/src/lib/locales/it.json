@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Individua dove il codec ha tagliato gli acuti (16–19 kHz negli MP3 a 128–256 kbps) e ricostruisce l’ottava superiore dalle armoniche della banda sottostante. È una ricostruzione plausibile, non un recupero di ciò che è andato perso. I file con il taglio sopra i 20 kHz restano intatti.",
   "enh.losslessNote": "Queste impostazioni non riguardano i file senza perdita: vengono riprodotti come prima.",
   "enh.footerLossy": "I file senza perdita arrivano al DAC bit-perfect, MP3 e AAC con correzioni.",
-  "enh.footerPure": "Tutto disattivato: il segnale arriva al DAC bit-perfect.",
-  "enh.footerOn": "I miglioramenti disattivano il bit-perfect. Disattivali tutti per riavere il segnale intatto.",
+  "enh.footerPure": "Nessuna elaborazione attiva: il segnale arriva al DAC bit-perfect.",
+  "enh.footerOn": "Il bit-perfect è disattivato a causa di: {what}. Senza, i file senza perdita tornano ad arrivare intatti al DAC.",
 
   "dev.choose": "Scegli un’uscita",
   "dev.dialog": "Uscita audio",

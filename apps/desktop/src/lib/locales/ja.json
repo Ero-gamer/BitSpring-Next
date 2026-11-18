@@ -183,8 +183,8 @@
   "enh.restoreHelp": "コーデックが高域をカットした周波数（128〜256 kbpsのMP3なら16〜19 kHz）を見つけ、その下の帯域の倍音から上の1オクターブを再構成します。もっともらしい復元であって、失われたものが戻るわけではありません。20 kHzより上でカットされているファイルには手を加えません。",
   "enh.losslessNote": "これらの設定はロスレスファイルには影響せず、これまでどおり再生されます。",
   "enh.footerLossy": "ロスレスファイルはbit-perfectで、MP3とAACは補正をかけてDACへ送ります。",
-  "enh.footerPure": "すべてオフ：信号はbit-perfectでDACへ届きます。",
-  "enh.footerOn": "サウンド調整をオンにするとbit-perfectではなくなります。すべてオフにすれば、手つかずの信号に戻ります。",
+  "enh.footerPure": "処理は何もオンになっていません：信号はbit-perfectでDACへ届きます。",
+  "enh.footerOn": "bit-perfectがオフになっている理由：{what}。これをオフにすると、ロスレスファイルは再び手つかずのままDACへ届きます。",
 
   "dev.choose": "出力先を選択",
   "dev.dialog": "オーディオ出力",

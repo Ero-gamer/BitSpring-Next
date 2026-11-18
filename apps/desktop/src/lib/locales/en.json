@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Finds where the codec cut off the highs (16–19 kHz for 128–256 kbps MP3) and rebuilds the octave above from the harmonics of the band below. It's a plausible reconstruction, not a return of what was lost. Files cut off above 20 kHz are left alone.",
   "enh.losslessNote": "Lossless files aren't affected by these settings; they play as before.",
   "enh.footerLossy": "Lossless files go to the DAC bit-perfect, MP3 and AAC with corrections.",
-  "enh.footerPure": "Everything is off: the signal goes to the DAC bit-perfect.",
-  "enh.footerOn": "Enhancers turn bit-perfect off. Turn them all off to get the untouched signal back.",
+  "enh.footerPure": "No processing is on: the signal goes to the DAC bit-perfect.",
+  "enh.footerOn": "Bit-perfect is off because of: {what}. With that off, lossless files go to the DAC untouched again.",
 
   "dev.choose": "Choose an output",
   "dev.dialog": "Audio output",

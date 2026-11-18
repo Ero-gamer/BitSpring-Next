@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Etsii kohdan, josta koodekki leikkasi diskantin (16–19 kHz 128–256 kbps:n MP3:ssa), ja rakentaa sen yläpuolisen oktaavin alapuolisen kaistan harmonisista. Se on uskottava rekonstruktio, ei kadonneen palautus. Yli 20 kHz:n kohdalta leikattuihin tiedostoihin ei kosketa.",
   "enh.losslessNote": "Nämä asetukset eivät vaikuta häviöttömiin tiedostoihin; ne soivat kuten ennenkin.",
   "enh.footerLossy": "Häviöttömät tiedostot menevät DAC:lle bit-perfectinä, MP3 ja AAC korjauksin.",
-  "enh.footerPure": "Kaikki on pois päältä: signaali menee DAC:lle bit-perfectinä.",
-  "enh.footerOn": "Parannukset poistavat bit-perfect-toiston. Kytke ne kaikki pois, niin saat koskemattoman signaalin takaisin.",
+  "enh.footerPure": "Mikään käsittely ei ole päällä: signaali menee DAC:lle bit-perfectinä.",
+  "enh.footerOn": "Bit-perfect on pois päältä, koska käytössä on: {what}. Ilman sitä häviöttömät tiedostot menevät taas koskemattomina DAC:lle.",
 
   "dev.choose": "Valitse lähtö",
   "dev.dialog": "Äänilähtö",

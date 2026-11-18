@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Megkeresi, hol vágta le a kodek a magasakat (128–256 kbps-os MP3-nál 16–19 kHz), és az alatta lévő sáv felharmonikusaiból újraépíti a felette lévő oktávot. Ez hihető rekonstrukció, nem az elveszett tartalom visszahozása. A 20 kHz fölött vágott fájlokhoz nem nyúl.",
   "enh.losslessNote": "A veszteségmentes fájlokat ezek a beállítások nem érintik, ugyanúgy szólnak, mint eddig.",
   "enh.footerLossy": "A veszteségmentes fájlok bit-perfect módon jutnak a DAC-hoz, az MP3 és az AAC korrekciókkal.",
-  "enh.footerPure": "Minden ki van kapcsolva: a jel bit-perfect módon jut a DAC-hoz.",
-  "enh.footerOn": "A hangfeldolgozás kikapcsolja a bit-perfect lejátszást. Kapcsolj ki mindent, hogy visszakapd az érintetlen jelet.",
+  "enh.footerPure": "Nincs bekapcsolt feldolgozás: a jel bit-perfect módon jut a DAC-hoz.",
+  "enh.footerOn": "A bit-perfect ki van kapcsolva ezek miatt: {what}. Enélkül a veszteségmentes fájlok ismét érintetlenül jutnak a DAC-hoz.",
 
   "dev.choose": "Válassz kimenetet",
   "dev.dialog": "Hangkimenet",

@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Repère où le codec a coupé les aigus (16–19 kHz pour un MP3 à 128–256 kbps) et reconstruit l’octave supérieure à partir des harmoniques de la bande inférieure. C’est une reconstruction plausible, pas un retour de ce qui a été perdu. Les fichiers coupés au-delà de 20 kHz ne sont pas touchés.",
   "enh.losslessNote": "Ces réglages ne concernent pas les fichiers sans perte : ils sont lus comme avant.",
   "enh.footerLossy": "Les fichiers sans perte partent vers le DAC en bit-perfect, le MP3 et l’AAC avec corrections.",
-  "enh.footerPure": "Tout est désactivé : le signal part vers le DAC en bit-perfect.",
-  "enh.footerOn": "Les améliorations désactivent le bit-perfect. Désactivez-les toutes pour retrouver le signal intact.",
+  "enh.footerPure": "Aucun traitement actif : le signal part vers le DAC en bit-perfect.",
+  "enh.footerOn": "Le bit-perfect est désactivé à cause de : {what}. Sans cela, les fichiers sans perte repartent intacts vers le DAC.",
 
   "dev.choose": "Choisir une sortie",
   "dev.dialog": "Sortie audio",

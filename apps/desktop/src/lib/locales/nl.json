@@ -183,8 +183,8 @@
   "enh.restoreHelp": "Zoekt waar de codec het hoog heeft afgesneden (16–19 kHz bij MP3 van 128–256 kbps) en bouwt het octaaf daarboven opnieuw op uit de harmonischen van de band eronder. Het is een aannemelijke reconstructie, geen terugkeer van wat verloren ging. Bestanden die boven 20 kHz zijn afgesneden, blijven ongemoeid.",
   "enh.losslessNote": "Deze instellingen hebben geen invloed op verliesvrije bestanden; die spelen zoals voorheen.",
   "enh.footerLossy": "Verliesvrije bestanden gaan bit-perfect naar de DAC, MP3 en AAC met correcties.",
-  "enh.footerPure": "Alles staat uit: het signaal gaat bit-perfect naar de DAC.",
-  "enh.footerOn": "Verbeteringen zetten bit-perfect uit. Zet ze allemaal uit om het onaangetaste signaal terug te krijgen.",
+  "enh.footerPure": "Geen bewerking actief: het signaal gaat bit-perfect naar de DAC.",
+  "enh.footerOn": "Bit-perfect staat uit vanwege: {what}. Zonder dat gaan verliesvrije bestanden weer onaangetast naar de DAC.",
 
   "dev.choose": "Kies een uitvoer",
   "dev.dialog": "Audio-uitvoer",

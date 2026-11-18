@@ -175,7 +175,9 @@
         {#if active.length === 0}
           {t(lossyOn ? "enh.footerLossy" : "enh.footerPure")}
         {:else}
-          {t("enh.footerOn")}
+          <!-- Names what breaks bit-perfect: the MP3 switches and the headroom don't, and
+               needn't be turned off to get it back. -->
+          {t("enh.footerOn", { what: list(active) })}
         {/if}
       </p>
     </div>
