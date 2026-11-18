@@ -21,8 +21,11 @@
 
   /** What each library folder holds, by path (asked again whenever the library changes). */
   let held = $state<Record<string, LibrarySubfolder>>({});
+  // The status arrives afresh every second; only a scan or a change of the lists is a reason
+  // to count again, so the effect hangs on a plain string, which stays equal in between.
+  const shape = $derived([status.revision, ...status.folders, "", ...status.skipped].join("\n"));
   $effect(() => {
-    void [status.revision, status.folders.length, status.skipped.length];
+    void shape;
     api.librarySubfolders(null).then((roots) => (held = Object.fromEntries(roots.map((f) => [f.path, f]))));
   });
 
