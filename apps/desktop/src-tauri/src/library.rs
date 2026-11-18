@@ -18,16 +18,25 @@ struct Persisted {
     /// again after a relaunch; see bookmarks.rs).
     #[serde(default)]
     bookmarks: HashMap<String, String>,
+    /// Folders the scan leaves out, with everything in them.
+    #[serde(default)]
+    skipped: Vec<String>,
 }
 
 #[derive(Default)]
 struct Inner {
     folders: Vec<String>,
+    /// Folders the scan leaves out (see `hifi_engine::library::scan` for how the lists meet).
+    skipped: Vec<String>,
+    /// The folders of `folders` the platform gives and the user can't remove (a phone's own).
+    fixed: Vec<String>,
     bookmarks: HashMap<String, String>,
     tracks: Arc<Vec<TrackInfo>>,
     albums: Arc<Vec<Album>>,
     /// (done, total) while a scan runs.
     progress: Option<(usize, usize)>,
+    /// The folders changed (or a rescan was asked for) while a scan was running: scan once more.
+    again: bool,
     failed: Vec<(String, String)>,
     /// Bumped after every scan so the UI knows to refetch.
     revision: u64,
@@ -40,6 +49,8 @@ pub struct Library(Arc<Mutex<Inner>>);
 #[serde(rename_all = "camelCase")]
 pub struct LibraryStatus {
     folders: Vec<String>,
+    skipped: Vec<String>,
+    fixed: Vec<String>,
     scanning: Option<(usize, usize)>,
     albums: usize,
     tracks: usize,
@@ -136,20 +147,52 @@ impl Library {
             g.albums = Arc::new(group_albums(&saved.tracks));
             g.tracks = Arc::new(saved.tracks);
             g.folders = saved.folders;
+            g.skipped = saved.skipped;
             g.bookmarks = saved.bookmarks;
             reopen_folders(&mut g);
         }
-        // On a phone the library is fixed folders, not ones the user picks: on iPhone the app's
-        // own (Files → On My iPhone → BitSpring, or Finder file sharing) — the only one the sandbox
-        // lets us keep; on Android the shared Music folder plus the app's own.
+        // A phone has folders of its own that are always in the library. On iPhone that is all
+        // there is: the app's folder (Files → On My iPhone → BitSpring, or Finder file sharing),
+        // the only one the sandbox lets us keep. On Android: the shared Music folder plus the
+        // app's own, and after them whatever folders the user added.
         if cfg!(mobile) {
             let dirs = phone_music_dirs(app);
             if !dirs.is_empty() {
-                lib.0.lock().unwrap().folders = dirs;
+                let mut g = lib.0.lock().unwrap();
+                let added: Vec<String> = if cfg!(target_os = "android") {
+                    g.folders.iter().filter(|f| !dirs.contains(f)).cloned().collect()
+                } else {
+                    Vec::new()
+                };
+                #[cfg(target_os = "ios")]
+                for s in g.skipped.iter_mut() {
+                    *s = crate::folders::rebase(s, Path::new(&dirs[0]));
+                }
+                g.fixed = dirs.clone();
+                g.folders = dirs.into_iter().chain(added).collect();
             }
         }
         lib.rescan(app.clone());
         lib
+    }
+
+    /// Write the index now: the folder lists must outlive a quit in the middle of a scan.
+    fn save(&self, app: &AppHandle) {
+        let saved = {
+            let g = self.0.lock().unwrap();
+            Persisted { folders: g.folders.clone(), tracks: (*g.tracks).clone(), bookmarks: g.bookmarks.clone(), skipped: g.skipped.clone() }
+        };
+        if let Some(p) = index_path(app) {
+            // Best effort: a failed write only means the next launch starts from an older index.
+            let _ = hifi_engine::store::save_json(&p, &saved);
+        }
+    }
+
+    /// The folder lists changed: keep them, then make the library match.
+    fn changed(&self, app: AppHandle) -> LibraryStatus {
+        self.save(&app);
+        self.rescan(app);
+        self.status()
     }
 
     /// Rescan from outside a command (e.g. storage permission just granted).
@@ -158,47 +201,56 @@ impl Library {
         self.rescan(app);
     }
 
+    /// Scan in the background. While a scan runs, a second call (a folder added or skipped in
+    /// the meantime) makes it go round once more with the lists as they are then.
     fn rescan(&self, app: AppHandle) {
-        let (folders, previous, bookmarks) = {
+        {
             let mut g = self.0.lock().unwrap();
             if g.progress.is_some() {
-                return; // one scan at a time
+                g.again = true;
+                return;
             }
             g.progress = Some((0, 0));
-            (g.folders.iter().map(PathBuf::from).collect::<Vec<_>>(), g.tracks.clone(), g.bookmarks.clone())
-        };
+        }
         let lib = self.clone();
         std::thread::spawn(move || {
             let covers = covers_dir(&app);
-            let result = library::scan(
-                &folders,
-                &previous,
-                |done, total| lib.0.lock().unwrap().progress = Some((done, total)),
-                |t, (mime, bytes)| {
-                    if let Some(dir) = &covers {
-                        let ext = if mime.contains("png") { "png" } else { "jpg" };
-                        let file = dir.join(format!("{}.{ext}", album_id(t)));
-                        if !file.exists() {
-                            let _ = std::fs::write(file, bytes);
+            loop {
+                let (folders, skipped, previous) = {
+                    let g = lib.0.lock().unwrap();
+                    let paths = |v: &[String]| v.iter().map(PathBuf::from).collect::<Vec<_>>();
+                    (paths(&g.folders), paths(&g.skipped), g.tracks.clone())
+                };
+                let result = library::scan(
+                    &folders,
+                    &skipped,
+                    &previous,
+                    |done, total| lib.0.lock().unwrap().progress = Some((done, total)),
+                    |t, (mime, bytes)| {
+                        if let Some(dir) = &covers {
+                            let ext = if mime.contains("png") { "png" } else { "jpg" };
+                            let file = dir.join(format!("{}.{ext}", album_id(t)));
+                            if !file.exists() {
+                                let _ = std::fs::write(file, bytes);
+                            }
                         }
-                    }
-                },
-            );
-            let saved = Persisted {
-                folders: folders.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
-                tracks: result.tracks.clone(),
-                bookmarks,
-            };
-            if let Some(p) = index_path(&app) {
-                // Best effort: a failed write only means the next launch starts from an older index.
-                let _ = hifi_engine::store::save_json(&p, &saved);
+                    },
+                );
+                let again = {
+                    let mut g = lib.0.lock().unwrap();
+                    g.albums = Arc::new(group_albums(&result.tracks));
+                    g.tracks = Arc::new(result.tracks);
+                    g.failed = result.failed;
+                    g.revision += 1;
+                    let again = std::mem::take(&mut g.again);
+                    g.progress = again.then_some((0, 0));
+                    again
+                };
+                lib.save(&app);
+                if !again {
+                    break;
+                }
             }
-            let mut g = lib.0.lock().unwrap();
-            g.albums = Arc::new(group_albums(&result.tracks));
-            g.tracks = Arc::new(result.tracks);
-            g.failed = result.failed;
-            g.progress = None;
-            g.revision += 1;
         });
     }
 
@@ -211,6 +263,8 @@ impl Library {
         let g = self.0.lock().unwrap();
         LibraryStatus {
             folders: g.folders.clone(),
+            skipped: g.skipped.clone(),
+            fixed: g.fixed.clone(),
             scanning: g.progress,
             albums: g.albums.len(),
             tracks: g.tracks.len(),
@@ -368,31 +422,99 @@ pub fn library_tracks(lib: State<'_, Library>) -> Vec<TrackDto> {
         .collect()
 }
 
+impl Library {
+    fn add_folder(&self, app: AppHandle, path: String) -> LibraryStatus {
+        {
+            let mut g = self.0.lock().unwrap();
+            if !g.folders.contains(&path) {
+                // Made now, while the open panel's permission is live: the only moment it can be.
+                if let Some(b) = crate::bookmarks::create(&path) {
+                    g.bookmarks.insert(path.clone(), b);
+                }
+                g.folders.push(path.clone());
+            }
+            // Adding a folder asks for it to be scanned: it can't stay skipped as well.
+            g.skipped.retain(|s| *s != path);
+        }
+        self.changed(app)
+    }
+}
+
 #[tauri::command]
 pub fn library_add_folder(app: AppHandle, lib: State<'_, Library>, path: String) -> LibraryStatus {
+    lib.add_folder(app, path)
+}
+
+/// Android: choose a folder in the system's own picker and add it to the library. None: the
+/// picker was closed without a choice. Files are then read by path under the audio
+/// permission, so a folder that isn't on the phone's storage or a card (a cloud drive) is
+/// refused.
+#[tauri::command(async)]
+pub fn library_pick_folder(app: AppHandle, lib: State<'_, Library>) -> Result<Option<LibraryStatus>, UserError> {
+    #[cfg(target_os = "android")]
     {
-        let mut g = lib.0.lock().unwrap();
-        if !g.folders.contains(&path) {
-            // Made now, while the open panel's permission is live: the only moment it can be.
-            if let Some(b) = crate::bookmarks::create(&path) {
-                g.bookmarks.insert(path.clone(), b);
-            }
-            g.folders.push(path);
-        }
+        let Some(uri) = crate::android_media::pick_folder() else { return Ok(None) };
+        let path = crate::android_media::storage_root()
+            .and_then(|root| crate::folders::tree_uri_path(&uri, Path::new(&root)))
+            .filter(|p| p.is_dir())
+            .ok_or(UserError::FolderNotOnDevice)?;
+        Ok(Some(lib.add_folder(app, path.to_string_lossy().into_owned())))
     }
-    lib.rescan(app);
-    lib.status()
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, lib);
+        Ok(None)
+    }
 }
 
 #[tauri::command]
 pub fn library_remove_folder(app: AppHandle, lib: State<'_, Library>, path: String) -> LibraryStatus {
     {
         let mut g = lib.0.lock().unwrap();
+        // A phone's own folders stay; they can be skipped instead.
+        if g.fixed.contains(&path) {
+            drop(g);
+            return lib.status();
+        }
         g.folders.retain(|f| *f != path);
         g.bookmarks.remove(&path);
+        let Inner { skipped, folders, .. } = &mut *g;
+        crate::folders::drop_orphans(skipped, folders);
     }
-    lib.rescan(app);
-    lib.status()
+    lib.changed(app)
+}
+
+/// Leave a folder, with everything in it, out of the library.
+#[tauri::command]
+pub fn library_skip_folder(app: AppHandle, lib: State<'_, Library>, path: String) -> LibraryStatus {
+    {
+        let mut g = lib.0.lock().unwrap();
+        if !g.skipped.contains(&path) {
+            g.skipped.push(path);
+        }
+    }
+    lib.changed(app)
+}
+
+/// Scan a skipped folder again.
+#[tauri::command]
+pub fn library_unskip_folder(app: AppHandle, lib: State<'_, Library>, path: String) -> LibraryStatus {
+    lib.0.lock().unwrap().skipped.retain(|s| *s != path);
+    lib.changed(app)
+}
+
+/// The folders holding library tracks right inside `path`, or the library's own folders when
+/// there is none: what "Skip a folder" lets the user walk through.
+#[tauri::command(async)]
+pub fn library_subfolders(lib: State<'_, Library>, path: Option<String>) -> Vec<crate::folders::Subfolder> {
+    let (tracks, folders) = {
+        let g = lib.0.lock().unwrap();
+        (g.tracks.clone(), g.folders.clone())
+    };
+    match path {
+        Some(p) => crate::folders::subfolders(&tracks, Path::new(&p)),
+        None => crate::folders::roots(&tracks, &folders),
+    }
 }
 
 #[tauri::command]

@@ -14,6 +14,7 @@ mod linux_media;
 mod bookmarks;
 mod crash;
 mod eq;
+mod folders;
 mod library;
 mod loudness;
 mod lyrics;
@@ -1477,6 +1478,10 @@ pub fn run() {
             library::library_tracks,
             library::library_add_folder,
             library::library_remove_folder,
+            library::library_pick_folder,
+            library::library_skip_folder,
+            library::library_unskip_folder,
+            library::library_subfolders,
             library::library_rescan,
             library::import_files,
             library::edit_tags,

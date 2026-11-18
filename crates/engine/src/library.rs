@@ -208,19 +208,28 @@ fn alac_bit_depth(cookie: &[u8]) -> Option<u32> {
 
 /// All audio files under `folders`, recursively, skipping hidden entries.
 pub fn find_audio_files(folders: &[PathBuf]) -> Vec<PathBuf> {
-    find_files(folders).0
+    find_files(folders, &[]).0
 }
 
-/// All audio files and CUE sheets under `folders`, recursively, skipping hidden entries.
-fn find_files(folders: &[PathBuf]) -> (Vec<PathBuf>, Vec<PathBuf>) {
-    fn walk(dir: &Path, audio: &mut Vec<PathBuf>, sheets: &mut Vec<PathBuf>) {
+/// All audio files and CUE sheets under `folders`, recursively, skipping hidden entries and
+/// the `skip` folders with everything in them.
+///
+/// The walk never enters a folder that is on the skip list, so the nearest listed folder
+/// decides: a folder added inside a skipped one is scanned (it is walked as a root of its
+/// own), a folder skipped inside that one is not. A folder on both lists is skipped.
+fn find_files(folders: &[PathBuf], skip: &[PathBuf]) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    fn walk(dir: &Path, skip: &[PathBuf], audio: &mut Vec<PathBuf>, sheets: &mut Vec<PathBuf>) {
+        // `Path` compares by components: "/a/b/" and "/a/b" are the same folder, "/a/bc" is not.
+        if skip.iter().any(|s| s == dir) {
+            return;
+        }
         let Ok(entries) = std::fs::read_dir(dir) else { return };
         for p in entries.filter_map(|e| e.ok().map(|e| e.path())) {
             if p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with('.')) {
                 continue;
             }
             if p.is_dir() {
-                walk(&p, audio, sheets);
+                walk(&p, skip, audio, sheets);
             } else if is_audio(&p) {
                 audio.push(p);
             } else if crate::cue::is_sheet(&p) {
@@ -230,13 +239,18 @@ fn find_files(folders: &[PathBuf]) -> (Vec<PathBuf>, Vec<PathBuf>) {
     }
     let (mut audio, mut sheets) = (Vec::new(), Vec::new());
     for f in folders {
-        walk(f, &mut audio, &mut sheets);
+        walk(f, skip, &mut audio, &mut sheets);
     }
     for v in [&mut audio, &mut sheets] {
         v.sort();
         v.dedup();
     }
     (audio, sheets)
+}
+
+/// The file a library path reads: itself, or the image a CUE or SACD track is part of.
+pub fn file_of(path: &str) -> &str {
+    crate::sacd::split(crate::cue::split(path).0).0
 }
 
 /// The tracks a CUE sheet makes of one image file: the image's stream parameters and tags,
@@ -275,16 +289,19 @@ pub struct ScanResult {
     pub failed: Vec<(String, String)>,
 }
 
-/// Scan `folders`, reusing entries from `previous` whose size and mtime are unchanged.
+/// Scan `folders` without the `skip` ones (see [`find_files`] for how the two lists meet),
+/// reusing entries from `previous` whose size and mtime are unchanged. A track that was in
+/// `previous` and now sits in a skipped folder is simply not in the result.
 /// Runs on all cores. `on_progress(done, total)` is called as files complete; `on_cover` gets
 /// the embedded artwork of each newly scanned file that has one.
 pub fn scan(
     folders: &[PathBuf],
+    skip: &[PathBuf],
     previous: &[TrackInfo],
     on_progress: impl Fn(usize, usize) + Sync,
     on_cover: impl Fn(&TrackInfo, Cover) + Sync,
 ) -> ScanResult {
-    let (files, sheets) = find_files(folders);
+    let (files, sheets) = find_files(folders, skip);
     // Albums ripped to one file with a CUE sheet: the file gives way to the sheet's tracks.
     let images = crate::cue::images(&files, &sheets);
     let files: Vec<PathBuf> = files.into_iter().filter(|f| !images.iter().any(|i| &i.file == f)).collect();
@@ -580,7 +597,7 @@ mod tests {
         let sheet = "PERFORMER \"Band\"\nTITLE \"Record\"\nREM DATE 2001\nFILE \"Image_CD.wav\" WAVE\n TRACK 01 AUDIO\n  TITLE \"One\"\n  INDEX 01 00:00:00\n TRACK 02 AUDIO\n  TITLE \"Two\"\n  PERFORMER \"Guest\"\n  INDEX 00 00:03:00\n  INDEX 01 00:04:00\n";
         std::fs::write(dir.join("Cue.cue"), sheet).unwrap();
         std::fs::write(dir.join("Cue_RepG.cue"), sheet).unwrap();
-        let r = scan(std::slice::from_ref(&dir), &[], |_, _| {}, |_, _| {});
+        let r = scan(std::slice::from_ref(&dir), &[], &[], |_, _| {}, |_, _| {});
         assert!(r.failed.is_empty(), "{:?}", r.failed);
         let ts = &r.tracks;
         assert_eq!(ts.iter().map(|t| t.title.as_str()).collect::<Vec<_>>(), ["One", "Two"]);
@@ -597,6 +614,128 @@ mod tests {
         assert!(t.wait_for(usize::MAX, std::time::Duration::from_secs(10)));
         assert_eq!(t.frames(), 6 * 44_100);
         assert_eq!(t.meta.title.as_deref(), Some("Two"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A fresh folder under the temp dir holding these files (short WAVs), by relative path.
+    fn tree(name: &str, files: &[&str]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("bitspring-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        for f in files {
+            let p = dir.join(f);
+            std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+            crate::decode::tests::ramp_wav(&p, 44_100, 4_410);
+        }
+        dir
+    }
+
+    /// What a scan found, as paths relative to `root`, sorted.
+    fn found(root: &Path, folders: &[PathBuf], skip: &[PathBuf], previous: &[TrackInfo]) -> (Vec<String>, ScanResult) {
+        let r = scan(folders, skip, previous, |_, _| {}, |_, _| {});
+        assert!(r.failed.is_empty(), "{:?}", r.failed);
+        let mut names: Vec<String> = r
+            .tracks
+            .iter()
+            .map(|t| Path::new(&t.path).strip_prefix(root).unwrap().to_string_lossy().replace('\\', "/"))
+            .collect();
+        names.sort();
+        (names, r)
+    }
+
+    #[test]
+    fn a_skipped_folder_is_left_out_with_everything_in_it() {
+        let dir = tree("skip-nested", &["a.wav", "Rec/b.wav", "Rec/Calls/c.wav", "Rec/Calls/2024/d.wav", "Recordings/e.wav"]);
+        let roots = [dir.clone()];
+        assert_eq!(found(&dir, &roots, &[], &[]).0.len(), 5);
+        // Everything under Rec goes, at any depth; a folder that only starts with the same
+        // letters stays.
+        assert_eq!(found(&dir, &roots, &[dir.join("Rec")], &[]).0, ["Recordings/e.wav", "a.wav"]);
+        // The same folder written with a trailing slash.
+        let slashed = PathBuf::from(format!("{}/", dir.join("Rec").display()));
+        assert_eq!(found(&dir, &roots, &[slashed], &[]).0, ["Recordings/e.wav", "a.wav"]);
+        // Only the inner folder.
+        assert_eq!(found(&dir, &roots, &[dir.join("Rec/Calls")], &[]).0, ["Rec/b.wav", "Recordings/e.wav", "a.wav"]);
+        // A skipped folder that isn't there (or holds no music) changes nothing.
+        assert_eq!(found(&dir, &roots, &[dir.join("Nope"), PathBuf::from("/nowhere/at/all")], &[]).0.len(), 5);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_folder_added_inside_a_skipped_one_is_scanned() {
+        let dir = tree("skip-inside", &["a.wav", "Rec/b.wav", "Rec/Live/c.wav", "Rec/Live/Bad/d.wav", "Rec/Live/Good/e.wav"]);
+        // Music, without Rec, but with Rec/Live, without Rec/Live/Bad: the nearest listed
+        // folder decides for each file.
+        let (names, _) = found(&dir, &[dir.clone(), dir.join("Rec/Live")], &[dir.join("Rec"), dir.join("Rec/Live/Bad")], &[]);
+        assert_eq!(names, ["Rec/Live/Good/e.wav", "Rec/Live/c.wav", "a.wav"]);
+        // An added folder inside another added one brings no file twice.
+        assert_eq!(found(&dir, &[dir.clone(), dir.join("Rec/Live")], &[], &[]).0.len(), 5);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_folder_on_both_lists_is_skipped() {
+        let dir = tree("skip-both", &["Music/a.wav", "Music/Albums/b.wav", "Own/c.wav"]);
+        // How a phone turns off a built-in folder: it can't be removed, only skipped.
+        let roots = [dir.join("Music"), dir.join("Own")];
+        assert_eq!(found(&dir, &roots, &[dir.join("Music")], &[]).0, ["Own/c.wav"]);
+        // …and still take one album folder out of it.
+        let roots = [dir.join("Music"), dir.join("Own"), dir.join("Music/Albums")];
+        assert_eq!(found(&dir, &roots, &[dir.join("Music")], &[]).0, ["Music/Albums/b.wav", "Own/c.wav"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn folders_on_separate_volumes_keep_their_own_skips() {
+        // Two trees with nothing in common above them, like internal storage and a memory card.
+        let phone = tree("skip-phone", &["Music/a.wav", "Music/Ringtones/b.wav"]);
+        let card = tree("skip-card", &["Albums/c.wav", "Albums/Podcasts/d.wav", "Ringtones/e.wav"]);
+        let roots = [phone.join("Music"), card.join("Albums")];
+        let all = scan(&roots, &[], &[], |_, _| {}, |_, _| {});
+        assert_eq!(all.tracks.len(), 4, "the card's Ringtones was never added");
+        let r = scan(&roots, &[card.join("Albums/Podcasts")], &[], |_, _| {}, |_, _| {});
+        let mut names: Vec<&str> = r.tracks.iter().map(|t| Path::new(&t.path).file_name().unwrap().to_str().unwrap()).collect();
+        names.sort();
+        assert_eq!(names, ["a.wav", "b.wav", "c.wav"]);
+        // A skip on one volume says nothing about a folder of the same name on the other.
+        let r = scan(&roots, &[card.join("Music/Ringtones"), phone.join("Albums/Podcasts")], &[], |_, _| {}, |_, _| {});
+        assert_eq!(r.tracks.len(), 4);
+        // A volume that is gone (card pulled out) costs only its own tracks.
+        let r = scan(&[phone.join("Music"), PathBuf::from("/storage/0000-0000/Albums")], &[phone.join("Music/Ringtones")], &all.tracks, |_, _| {}, |_, _| {});
+        assert_eq!(r.tracks.len(), 1);
+        std::fs::remove_dir_all(&phone).unwrap();
+        std::fs::remove_dir_all(&card).unwrap();
+    }
+
+    #[test]
+    fn a_rescan_drops_newly_skipped_tracks_and_brings_them_back() {
+        let dir = tree("skip-rescan", &["a.wav", "Calls/b.wav", "Calls/c.wav"]);
+        let roots = [dir.clone()];
+        let (_, first) = found(&dir, &roots, &[], &[]);
+        // What the library knew before: marked, to tell a kept entry from a fresh read.
+        let mut before = first.tracks.clone();
+        for t in &mut before {
+            t.title = format!("known {}", t.title);
+        }
+        let (names, second) = found(&dir, &roots, &[dir.join("Calls")], &before);
+        assert_eq!(names, ["a.wav"]);
+        assert!(second.tracks[0].title.starts_with("known "), "an untouched file is not read again");
+        // Skip lifted: the folder is back, read from the files (the library forgot it).
+        let (names, third) = found(&dir, &roots, &[], &second.tracks);
+        assert_eq!(names, ["Calls/b.wav", "Calls/c.wav", "a.wav"]);
+        assert_eq!(third.tracks.iter().filter(|t| t.title.starts_with("known ")).count(), 1);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_skipped_folder_takes_its_cue_image_along() {
+        let dir = tree("skip-image", &["a.wav", "Rip/Image.wav"]);
+        std::fs::write(dir.join("Rip/Image.cue"), "FILE \"Image.wav\" WAVE\n TRACK 01 AUDIO\n  TITLE \"One\"\n  INDEX 01 00:00:00\n TRACK 02 AUDIO\n  TITLE \"Two\"\n  INDEX 01 00:00:03\n").unwrap();
+        let r = scan(std::slice::from_ref(&dir), &[], &[], |_, _| {}, |_, _| {});
+        assert_eq!(r.tracks.len(), 3);
+        let image = r.tracks.iter().find(|t| t.title == "One").unwrap();
+        assert_eq!(Path::new(file_of(&image.path)), dir.join("Rip/Image.wav"));
+        let (names, _) = found(&dir, std::slice::from_ref(&dir), &[dir.join("Rip")], &r.tracks);
+        assert_eq!(names, ["a.wav"]);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

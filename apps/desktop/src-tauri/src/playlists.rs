@@ -548,3 +548,53 @@ pub fn playlist_export(
     std::fs::write(&dest, text).map_err(|e| UserError::WriteFailed { detail: e.to_string() })?;
     Ok(dest.to_string_lossy().into_owned())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Skipping a folder takes its tracks out of the library, not out of playlists: an entry
+    /// is a file path with its own title, and plays as long as the file is there.
+    #[test]
+    fn a_track_from_a_skipped_folder_stays_in_its_playlist() {
+        let dir = std::env::temp_dir().join(format!("bitspring-skipped-playlist-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("Podcasts")).unwrap();
+        let file = dir.join("Podcasts/episode.flac");
+        std::fs::write(&file, b"not really audio").unwrap();
+        let entry = |uri: String, title: &str| PlaylistEntry { uri: Some(uri), title: title.into(), ..Default::default() };
+        let mut entries = vec![
+            entry(file.to_string_lossy().into_owned(), "Episode 12"),
+            entry(dir.join("Podcasts/deleted.flac").to_string_lossy().into_owned(), "Gone"),
+        ];
+        // The library after the rescan: Podcasts is skipped, one other track is left.
+        let library = [TrackInfo {
+            path: dir.join("song.flac").to_string_lossy().into_owned(),
+            title: "Song".into(),
+            artist: None,
+            album_artist: None,
+            album: None,
+            genre: None,
+            year: None,
+            track_number: None,
+            disc_number: None,
+            duration: 100.0,
+            sample_rate: 44_100,
+            bits: Some(16),
+            channels: 2,
+            format: "FLAC".into(),
+            lossless: true,
+            has_cover: false,
+            size: 0,
+            mtime: 0,
+        }];
+        assert!(!heal(&mut entries, &library), "nothing in the library to swap the entries for");
+        let p = Playlist { id: "p".into(), name: "Mix".into(), created: 0, updated: 0, entries, smart: None };
+        let shown = dto(&p, &known(&library));
+        assert_eq!(shown.entries.len(), 2);
+        assert_eq!((shown.entries[0].entry.title.as_str(), shown.entries[0].available), ("Episode 12", true));
+        assert_eq!(shown.entries[0].entry.uri.as_deref(), Some(file.to_string_lossy().as_ref()));
+        // A file that is really gone is marked, as before.
+        assert!(!shown.entries[1].available);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+}

@@ -70,6 +70,9 @@ pub enum UserError {
     CopyFailed { name: String, detail: String },
     /// iOS: the app has no folder to keep music in.
     NoAppFolder,
+    /// Android: the folder chosen in the system's picker has no path on the phone's storage
+    /// or a memory card (a cloud drive, another app's files), so it can't be scanned.
+    FolderNotOnDevice,
     /// The playlist isn't there (deleted elsewhere).
     PlaylistNotFound,
     /// A playlist file or pasted text couldn't be read or understood.
@@ -178,6 +181,7 @@ impl fmt::Display for UserError {
             ),
             CopyFailed { name, detail } => write!(f, "couldn't copy {name}: {detail}"),
             NoAppFolder => write!(f, "the app has no music folder"),
+            FolderNotOnDevice => write!(f, "this folder isn't on the device's storage or a memory card"),
             PlaylistNotFound => write!(f, "playlist not found"),
             PlaylistUnreadable { detail } => write!(f, "couldn't read the playlist: {detail}"),
             PlaylistNoTracks => write!(f, "the playlist has no tracks"),
