@@ -460,7 +460,7 @@ mod images {
     #[ignore]
     fn cue_tracks_of_an_image() {
         let dir = std::path::PathBuf::from(std::env::var("BITSPRING_CUE_FOLDER").expect("BITSPRING_CUE_FOLDER"));
-        let r = crate::library::scan(std::slice::from_ref(&dir), &[], |_, _| {}, |_, _| {});
+        let r = crate::library::scan(std::slice::from_ref(&dir), &[], &[], |_, _| {}, |_, _| {});
         assert!(r.failed.is_empty(), "{:?}", r.failed);
         for t in &r.tracks {
             eprintln!("{} | {} | {:?} | {:.1} s", t.path.rsplit('/').next().unwrap(), t.title, t.artist, t.duration);

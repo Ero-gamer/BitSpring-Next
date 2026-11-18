@@ -4,7 +4,7 @@ use std::time::Instant;
 
 fn main() {
     let args: Vec<PathBuf> = std::env::args().skip(1).map(PathBuf::from).collect();
-    let r = hifi_engine::library::scan(&args, &[], |_, _| {}, |_, _| {});
+    let r = hifi_engine::library::scan(&args, &[], &[], |_, _| {}, |_, _| {});
     for t in &r.tracks {
         let t0 = Instant::now();
         match hifi_engine::quality::analyze(std::path::Path::new(&t.path)) {
