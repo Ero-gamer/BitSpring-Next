@@ -79,14 +79,17 @@ pub fn handle(app: &AppHandle, conn: &mut TcpStream, req: &http::Request, path: 
                 json_response(conn, "200 OK", &json!({ "ok": true }))?;
             }
             None if COMMANDS.contains(&name) => refuse(conn, "400 Bad Request", "the command's values are missing or out of range")?,
-            None => refuse(conn, "404 Not Found", "no such command")?,
+            None if READS.contains(&name) || name.starts_with("cover/") => refuse(conn, "405 Method Not Allowed", "this address is read with GET")?,
+            None => refuse(conn, "404 Not Found", "no such address")?,
         },
-        (_, "info" | "state" | "queue" | "library" | "volume" | "events") => refuse(conn, "405 Method Not Allowed", "wrong method")?,
+        (_, name) if COMMANDS.contains(&name) || READS.contains(&name) => refuse(conn, "405 Method Not Allowed", "wrong method")?,
         _ => refuse(conn, "404 Not Found", "no such address")?,
     }
     Ok(())
 }
 
+/// What is read (with GET).
+const READS: [&str; 6] = ["info", "state", "queue", "library", "volume", "events"];
 const COMMANDS: [&str; 12] = ["play", "pause", "toggle", "next", "previous", "stop", "seek", "shuffle", "repeat", "queue/jump", "queue/play", "queue/add"];
 
 /// A command of the API as the one the window understands (see `remote::checked`, which
