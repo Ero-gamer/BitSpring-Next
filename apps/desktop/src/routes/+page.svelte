@@ -17,6 +17,8 @@
   import CrashNotice from "$lib/CrashNotice.svelte";
   import RemoteButton from "$lib/RemoteButton.svelte";
   import { loadRemote } from "$lib/remote.svelte";
+  import { abx } from "$lib/abx.svelte";
+  import AbxDialog from "$lib/AbxDialog.svelte";
   import { startUpdateChecks } from "$lib/updates.svelte";
   import { look } from "$lib/look.svelte";
   import { fade } from "svelte/transition";
@@ -348,6 +350,26 @@
     else await playIndex(index > 0 ? index - 1 : queue.length - 1);
   }
 
+  /** What a blind test interrupted: it plays on from there when the test is closed. */
+  let interrupted: { path: string; index: number; position: number; paused: boolean } | null = null;
+  $effect(() => {
+    if (!abx.request) return;
+    untrack(() => {
+      const playing = status.active && !status.finished && !testing && index >= 0 && index < queue.length;
+      interrupted = playing ? { path: queue[index], index, position: status.position, paused: status.paused } : null;
+    });
+  });
+
+  async function endAbx() {
+    const was = interrupted;
+    interrupted = null;
+    abx.request = null;
+    await api.abxStop().catch(() => {});
+    // (Closed before the test had taken the output: the music never stopped.)
+    if (!was || queue[was.index] !== was.path || (await api.status()).active) return;
+    await playIndex(was.index, was.position, was.paused);
+  }
+
   async function channelTest() {
     try {
       const signal = await api.channelTest(selected);
@@ -472,6 +494,8 @@
   });
 
   function onKey(e: KeyboardEvent) {
+    // A blind test is open: the keys are its own.
+    if (abx.request) return;
     const t = e.target as HTMLElement;
     // Handled already (an EQ band moved by the arrow keys), or typing in a field.
     if (e.defaultPrevented || t.tagName === "SELECT" || t.tagName === "TEXTAREA") return;
@@ -559,10 +583,19 @@
       import("@tauri-apps/api/event").then(async ({ listen }) => {
         unlistenRemote = await listen<RemoteCommand>("remote", ({ payload: c }) => {
           if (c.kind === "toggle") togglePause();
-          else if (c.kind === "next") next();
+          // (The API's own: play and pause that say which, and stop.)
+          else if (c.kind === "resume") {
+            if (!status.active) togglePause();
+            else if (status.paused) api.setPaused(false);
+          } else if (c.kind === "pause") {
+            if (status.active && !status.paused) api.setPaused(true);
+          } else if (c.kind === "stop") {
+            api.stop();
+            now = null;
+          } else if (c.kind === "next") next();
           else if (c.kind === "prev") prev();
-          else if (c.kind === "shuffle") setShuffle(!shuffle);
-          else if (c.kind === "repeat") repeat = nextRepeat(repeat);
+          else if (c.kind === "shuffle") setShuffle(c.on ?? !shuffle);
+          else if (c.kind === "repeat") repeat = c.mode ?? nextRepeat(repeat);
           else if (c.kind === "seek") api.seek(c.secs);
           else if (c.kind === "jump") playIndex(c.index);
           else if (c.kind === "play") playPaths(c.paths, c.index);
@@ -617,7 +650,7 @@
       <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} data-label={t("nav.eq")} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
     </nav>
     <div class="controls">
-      <Enhancers settings={dsp} {eqName} {ir} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
+      <Enhancers settings={dsp} {eqName} {ir} track={now && !testing ? { path: now.path, title: now.title } : null} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
       <DevicePicker {devices} bind:selected bind:exclusive bind:dopDevices onrefresh={() => refreshDevices(true)} onchanneltest={channelTest} />
       <RemoteButton />
       <button class="trigger gear" class:open={screen === "settings"} onclick={toggleSettings} aria-pressed={screen === "settings"} aria-label={t("settings.label")} title={t("settings.label")}>
@@ -830,6 +863,9 @@
   </nav>
 
   <UpdateNotice playing={status.active && !status.paused} />
+  {#if abx.request}
+    <AbxDialog request={abx.request} device={selected} {exclusive} onclose={endAbx} />
+  {/if}
   <CrashNotice />
 
   {#if dragOver}

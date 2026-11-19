@@ -2,6 +2,7 @@
 //!
 //! UI-agnostic: the CLI, the Tauri desktop app and (later) the phone remote all drive it.
 
+pub mod abx;
 pub mod channels;
 pub mod cue;
 pub mod decode;
@@ -18,6 +19,7 @@ pub mod player;
 pub mod playlist;
 pub mod quality;
 pub mod rate;
+pub mod ripcheck;
 pub mod sacd;
 pub mod smart;
 pub mod ring;

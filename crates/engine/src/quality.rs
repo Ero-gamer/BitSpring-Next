@@ -348,13 +348,25 @@ fn correlation(a: &[f32], b: &[f32]) -> f32 {
 /// Check one file (or CUE track) of the library. Decodes it all, off the realtime path, at
 /// whatever speed the disk and CPU allow: a few seconds for a long hi-res track.
 pub fn analyze(path: &Path) -> Result<Report> {
+    Ok(analyze_with(path, false)?.0)
+}
+
+/// [`analyze`], and in the same pass over the audio — when `measure` asks for it — its
+/// loudness and dynamic range (see [`crate::dsp::loudness`]).
+pub fn analyze_with(path: &Path, measure: bool) -> Result<(Report, Option<crate::dsp::loudness::Measured>)> {
+    use crate::dsp::loudness::Meter;
     let p = path.to_string_lossy();
     let file = crate::source_file(&p);
+    let track = crate::open_file(path, crate::dsd::DsdMode::Pcm)?;
+    let mut meter = measure.then(|| Meter::new(track.sample_rate, track.channels, &track.layout));
     if crate::dsd::is_dsd_path(Path::new(file)) {
-        let t = crate::open_file(path, crate::dsd::DsdMode::Pcm)?;
-        return Ok(Report {
+        // (Nothing to check, but its loudness is measured as what it converts to.)
+        if let Some(m) = &mut meter {
+            read_all(&track, |s| m.push(s))?;
+        }
+        let report = Report {
             verdict: Verdict::Dsd,
-            sample_rate: t.dsd.map_or(t.sample_rate, |d| d.rate),
+            sample_rate: track.dsd.map_or(track.sample_rate, |d| d.rate),
             bits: Some(1),
             effective_bits: None,
             cutoff_hz: None,
@@ -363,16 +375,21 @@ pub fn analyze(path: &Path) -> Result<Report> {
             peak_db: 0.0,
             clipped: 0,
             analysed_secs: 0.0,
-        });
+        };
+        return Ok((report, meter.map(Meter::finish)));
     }
-    let track = crate::open_file(path, crate::dsd::DsdMode::Pcm)?;
     let mut a = Analyzer::new(track.sample_rate, track.channels, track.bits_per_sample);
-    read_all(&track, |s| a.push(s))?;
+    read_all(&track, |s| {
+        a.push(s);
+        if let Some(m) = &mut meter {
+            m.push(s);
+        }
+    })?;
     let mut report = a.finish();
     if track.lossy {
         report.verdict = Verdict::Lossy;
     }
-    Ok(report)
+    Ok((report, meter.map(Meter::finish)))
 }
 
 /// Every decoded sample of `track`, in order, as the decoder delivers them.

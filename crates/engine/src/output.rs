@@ -424,6 +424,10 @@ struct Slots {
     /// A seek: the frame, and the track it is for (ignored if that track no longer plays).
     seek_req: AtomicUsize,
     seek_track: AtomicPtr<Track>,
+    /// A track to carry on with in place of the one playing, at the same position (see
+    /// `Playback::swap`). Taken by the side that reads the source, which moves it to `cur`
+    /// and `heard`.
+    swap: AtomicPtr<Track>,
 }
 
 fn ptr(t: &Arc<Track>) -> *mut Track {
@@ -565,6 +569,7 @@ impl Playback {
             switches: AtomicU64::new(0),
             seek_req: AtomicUsize::new(NO_SEEK),
             seek_track: AtomicPtr::new(std::ptr::null_mut()),
+            swap: AtomicPtr::new(std::ptr::null_mut()),
         });
         let (ring, render) = if plan.processing {
             // The chain works on the program: the track's channels, or the speakers it is
@@ -664,12 +669,13 @@ impl Playback {
     fn tidy(&self) -> (std::sync::MutexGuard<'_, Vec<Arc<Track>>>, [*mut Track; 3]) {
         let mut tracks = self.tracks.lock().unwrap_or_else(|p| p.into_inner());
         let s = &self.shared.slots;
-        // next → cur → heard: the order tracks move in, so one moving while we read is seen
-        // in its old slot or its new one.
+        // next (or swap) → cur → heard: the order tracks move in, so one moving while we read
+        // is seen in its old slot or its new one.
+        let swap = s.swap.load(Ordering::Acquire);
         let next = s.next.load(Ordering::Acquire);
         let cur = s.cur.load(Ordering::Acquire);
         let heard = s.heard.load(Ordering::Acquire);
-        tracks.retain(|t| [next, cur, heard].contains(&ptr(t)));
+        tracks.retain(|t| [swap, next, cur, heard].contains(&ptr(t)));
         (tracks, [heard, cur, next])
     }
 
@@ -740,6 +746,31 @@ impl Playback {
         {
             return false;
         }
+        true
+    }
+
+    /// Carry on with `track` in place of the one being heard, from the same position: what
+    /// a blind comparison switches with. The old sound fades out and the new one in (see
+    /// [`PlayOptions::fades`]), a few milliseconds each — and exactly the same way when
+    /// `track` is the one already playing, so that nothing about a switch tells whether the
+    /// track changed. False when this playback can't: the two differ in rate or channels (the
+    /// device would have to switch), it is DoP, or a following track is already on its way.
+    pub fn swap(&self, track: Arc<Track>) -> bool {
+        let (mut tracks, [heard, cur, _]) = self.tidy();
+        if cur != heard || self.shared.dop || track.is_dop() {
+            return false;
+        }
+        // SAFETY: `heard` is owned by `tracks`, which we hold locked.
+        let now = unsafe { &*heard };
+        if now.sample_rate != track.sample_rate || now.channels != track.channels || now.layout != track.layout {
+            return false;
+        }
+        let p = ptr(&track);
+        if !tracks.iter().any(|t| ptr(t) == p) {
+            tracks.push(track);
+        }
+        // (One it replaces, if still waiting, is freed by the next tidy.)
+        self.shared.slots.swap.store(p, Ordering::Release);
         true
     }
 
@@ -907,6 +938,47 @@ impl Drop for Playback {
     }
 }
 
+/// What `track` (whole in memory) sounds like through `dsp` at its own rate, as interleaved
+/// samples: the live path itself — the render thread, and the callback with its equaliser —
+/// pulled as fast as it runs instead of by a device's clock. No fades, no device, nothing
+/// heard. (For comparing the processing blind: see [`crate::abx`].)
+pub(crate) fn render_offline(track: Arc<Track>, dsp: &DspSettings) -> Result<Vec<f32>> {
+    let rate = track.sample_rate as f64;
+    let ch = track.channels;
+    let opts = PlayOptions { exclusive: true, dsp: dsp.clone(), start_at: 0.0, start_paused: false, fades: false };
+    let plan = Plan {
+        target: rate,
+        start_frame: 0,
+        lossy: crate::dsp::lossy::plan(&track, &opts.dsp.lossy),
+        resampled: false,
+        processing: true,
+        dop: false,
+        route: Route::new(&track.layout, &track.layout),
+    };
+    let p = Playback::new(track.clone(), &opts, &plan, rate)?;
+    let rs = p.shared.ring.as_ref().expect("a processing playback has a ring");
+    const FRAMES: usize = 4096;
+    let mut data = vec![0u8; FRAMES * ch * 4];
+    let mut out: Vec<f32> = Vec::with_capacity(track.frames() * ch);
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // A full buffer, or all there will be.
+        while rs.ring.available() < FRAMES * ch && !rs.render_done.load(Ordering::Acquire) {
+            if Instant::now() > deadline {
+                bail!("processing stalled");
+            }
+            std::thread::sleep(Duration::from_micros(200));
+        }
+        let done = rs.render_done.load(Ordering::Acquire) && rs.ring.available() < FRAMES * ch;
+        let got = p.shared.render(&mut [OutBuf { data: &mut data, channels: ch, format: OutFormat::F32 }]);
+        out.extend(data[..got * ch * 4].chunks_exact(4).map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]])));
+        if done && rs.ring.available() == 0 {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 /// The render thread: pulls source audio from RAM, runs the processing chain, keeps the ring
 /// topped up. Not realtime — it may sleep, and only has to stay ahead of the DAC on average.
 ///
@@ -955,6 +1027,36 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
                 }
                 std::thread::sleep(Duration::from_millis(1));
             }
+            continue;
+        }
+        let swap = slots.swap.load(Ordering::Acquire);
+        if !swap.is_null() {
+            // Carry on with another track from where this one is heard now: what the device
+            // has played of the current stretch, in source frames.
+            let at = rs.base_frame.load(Ordering::Relaxed) as f64 + rs.played.load(Ordering::Relaxed) as f64 * rs.source_rate / rs.device_rate;
+            // Store the new slot before clearing the old one (see `Slots`).
+            slots.cur.store(swap, Ordering::Release);
+            let _ = slots.swap.compare_exchange(swap, std::ptr::null_mut(), Ordering::AcqRel, Ordering::Relaxed);
+            cur = swap;
+            // SAFETY: just stored in a slot, so the Playback owns it.
+            src = (at.round() as usize).min(unsafe { &*cur }.frames());
+            stretch = src;
+            flushed = false;
+            rs.tail_out.store(false, Ordering::Release);
+            chain.reset();
+            out.clear();
+            sent = 0;
+            rs.render_done.store(false, Ordering::Release);
+            rs.base_frame.store(src, Ordering::Relaxed);
+            let generation = rs.flush_gen.fetch_add(1, Ordering::AcqRel) + 1;
+            // As for a seek: the callback fades out what it has, then drops the rest.
+            while rs.flush_ack.load(Ordering::Acquire) != generation {
+                if rs.quit.load(Ordering::Acquire) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            slots.heard.store(swap, Ordering::Release);
             continue;
         }
 
@@ -1060,7 +1162,10 @@ impl Shared {
                 // What is about to be cut off (a pause, a jump elsewhere) fades out first.
                 // (Not for a seek meant for a track that no longer plays: nothing is cut.)
                 let jumping = seek != NO_SEEK && slots.seek_track.load(Ordering::Acquire) == cur;
-                if fade_len > 0 && sounding && level > 0 && (paused || jumping) {
+                // Another track is to carry on from here (see `Playback::swap`): this one
+                // fades out like before a jump.
+                let swap = slots.swap.load(Ordering::Acquire);
+                if fade_len > 0 && sounding && level > 0 && (paused || jumping || !swap.is_null()) {
                     // SAFETY: `cur` is in a slot, so the Playback owns it.
                     let track = unsafe { &*cur };
                     let pos = track.claim(st.pos.load(Ordering::Relaxed));
@@ -1089,6 +1194,19 @@ impl Shared {
                     // as they are.
                     if fade_len > 0 {
                         level = if seek == 0 { fade_len } else { 0 };
+                    }
+                    sounding = false;
+                }
+                if !swap.is_null() {
+                    // Store the new slots before clearing the old one (see `Slots`). The
+                    // position stays: the new track picks up where the old one stopped.
+                    slots.cur.store(swap, Ordering::Release);
+                    slots.heard.store(swap, Ordering::Release);
+                    let _ = slots.swap.compare_exchange(swap, std::ptr::null_mut(), Ordering::AcqRel, Ordering::Relaxed);
+                    cur = swap;
+                    st.finished.store(false, Ordering::Relaxed);
+                    if fade_len > 0 && was_sounding {
+                        level = 0;
                     }
                     sounding = false;
                 }
@@ -1819,6 +1937,101 @@ mod tests {
 
         fn steepest(x: &[f32]) -> f32 {
             x.windows(2).map(|w| (w[1] - w[0]).abs()).fold(0f32, f32::max)
+        }
+
+        /// A steady `level` on both channels.
+        fn steady_at(level: f32, frames: usize) -> Arc<Track> {
+            Arc::new(Track::from_samples(FS, 2, Some(24), &vec![level; frames * 2], TrackMeta::default()))
+        }
+
+        /// A blind comparison's switch on the direct path: the playing track fades out, the
+        /// other fades in from the very frame the first stopped at, and from then on its
+        /// samples go out as they are.
+        #[test]
+        fn a_swap_carries_on_with_the_other_track_at_the_same_frame() {
+            let (a, b) = (ramp(FS as usize), steady_at(0.25, FS as usize));
+            let p = playback(a.clone(), false, 0, true);
+            let first = callback(&p, 1_000);
+            assert_eq!(first[999], value(999));
+            assert!(p.swap(b.clone()));
+            let out = callback(&p, 2_000);
+            // The ramp fades out over 10 ms…
+            assert!(out[FADE - 1] == 0.0 && out[0] > 0.0);
+            // …then the other track fades in, and plays untouched.
+            assert!(out[FADE] > 0.0 && out[FADE] < 0.01);
+            assert!(out[FADE..2 * FADE].windows(2).all(|w| w[1] >= w[0]));
+            assert!(out[2 * FADE..].iter().all(|&v| v == 0.25));
+            assert!(Arc::ptr_eq(&p.heard(), &b));
+            // No frame was skipped or repeated: the position is what was played.
+            assert!((p.position_secs() - 3_000.0 / FS as f64).abs() < 1e-9);
+            // Back again: the ramp's own samples, from where the other one stopped.
+            assert!(p.swap(a.clone()));
+            let back = callback(&p, 2_000);
+            assert_eq!(back[1_999], value(3_000 + FADE + 1_999 - FADE));
+            assert!(Arc::ptr_eq(&p.heard(), &a));
+            // While paused there is nothing to fade: the switch is made at once, silently.
+            p.set_paused(true);
+            callback(&p, 1_000);
+            assert!(p.swap(b.clone()));
+            assert!(callback(&p, 100).iter().all(|&v| v == 0.0));
+            assert!(Arc::ptr_eq(&p.heard(), &b));
+            p.set_paused(false);
+            let resumed = callback(&p, 1_000);
+            assert!(resumed[0] < 0.01 && resumed[999] == 0.25);
+        }
+
+        /// Asked twice before the device wants audio, the last one asked for plays; tracks of
+        /// another rate or shape are refused. A swap to the track that already plays fades
+        /// just like one to another track: a blind test's switch must sound the same whether
+        /// or not X is what was playing.
+        #[test]
+        fn a_swap_is_refused_where_the_device_would_have_to_switch() {
+            let (a, b, c) = (steady_at(0.5, FS as usize), steady_at(0.25, FS as usize), steady_at(0.125, FS as usize));
+            let p = playback(a.clone(), false, 0, true);
+            callback(&p, 1_000);
+            assert!(p.swap(b.clone()) && p.swap(c.clone()));
+            callback(&p, 2_000);
+            assert!(Arc::ptr_eq(&p.heard(), &c));
+            assert!(p.swap(c.clone()));
+            let same = callback(&p, 2_000);
+            assert!(same[FADE - 1] == 0.0 && same[2 * FADE..].iter().all(|&v| v == 0.125), "the same fade as to another track");
+            assert!((p.position_secs() - 5_000.0 / FS as f64).abs() < 1e-9);
+            let other_rate = Arc::new(Track::from_samples(96_000, 2, Some(24), &vec![0.5; 2_000], TrackMeta::default()));
+            let mono = Arc::new(Track::from_samples(FS, 1, Some(24), &vec![0.5; 2_000], TrackMeta::default()));
+            assert!(!p.swap(other_rate) && !p.swap(mono));
+            assert!(Arc::ptr_eq(&p.heard(), &c));
+        }
+
+        /// The same switch through the processing chain: the render thread carries on with
+        /// the other track from the frame being heard, behind a fade.
+        #[test]
+        fn a_swap_on_the_processed_path_keeps_the_position() {
+            let (a, b) = (steady_at(0.5, FS as usize * 4), steady_at(0.25, FS as usize * 4));
+            let p = playback(a, true, 0, true);
+            let first = pull(&p, 4_096);
+            assert!(first.iter().all(|&v| v == 0.5));
+            let before = p.position_secs();
+            assert!(p.swap(b.clone()));
+            // (A device asks for a buffer every few milliseconds; these callbacks come as
+            // fast as they can, so give the render thread its moment to take the swap up.)
+            let rs = p.shared().ring.as_ref().unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while rs.flush_gen.load(Ordering::Acquire) == rs.flush_ack.load(Ordering::Acquire) {
+                assert!(Instant::now() < deadline, "the render thread never took the swap up");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            let out = pull(&p, 8_192);
+            let settled = out.iter().rposition(|&v| v != 0.25).map_or(0, |i| i + 1);
+            assert!(settled < 4_096, "the other track is heard within a few buffers ({settled})");
+            assert!(out[0] > 0.25 && steepest(&out) < SMOOTH, "a step of {}", steepest(&out));
+            assert!(out.iter().any(|&v| v == 0.0), "down to silence in between");
+            while !Arc::ptr_eq(&p.heard(), &b) {
+                assert!(Instant::now() < deadline, "the other track never became the heard one");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            // The position moved on by what was heard of the music (not by the silence).
+            let moved = p.position_secs() - before;
+            assert!(moved > 0.05 && moved < 8_192.0 / FS as f64 + 0.01, "{moved}");
         }
 
         #[test]

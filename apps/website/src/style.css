@@ -1201,6 +1201,95 @@ main,
   font-size: var(--t-sm);
 }
 
+/* ---- API reference ----------------------------------------------------------------------- */
+
+/* Wider than a text page: its code samples and the command table need the room. */
+.dl.prose.api {
+  max-width: calc(46em + 2 * var(--gutter));
+}
+
+.api .api-terms {
+  margin: 0;
+  padding-inline-start: 1.2em;
+  display: grid;
+  gap: 6px;
+}
+
+.api-ref {
+  display: grid;
+  gap: 16px;
+  /* Its own column: a long line of code scrolls inside its block, not the page. */
+  min-width: 0;
+}
+
+.api-ref h2 {
+  margin: 28px 0 0;
+  color: var(--porcelain);
+  font-family: var(--font-display);
+  font-size: var(--t-xl);
+  font-weight: 500;
+}
+
+.api-ref h3 {
+  margin: 12px 0 0;
+  font-size: var(--t-md);
+  font-weight: 500;
+}
+
+.api-ref p,
+.api-ref ul {
+  margin: 0;
+}
+
+.api-ref ul {
+  padding-inline-start: 1.2em;
+  display: grid;
+  gap: 6px;
+}
+
+.api-ref code {
+  color: var(--porcelain);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.api-ref pre {
+  margin: 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border: 1px solid var(--slate-600);
+  border-radius: 10px;
+  background: rgba(8, 16, 20, 0.5);
+  line-height: 1.5;
+}
+
+.api-table {
+  overflow-x: auto;
+}
+
+.api-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+
+.api-table th {
+  color: var(--mist-dim);
+  font-weight: 400;
+  text-align: start;
+}
+
+.api-table th,
+.api-table td {
+  padding: 8px 12px 8px 0;
+  border-bottom: 1px solid var(--slate-600);
+  vertical-align: top;
+}
+
+.api-table td:first-child {
+  white-space: nowrap;
+}
+
 /* ---- release notes page ------------------------------------------------------------------ */
 
 /* A long page that scrolls under the nav: give the nav its scrolled look from the start. */

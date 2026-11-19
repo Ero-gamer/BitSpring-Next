@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type LibTrack, type QualityReport, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
-  import { collator as makeCollator, i18n, list, num, t, tn } from "./i18n.svelte";
+  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type Dynamics, type LibTrack, type QualityReport, type RipResult, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
+  import { collator as makeCollator, i18n, list, num, sentences, t, tn } from "./i18n.svelte";
   import AlbumTile from "./AlbumTile.svelte";
   import { liquidPill } from "./liquid";
   import QualityDialog from "./QualityDialog.svelte";
@@ -159,8 +159,30 @@
     await leaveAlbum();
   }
 
+  // ---- dynamics (DR, loudness range): measured with the quality check and with levelling ------
+  let dynamics = $state<Record<string, Dynamics>>({});
+  let albumDynamics = $state<Record<string, Dynamics>>({});
+  let dynamicsRev: number | null = null;
+  async function loadDynamics() {
+    try {
+      const d = await api.dynamics(dynamicsRev);
+      dynamicsRev = d.rev;
+      if (d.tracks) [dynamics, albumDynamics] = [d.tracks, d.albums ?? {}];
+    } catch {
+      // (An older backend, or the mock without it: the column simply stays away.)
+    }
+  }
+  /** The open album's figures as one line: "DR 9, loudness range 7 LU". */
+  let openDynamics = $derived.by(() => {
+    const d = openAlbum && albumDynamics[openAlbum.id];
+    if (!d) return "";
+    return list([d.dr != null && t("dyn.dr", { n: num(Math.round(d.dr)) }), d.lra != null && t("dyn.lra", { n: num(Math.round(d.lra)) })]);
+  });
+  let anyDynamics = $derived(visibleTracks.some((tr) => dynamics[tr.path]?.dr != null));
+
   let albumQuality = $derived(albumTracks.map((tr) => quality[tr.path]).filter(Boolean));
-  let albumChecked = $derived(albumTracks.length > 0 && albumQuality.length === albumTracks.length);
+  // (An album checked before the dynamics were measured still owes those.)
+  let albumChecked = $derived(albumTracks.length > 0 && albumQuality.length === albumTracks.length && albumTracks.every((tr) => dynamics[tr.path]));
   /** "Upsampled (11), Genuine (1)": the album's verdicts, most common first. */
   let qualitySummary = $derived.by(() => {
     const counts = new Map<QualityVerdict, number>();
@@ -178,7 +200,7 @@
   async function checkQuality() {
     const album = openAlbum;
     if (!album || checking) return;
-    const todo = albumTracks.filter((tr) => !quality[tr.path]);
+    const todo = albumTracks.filter((tr) => !quality[tr.path] || !dynamics[tr.path]);
     checking = { album: album.id, done: 0, total: todo.length };
     qualityError = null;
     // A few at once: each decodes a whole file, and the disk may be slow.
@@ -195,15 +217,85 @@
       }
     };
     await Promise.all([worker(), worker(), worker()]);
+    await loadDynamics();
     checking = null;
   }
 
+  // ---- rip check: a CD rip against other people's rips of the same disc ------------------------
+  let rips = $state<Record<string, RipResult>>({});
+  let ripping = $state<{ album: string; done: number; total: number } | null>(null);
+  let ripError = $state<string | null>(null);
+  /** "Verify the rip" was pressed and waits for a yes: it is the one thing here that goes online. */
+  let ripAsking = $state(false);
+  /** What a CD holds: 16 bits, 44.1 kHz, stereo, and not a lossy copy of it. */
+  let ripFit = $derived(albumTracks.length > 0 && albumTracks.every((tr) => tr.lossless && tr.bits === 16 && tr.sampleRate === 44_100 && tr.channels === 2));
+  let rip = $derived(openAlbum ? (rips[openAlbum.id] ?? null) : null);
+  /** Nothing known yet — or the database didn't have the disc, and may by now. */
+  let ripOffer = $derived(ripFit && (!rip || (rip.kind === "checked" && rip.status === "unknown")));
+  $effect(() => {
+    const album = openAlbum;
+    if (!album || !ripFit || rips[album.id]) return;
+    const paths = albumTracks.map((tr) => tr.path);
+    api.ripCached(paths).then((r) => r && (rips[album.id] = r)).catch(() => {});
+  });
+
+  async function checkRip() {
+    const album = openAlbum;
+    if (!album || ripping) return;
+    ripAsking = false;
+    ripError = null;
+    const paths = albumTracks.map((tr) => tr.path);
+    ripping = { album: album.id, done: 0, total: paths.length };
+    const watch = setInterval(async () => {
+      const p = await api.ripProgress().catch(() => null);
+      if (p && ripping) [ripping.done, ripping.total] = p;
+    }, 400);
+    try {
+      rips[album.id] = await api.ripCheck(paths);
+    } catch (e) {
+      ripError = t("rip.error", { error: errorText(e) });
+    }
+    clearInterval(watch);
+    ripping = null;
+  }
+
+  /** The verdict in a sentence. */
+  let ripText = $derived.by(() => {
+    if (!rip) return "";
+    if (rip.kind === "unfit") return t(`rip.unfit.${rip.why}`);
+    switch (rip.status) {
+      case "verified":
+        return sentences([tn("rip.verified", rip.matching), rip.offset !== 0 && t("rip.pressing", { n: num(Math.abs(rip.offset)) })]);
+      case "partly": {
+        const bad = rip.tracks.flatMap((ok, i) => (ok === false ? [num(albumTracks[i]?.trackNumber ?? i + 1)] : []));
+        return tn("rip.partly", bad.length, { tracks: list(bad) });
+      }
+      case "different":
+        return tn("rip.different", rip.known);
+      case "unknown":
+        return t("rip.unknown");
+    }
+  });
+  let ripBad = $derived(rip?.kind === "checked" && (rip.status === "partly" || rip.status === "different"));
+  let showRip = $derived(!!ripText && !ripping);
+  let showQuality = $derived(albumQuality.length > 0 && !checking);
+  /** Anything for the strip under the album's head. */
+  let fileFacts = $derived(ripAsking || !!ripError || !!qualityError || showRip || showQuality || !!openDynamics || !!albumFolder);
+  /** Tracks the database's rips disagree with. */
+  const ripMiss = (i: number) => rip?.kind === "checked" && rip.status === "partly" && rip.tracks[i] === false;
+
   // ---- data loading ---------------------------------------------------------------------------
   let revision = -1;
+  let ticks = 0;
   async function refresh() {
     status = await api.libraryStatus();
+    // What was measured meanwhile (a background analysis stores a track every moment or so:
+    // looked at every few seconds, and only fetched when something changed).
+    if (ticks++ % 4 === 0) loadDynamics();
     if (status.revision !== revision) {
       revision = status.revision;
+      // (Albums may have regrouped: their figures are worked out again.)
+      dynamicsRev = null;
       [albums, tracks] = await Promise.all([api.libraryAlbums(), api.libraryTracks()]);
       // The queue names tracks by their files; a CUE track's file is its whole album.
       remember(tracks.filter((t) => t.path.includes("#cue:")));
@@ -451,11 +543,50 @@
                   {checking?.album === openAlbum.id ? t("q.checking", { done: num(checking.done), total: num(checking.total) }) : t("q.check")}
                 </button>
               {/if}
+              {#if ripOffer}
+                <button class="ghost" onclick={() => (ripAsking = true)} disabled={!!ripping || ripAsking}>
+                  {ripping?.album === openAlbum.id ? t("rip.reading", { done: num(ripping.done), total: num(ripping.total) }) : t("rip.check")}
+                </button>
+              {/if}
             </div>
-            {#if albumQuality.length && !checking}
-              <p class="facts quality">{t("q.summary")}: {list(qualitySummary)}</p>
+          </div>
+        </div>
+        {#if fileFacts}
+          <!-- What the player found out about the files, apart from what the album is. -->
+          <div class="album-files">
+            {#if ripAsking}
+              <p class="facts rip-ask">
+                <span>{t("rip.ask")}</span>
+                <span class="folder-answer">
+                  <button class="quiet-link" onclick={checkRip}>{t("rip.go")}</button>
+                  <button class="quiet-link" onclick={() => (ripAsking = false)}>{t("pl.cancel")}</button>
+                </span>
+              </p>
             {/if}
+            {#if ripError}<p class="facts q-err">{ripError}</p>{/if}
             {#if qualityError}<p class="facts q-err">{qualityError}</p>{/if}
+            {#if showRip || showQuality || openDynamics}
+              <dl class="file-facts">
+                {#if showRip}
+                  <div class:q-err={ripBad}>
+                    <dt>{t("rip.label")}</dt>
+                    <dd>{ripText}</dd>
+                  </div>
+                {/if}
+                {#if showQuality}
+                  <div>
+                    <dt>{t("q.summary")}</dt>
+                    <dd>{list(qualitySummary)}</dd>
+                  </div>
+                {/if}
+                {#if openDynamics}
+                  <div title={t("dyn.help")}>
+                    <dt>{t("dyn.label")}</dt>
+                    <dd>{openDynamics}</dd>
+                  </div>
+                {/if}
+              </dl>
+            {/if}
             {#if albumFolder}
               <p class="facts folder">
                 {#if hiding}
@@ -471,16 +602,20 @@
               </p>
             {/if}
           </div>
-        </div>
+        {/if}
         <TrackTable
           tracks={albumTracks}
           {currentPath}
           sortable={false}
-          columns={["number", "title", "duration", "format"]}
+          columns={albumTracks.some((tr) => dynamics[tr.path]?.dr != null) ? ["number", "title", "duration", "dr", "format"] : ["number", "title", "duration", "format"]}
+          {dynamics}
           onplay={(_, i) => playAlbum(openAlbum!, i)}
         >
           {#snippet marker(tr)}
             {@const r = quality[tr.path]}
+            {#if ripMiss(albumTracks.indexOf(tr))}
+              <span class="q-badge suspect" title={t("rip.trackHelp")}>{t("rip.track")}</span>
+            {/if}
             {#if r}
               <button
                 class="q-badge {SUSPECT.includes(r.verdict.kind) ? 'suspect' : r.verdict.kind === 'genuine' ? 'ok' : 'open'}"
@@ -502,7 +637,7 @@
           <TagEditor tracks={albumTracks} onclose={() => (editingTags = false)} onsaved={(p) => (followPath = p)} />
         {/if}
         {#if shownQuality && quality[shownQuality.path]}
-          <QualityDialog track={shownQuality} report={quality[shownQuality.path]} onclose={() => (shownQuality = null)} />
+          <QualityDialog track={shownQuality} report={quality[shownQuality.path]} dynamics={dynamics[shownQuality.path]} onclose={() => (shownQuality = null)} />
         {/if}
       </div>
     {:else if view === "tracks"}
@@ -510,6 +645,8 @@
         <TrackTable
           tracks={visibleTracks}
           {currentPath}
+          columns={anyDynamics ? ["number", "title", "artist", "album", "year", "duration", "dr", "format"] : undefined}
+          {dynamics}
           bind:sortKey={trackSort}
           bind:sortAsc={trackAsc}
           bind:shown={shownTracks}
@@ -815,14 +952,22 @@
   .back:hover {
     color: var(--porcelain);
   }
+  /* The cover keeps to the top; the buttons sit on its bottom edge while the text beside it is
+     shorter than the cover, and simply come last when it is longer (a narrow window, a phone). */
   .album-head {
     display: grid;
     grid-template-columns: 200px 1fr;
     gap: 28px;
-    align-items: end;
     margin-bottom: 24px;
   }
+  .album-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .album-art {
+    align-self: start;
     aspect-ratio: 1;
     border-radius: var(--r-md);
     overflow: hidden;
@@ -873,17 +1018,56 @@
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 16px;
+    align-self: stretch;
+    margin-top: auto;
+    padding-top: 16px;
   }
-  .facts.quality {
-    margin-top: 12px;
+  /* Under the head, across the page: what was measured in the files, and where they are. */
+  .album-files {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .album-files .facts {
+    margin: 0;
+  }
+  .file-facts {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 44px;
+    font-size: var(--t-sm);
+  }
+  .file-facts > div {
+    min-width: 0;
+    max-width: 36em;
+  }
+  .file-facts dt {
+    color: var(--mist-dim);
+  }
+  .file-facts dd {
+    margin: 2px 0 0;
+    color: var(--mist);
+  }
+  /* The sentences were written to follow "Rip:", so they start small. */
+  .file-facts dd::first-letter {
+    text-transform: uppercase;
+  }
+  .file-facts .q-err dd {
+    color: var(--alarm);
   }
   .facts.q-err {
     color: var(--alarm);
   }
+  .rip-ask {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    align-items: baseline;
+    max-width: 46em;
+  }
   /* Where the album's files are, and a way to leave that folder out of the library. */
   .facts.folder {
-    margin-top: 14px;
     display: flex;
     flex-wrap: wrap;
     gap: 2px 12px;

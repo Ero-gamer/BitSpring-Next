@@ -139,7 +139,9 @@ fn summary(p: &Playlist) -> Summary {
 fn smart_entries(app: &AppHandle, rules: &SmartRules, tracks: &[TrackInfo]) -> Vec<PlaylistEntry> {
     let quality = app.state::<crate::quality::Quality>();
     let word = |t: &TrackInfo| quality.word(&t.path);
-    smart::select(tracks, rules, &word, now())
+    let measured = app.state::<crate::loudness::Loudness>().dynamics_of(tracks);
+    let dynamics = |t: &TrackInfo| measured.get(t.path.as_str()).map_or((None, None), |d| (d.dr, d.lra));
+    smart::select(tracks, rules, &smart::Facts { quality: &word, dynamics: &dynamics, now: now() })
         .into_iter()
         .map(|i| {
             let t = &tracks[i];

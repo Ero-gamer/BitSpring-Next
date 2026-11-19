@@ -73,6 +73,14 @@ pub enum UserError {
     /// Android: the folder chosen in the system's picker has no path on the phone's storage
     /// or a memory card (a cloud drive, another app's files), so it can't be scanned.
     FolderNotOnDevice,
+    /// Blind test: the two files differ in their channels, so they can't be switched between.
+    AbxChannels,
+    /// Blind test: a network player plays what was sent to it ahead; nothing can be switched.
+    AbxNetwork,
+    /// Blind test of the processing: none is switched on.
+    AbxNothing,
+    /// Blind test: only files can be compared (not a streaming track).
+    AbxNotFile,
     /// The playlist isn't there (deleted elsewhere).
     PlaylistNotFound,
     /// A playlist file or pasted text couldn't be read or understood.
@@ -182,6 +190,10 @@ impl fmt::Display for UserError {
             FolderNotOnDevice => write!(f, "this folder isn't on the device's storage or a memory card"),
             PlaylistNotFound => write!(f, "playlist not found"),
             PlaylistUnreadable { detail } => write!(f, "couldn't read the playlist: {detail}"),
+            AbxChannels => write!(f, "the two files have different channels and can't be compared blind"),
+            AbxNetwork => write!(f, "a blind test needs a device connected to this computer, not a network player"),
+            AbxNothing => write!(f, "no processing is switched on, so there is nothing to compare"),
+            AbxNotFile => write!(f, "only files can be compared in a blind test"),
             PlaylistNoTracks => write!(f, "the playlist has no tracks"),
             PlaylistFormat => write!(f, "unknown playlist format: use .m3u8, .pls, .xspf or .csv"),
             WriteFailed { detail } => write!(f, "couldn't write the file: {detail}"),
