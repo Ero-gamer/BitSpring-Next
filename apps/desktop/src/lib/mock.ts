@@ -60,6 +60,7 @@ export function mockCover(id: string): string {
 const mockChecks: Record<string, unknown> = {};
 const mockDynamics: Record<string, { dr: number; lra: number; lufs: number; peakDb: number }> = {};
 let mockDynamicsRev = 1;
+let mockAbx: { total: number; answers: { xIsA: boolean; saidA: boolean }[]; xIsA: boolean } | null = null;
 
 let libFolders = libFixed.length ? [...libFixed] : [libRoot];
 let libSkipped: string[] = [];
@@ -323,6 +324,46 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       mockDynamics[path] = { dr, lra: 2 + ((seed >> 8) % 120) / 10, lufs: -6 - dr * 0.8, peakDb: -0.1 - (seed % 9) / 10 };
       mockDynamicsRev++;
       return r as T;
+    }
+    // The blind test: getting ready takes a moment, X is a coin toss per trial.
+    case "abx_start": {
+      await new Promise((r) => setTimeout(r, 900));
+      mockAbx = { total: (args.trials as number) ?? 16, answers: [], xIsA: Math.random() < 0.5 };
+      started = performance.now(); paused = false; pausedAt = 0; duration = 204;
+      const files = args.kind === "files";
+      return {
+        prepared: {
+          rate: files ? 96000 : 44100,
+          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0 },
+          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0 },
+          offsetMs: files ? 23 : 0.4, likeness: 0.97, seconds: 204, shortened: files, identical: false,
+        },
+        trials: mockAbx.total,
+      } as T;
+    }
+    case "abx_listen":
+    case "abx_stop":
+      return undefined as T;
+    case "abx_again":
+      if (mockAbx) mockAbx = { ...mockAbx, answers: [] };
+      return undefined as T;
+    case "abx_set_trials":
+      if (mockAbx) mockAbx.total = args.trials as number;
+      return args.trials as T;
+    case "abx_answer": {
+      if (!mockAbx) return { done: 0, total: 0, result: null } as T;
+      mockAbx.answers.push({ xIsA: mockAbx.xIsA, saidA: args.isA as boolean });
+      mockAbx.xIsA = Math.random() < 0.5;
+      const { answers, total } = mockAbx;
+      const correct = answers.filter((a) => a.xIsA === a.saidA).length;
+      // P(at least `correct` of `total` by guessing).
+      let p = 0;
+      for (let k = correct, c = 1; k <= total; k++) {
+        c = 1;
+        for (let i = 0; i < k; i++) c = (c * (total - i)) / (i + 1);
+        p += c / 2 ** total;
+      }
+      return { done: answers.length, total, result: answers.length >= total ? { correct, total, p, trials: answers } : null } as T;
     }
     case "dynamics": {
       if (args.rev === mockDynamicsRev) return { rev: mockDynamicsRev, tracks: null, albums: null } as T;

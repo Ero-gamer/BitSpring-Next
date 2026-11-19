@@ -89,7 +89,8 @@ export type EngineError =
         | "deviceBusy" | "audioBusy" | "deviceUnplugged" | "deviceStalled" | "deviceNotFound" | "noDevice"
         | "formatRefused" | "exclusiveDisabled" | "dopVolume" | "profileEmpty" | "noAppFolder" | "folderNotOnDevice"
         | "playlistNotFound" | "playlistNoTracks" | "playlistFormat" | "streamingOff" | "signInCancelled"
-        | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed";
+        | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed"
+        | "abxChannels" | "abxNetwork" | "abxNothing" | "abxNotFile";
     }
   | { code: "audioSetup" | "outputFailed" | "profileUnreadable" | "playlistUnreadable" | "writeFailed" | "irUnreadable" | "updateFailed" | "catalogUnavailable"; detail: string }
   | { code: "irChannels"; channels: number }
@@ -315,6 +316,43 @@ export interface LibTrack {
   mtime: number;
   albumId: string;
   hiRes: boolean;
+}
+
+export type AbxWhich = "a" | "b" | "x";
+
+/** One side of a blind test, as it was found and as it plays (hifi_engine::abx). */
+export interface AbxSide {
+  rate: number;
+  bits: number | null;
+  /** Brought to the other one's sample rate for the test. */
+  resampled: boolean;
+  /** Turned down by this much to match the other (0 or negative), dB. */
+  gainDb: number;
+}
+
+/** What was done to make the two comparable. */
+export interface AbxPrepared {
+  /** The rate both play at. */
+  rate: number;
+  a: AbxSide;
+  b: AbxSide;
+  /** How much later B's music started than A's (ms, negative: earlier); already cut away. */
+  offsetMs: number;
+  /** 1 = the same waveform, near 0 = different music. */
+  likeness: number;
+  seconds: number;
+  /** The music is longer than what is compared. */
+  shortened: boolean;
+  /** Sample for sample the same: nothing to hear. */
+  identical: boolean;
+}
+
+export interface AbxResult {
+  correct: number;
+  total: number;
+  /** The chance of doing at least this well by guessing. */
+  p: number;
+  trials: { xIsA: boolean; saidA: boolean }[];
 }
 
 /** What was measured of the dynamics of a track, or of an album as a whole. */
@@ -614,6 +652,15 @@ export const api = {
   crashReport: () => call<string | null>("crash_report"),
   crashDismiss: () => call<void>("crash_dismiss"),
   loudnessStatus: () => call<LoudnessStatus>("loudness_status"),
+  /** Prepare a blind test and start playing A (takes a while: both sides are decoded). */
+  abxStart: (kind: "files" | "processing", a: string, b: string | null, deviceUid: string, exclusive: boolean, trials: number) =>
+    call<{ prepared: AbxPrepared; trials: number }>("abx_start", { kind, a, b, deviceUid, exclusive, trials }),
+  abxListen: (which: AbxWhich) => call<void>("abx_listen", { which }),
+  abxSetTrials: (trials: number) => call<number>("abx_set_trials", { trials }),
+  /** "X is A" (or B). The result comes with the last answer. */
+  abxAnswer: (isA: boolean) => call<{ done: number; total: number; result: AbxResult | null }>("abx_answer", { isA }),
+  abxAgain: () => call<void>("abx_again"),
+  abxStop: () => call<void>("abx_stop"),
   /** The dynamics measured so far, unless nothing changed since `rev`. */
   dynamics: (rev: number | null) => call<DynamicsUpdate>("dynamics", { rev }),
   /** Measure every library track not measured yet, in the background (false: stop). */

@@ -170,6 +170,14 @@ impl Player {
     pub fn queue_next(&self, track: Arc<Track>) -> bool {
         each!(self, p => p.queue_next(track))
     }
+    /// Carry on with `track` in place of the one being heard, at the same position (see
+    /// [`output::Playback::swap`]). Never on a network player: what it plays was sent ahead.
+    pub fn swap(&self, track: Arc<Track>) -> bool {
+        match &self.kind {
+            Kind::Device(p) => p.swap(track),
+            Kind::Net(_) => false,
+        }
+    }
     pub fn clear_next(&self) {
         each!(self, p => p.clear_next())
     }

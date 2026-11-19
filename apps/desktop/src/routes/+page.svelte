@@ -17,6 +17,8 @@
   import CrashNotice from "$lib/CrashNotice.svelte";
   import RemoteButton from "$lib/RemoteButton.svelte";
   import { loadRemote } from "$lib/remote.svelte";
+  import { abx } from "$lib/abx.svelte";
+  import AbxDialog from "$lib/AbxDialog.svelte";
   import { startUpdateChecks } from "$lib/updates.svelte";
   import { look } from "$lib/look.svelte";
   import { fade } from "svelte/transition";
@@ -472,6 +474,8 @@
   });
 
   function onKey(e: KeyboardEvent) {
+    // A blind test is open: the keys are its own.
+    if (abx.request) return;
     const t = e.target as HTMLElement;
     // Handled already (an EQ band moved by the arrow keys), or typing in a field.
     if (e.defaultPrevented || t.tagName === "SELECT" || t.tagName === "TEXTAREA") return;
@@ -626,7 +630,7 @@
       <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} data-label={t("nav.eq")} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
     </nav>
     <div class="controls">
-      <Enhancers settings={dsp} {eqName} {ir} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
+      <Enhancers settings={dsp} {eqName} {ir} track={now && !testing ? { path: now.path, title: now.title } : null} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
       <DevicePicker {devices} bind:selected bind:exclusive bind:dopDevices onrefresh={() => refreshDevices(true)} onchanneltest={channelTest} />
       <RemoteButton />
       <button class="trigger gear" class:open={screen === "settings"} onclick={toggleSettings} aria-pressed={screen === "settings"} aria-label={t("settings.label")} title={t("settings.label")}>
@@ -839,6 +843,9 @@
   </nav>
 
   <UpdateNotice playing={status.active && !status.paused} />
+  {#if abx.request}
+    <AbxDialog request={abx.request} device={selected} {exclusive} onclose={() => (abx.request = null)} />
+  {/if}
   <CrashNotice />
 
   {#if dragOver}
