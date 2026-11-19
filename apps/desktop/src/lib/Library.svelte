@@ -277,6 +277,10 @@
     }
   });
   let ripBad = $derived(rip?.kind === "checked" && (rip.status === "partly" || rip.status === "different"));
+  let showRip = $derived(!!ripText && !ripping);
+  let showQuality = $derived(albumQuality.length > 0 && !checking);
+  /** Anything for the strip under the album's head. */
+  let fileFacts = $derived(ripAsking || !!ripError || !!qualityError || showRip || showQuality || !!openDynamics || !!albumFolder);
   /** Tracks the database's rips disagree with. */
   const ripMiss = (i: number) => rip?.kind === "checked" && rip.status === "partly" && rip.tracks[i] === false;
 
@@ -545,8 +549,13 @@
                 </button>
               {/if}
             </div>
+          </div>
+        </div>
+        {#if fileFacts}
+          <!-- What the player found out about the files, apart from what the album is. -->
+          <div class="album-files">
             {#if ripAsking}
-              <p class="facts quality rip-ask">
+              <p class="facts rip-ask">
                 <span>{t("rip.ask")}</span>
                 <span class="folder-answer">
                   <button class="quiet-link" onclick={checkRip}>{t("rip.go")}</button>
@@ -554,17 +563,30 @@
                 </span>
               </p>
             {/if}
-            {#if ripText && !ripping}
-              <p class="facts quality" class:q-err={ripBad}>{t("rip.label")}: {ripText}</p>
-            {/if}
             {#if ripError}<p class="facts q-err">{ripError}</p>{/if}
-            {#if albumQuality.length && !checking}
-              <p class="facts quality">{t("q.summary")}: {list(qualitySummary)}</p>
-            {/if}
-            {#if openDynamics}
-              <p class="facts quality" title={t("dyn.help")}>{t("dyn.label")}: {openDynamics}</p>
-            {/if}
             {#if qualityError}<p class="facts q-err">{qualityError}</p>{/if}
+            {#if showRip || showQuality || openDynamics}
+              <dl class="file-facts">
+                {#if showRip}
+                  <div class:q-err={ripBad}>
+                    <dt>{t("rip.label")}</dt>
+                    <dd>{ripText}</dd>
+                  </div>
+                {/if}
+                {#if showQuality}
+                  <div>
+                    <dt>{t("q.summary")}</dt>
+                    <dd>{list(qualitySummary)}</dd>
+                  </div>
+                {/if}
+                {#if openDynamics}
+                  <div title={t("dyn.help")}>
+                    <dt>{t("dyn.label")}</dt>
+                    <dd>{openDynamics}</dd>
+                  </div>
+                {/if}
+              </dl>
+            {/if}
             {#if albumFolder}
               <p class="facts folder">
                 {#if hiding}
@@ -580,7 +602,7 @@
               </p>
             {/if}
           </div>
-        </div>
+        {/if}
         <TrackTable
           tracks={albumTracks}
           {currentPath}
@@ -930,14 +952,22 @@
   .back:hover {
     color: var(--porcelain);
   }
+  /* The cover keeps to the top; the buttons sit on its bottom edge while the text beside it is
+     shorter than the cover, and simply come last when it is longer (a narrow window, a phone). */
   .album-head {
     display: grid;
     grid-template-columns: 200px 1fr;
     gap: 28px;
-    align-items: end;
     margin-bottom: 24px;
   }
+  .album-info {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .album-art {
+    align-self: start;
     aspect-ratio: 1;
     border-radius: var(--r-md);
     overflow: hidden;
@@ -988,10 +1018,43 @@
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 16px;
+    align-self: stretch;
+    margin-top: auto;
+    padding-top: 16px;
   }
-  .facts.quality {
-    margin-top: 12px;
+  /* Under the head, across the page: what was measured in the files, and where they are. */
+  .album-files {
+    display: grid;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .album-files .facts {
+    margin: 0;
+  }
+  .file-facts {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 44px;
+    font-size: var(--t-sm);
+  }
+  .file-facts > div {
+    min-width: 0;
+    max-width: 36em;
+  }
+  .file-facts dt {
+    color: var(--mist-dim);
+  }
+  .file-facts dd {
+    margin: 2px 0 0;
+    color: var(--mist);
+  }
+  /* The sentences were written to follow "Rip:", so they start small. */
+  .file-facts dd::first-letter {
+    text-transform: uppercase;
+  }
+  .file-facts .q-err dd {
+    color: var(--alarm);
   }
   .facts.q-err {
     color: var(--alarm);
@@ -1005,7 +1068,6 @@
   }
   /* Where the album's files are, and a way to leave that folder out of the library. */
   .facts.folder {
-    margin-top: 14px;
     display: flex;
     flex-wrap: wrap;
     gap: 2px 12px;
