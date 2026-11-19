@@ -34,8 +34,9 @@ texts in `src/i18n/locales/<code>.json` (`en.json` is the source; missing keys f
 - Windows: the .exe installer; Android: Google Play or .apk.
 - `/download/#windows` etc. features that platform; `?platform=mac` overrides detection.
 
-The home page's main button does the same in one step (iPhone → App Store, Windows → .exe,
-Mac → the choice on `/download/`).
+The home page's main button does the same in one step (iPhone → App Store, Windows →
+Microsoft Store, Mac → the choice on `/download/`). The Windows .exe, the build with streaming,
+stays on `/download/`.
 
 ## Release notes
 
