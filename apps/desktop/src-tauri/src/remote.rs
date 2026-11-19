@@ -247,7 +247,7 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream, stop: &AtomicBool)
             let r = app.state::<Library>().cover_response(app, id);
             let ct = r.headers().get("Content-Type").and_then(|v| v.to_str().ok()).unwrap_or("image/jpeg").to_string();
             if r.status().is_success() {
-                http::respond(conn, "200 OK", &ct, &[("Cache-Control", "max-age=86400")], r.body())?;
+                http::respond(conn, "200 OK", &ct, &[("Cache-Control", "max-age=86400"), ("X-Content-Type-Options", "nosniff")], r.body())?;
             } else {
                 http::respond(conn, "404 Not Found", "text/plain", &[], b"")?;
             }

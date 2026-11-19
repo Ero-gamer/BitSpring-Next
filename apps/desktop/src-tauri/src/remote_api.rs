@@ -48,14 +48,15 @@ pub fn handle(app: &AppHandle, conn: &mut TcpStream, req: &http::Request, path: 
             json_response(conn, "200 OK", &json!({ "albums": albums, "tracks": tracks }))?;
         }
         ("GET", "cover/current") => match current_cover(app) {
-            Some((mime, bytes)) => http::respond(conn, "200 OK", &mime, &[("Cache-Control", "no-store")], &bytes)?,
+            Some((mime, bytes)) => http::respond(conn, "200 OK", mime, &[("Cache-Control", "no-store"), NOSNIFF], &bytes)?,
             None => refuse(conn, "404 Not Found", "no cover")?,
         },
         ("GET", p) if p.starts_with("cover/") => {
             let r = app.state::<Library>().cover_response(app, p.trim_start_matches("cover"));
             let ct = r.headers().get("Content-Type").and_then(|v| v.to_str().ok()).unwrap_or("image/jpeg").to_string();
             if r.status().is_success() {
-                http::respond(conn, "200 OK", &ct, &[("Cache-Control", "max-age=86400")], r.body())?;
+                let ct = image_type(r.body()).unwrap_or(if ct == "image/png" { "image/png" } else { "image/jpeg" });
+                http::respond(conn, "200 OK", ct, &[("Cache-Control", "max-age=86400"), NOSNIFF], r.body())?;
             } else {
                 refuse(conn, "404 Not Found", "no cover")?;
             }
@@ -109,12 +110,31 @@ fn output_uid(app: &AppHandle) -> Option<String> {
     app.state::<AppState>().current.lock().unwrap().as_ref().map(|c| c.device_uid.clone())
 }
 
-/// The playing track's own cover (which a file outside the library has too).
-fn current_cover(app: &AppHandle) -> Option<(String, Vec<u8>)> {
+/// A browser must take a cover for the image we say it is, whatever its bytes look like.
+const NOSNIFF: (&str, &str) = ("X-Content-Type-Options", "nosniff");
+
+/// What kind of image `bytes` are, by how they begin. A cover's type as its file's tags
+/// name it is never passed on: the tags are whatever the file's maker wrote, and a type
+/// like text/html would make a browser run the "cover" as a page of this server.
+fn image_type(bytes: &[u8]) -> Option<&'static str> {
+    match bytes {
+        [0xFF, 0xD8, 0xFF, ..] => Some("image/jpeg"),
+        [0x89, b'P', b'N', b'G', ..] => Some("image/png"),
+        [b'G', b'I', b'F', b'8', ..] => Some("image/gif"),
+        [b'R', b'I', b'F', b'F', _, _, _, _, b'W', b'E', b'B', b'P', ..] => Some("image/webp"),
+        [b'B', b'M', ..] => Some("image/bmp"),
+        _ => None,
+    }
+}
+
+/// The playing track's own cover (which a file outside the library has too). None when it
+/// has none — or what its tags call a cover isn't an image.
+fn current_cover(app: &AppHandle) -> Option<(&'static str, Vec<u8>)> {
     let now = crate::now_playing(app.state::<AppState>())?;
     let cover = now.cover?;
-    let (mime, data) = cover.strip_prefix("data:")?.split_once(";base64,")?;
-    Some((mime.to_string(), base64::engine::general_purpose::STANDARD.decode(data).ok()?))
+    let (_, data) = cover.strip_prefix("data:")?.split_once(";base64,")?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data).ok()?;
+    Some((image_type(&bytes)?, bytes))
 }
 
 /// What plays, and how: the answer of `GET state` and of every event.
@@ -249,6 +269,17 @@ mod tests {
         for name in COMMANDS {
             assert!(command(name, &Value::Null).is_some(), "{name}");
         }
+    }
+
+    /// A cover goes out as the image its bytes are, never as the type a file's tags claim.
+    #[test]
+    fn a_cover_is_served_by_what_its_bytes_are() {
+        assert_eq!(image_type(&[0xFF, 0xD8, 0xFF, 0xE0, 0, 16]), Some("image/jpeg"));
+        assert_eq!(image_type(b"\x89PNG\r\n\x1a\n"), Some("image/png"));
+        assert_eq!(image_type(b"RIFF\0\0\0\0WEBPVP8 "), Some("image/webp"));
+        assert_eq!(image_type(b"<html><script>alert(1)</script>"), None);
+        assert_eq!(image_type(b"<svg xmlns='http://www.w3.org/2000/svg'>"), None);
+        assert_eq!(image_type(b""), None);
     }
 
     #[test]
