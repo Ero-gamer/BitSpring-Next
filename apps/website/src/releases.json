@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.21.0",
+    "name": "BitSpring 0.21.0",
+    "date": "2026-11-19T17:54:21Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.21.0",
+    "notes": "- **Dynamic range.** The quality check now also measures how much dynamics a recording has: DR, counted the way the TT Dynamic Range Meter counts it, and the loudness range (LRA, EBU R128). Each track gets its DR in a new column of the track list, the album page shows the figures for the whole album, and smart playlists can pick tracks by either one. Nothing in the files is changed.\n- **Blind test (ABX).** Do you hear the hi-res edition, or the equalizer? Open the quality window of a track and choose \"Blind test against another file\", or press \"Blind test: do I hear it?\" in Enhancers to compare the playing track with and without the processing. The player lines the two up to the sample, makes them equally loud, plays A, B and an X that is one of them, and after the trials gives the odds that you were guessing. Every switch sounds the same whether or not the sound changed. When the test is closed, the track it interrupted plays on from where it was.\n- **Rip check.** For an album ripped from CD, \"Verify the rip\" compares the audio with other people's rips of the same disc in the CUETools Database. It says how many rips agree, which tracks differ if some do, and when the disc is another pressing with shifted audio. The player asks before it goes online; only the lengths of the disc's tracks are sent, and the comparison is made on your device.\n- **Local API** for Home Assistant, a Stream Deck or your own scripts: what is playing, the queue, the library, covers, volume, the transport commands, and a stream of events. It runs on the same local server as the phone remote, with the same key, and is off until you switch the remote on. The reference is at https://bitspring.app/api/.\n- **The album page keeps its cover at the top.** What was measured in the files (rip, quality, dynamic range) and the folder they are in now sit in a strip of their own under the album's name and buttons, on phones too."
+  },
+  {
     "version": "0.20.0",
     "name": "BitSpring 0.20.0",
     "date": "2026-11-19T06:28:58Z",
