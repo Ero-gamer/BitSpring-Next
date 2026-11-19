@@ -147,8 +147,8 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="abx-title">
     <header>
       <div>
-        <p class="kind">{t("abx.title")}</p>
-        <h3 id="abx-title">{request.title}</h3>
+        <h3 id="abx-title">{t("abx.title")}</h3>
+        <p class="about">{request.title}</p>
       </div>
       <button class="close" onclick={close} aria-label={t("q.close")}>
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" /></svg>
@@ -210,7 +210,13 @@
           <p class="chance">{t("abx.chance", { percent })}</p>
           <ol class="marks" aria-label={t("abx.answers")}>
             {#each result.trials as tr, i (i)}
-              <li class:wrong={tr.xIsA !== tr.saidA} title={t("abx.mark", { n: num(i + 1), x: tr.xIsA ? "A" : "B", said: tr.saidA ? "A" : "B" })}>{tr.xIsA ? "A" : "B"}</li>
+              {@const right = tr.xIsA === tr.saidA}
+              <li class:wrong={!right} title={t("abx.mark", { n: num(i + 1), x: tr.xIsA ? "A" : "B", said: tr.saidA ? "A" : "B" })}>
+                {tr.xIsA ? "A" : "B"}
+                <svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true">
+                  {#if right}<path d="M1.2 4.8l2.1 2.1L7.8 1.9" />{:else}<path d="M1.6 1.6l5.8 5.8M7.4 1.6L1.6 7.4" />{/if}
+                </svg>
+              </li>
             {/each}
           </ol>
           <button class="ghost" onclick={again}>{t("abx.again")}</button>
@@ -219,8 +225,8 @@
         <div class="ask">
           <p class="trial">{t("abx.trial", { n: num(done + 1), total: num(total) })}</p>
           <div class="answers">
-            <button class="primary" disabled={busy} onclick={() => answer(true)}>{t("abx.isA")}</button>
-            <button class="primary" disabled={busy} onclick={() => answer(false)}>{t("abx.isB")}</button>
+            <button class="answer" disabled={busy} onclick={() => answer(true)}>{t("abx.isA")}</button>
+            <button class="answer" disabled={busy} onclick={() => answer(false)}>{t("abx.isB")}</button>
           </div>
           {#if done === 0}
             <div class="count">
@@ -233,7 +239,9 @@
             </div>
           {/if}
         </div>
-        <p class="how">{t("abx.how")}</p>
+        {#if done === 0}
+          <p class="how">{t("abx.how")}</p>
+        {/if}
       {/if}
 
       <ul class="notes">
@@ -275,15 +283,16 @@
   p {
     margin: 0;
   }
-  .kind {
-    font-size: var(--t-xs);
-    color: var(--mist);
-  }
   h3 {
-    margin: 2px 0 0;
+    margin: 0;
     font-family: var(--font-display);
     font-size: var(--t-lg);
     font-weight: 600;
+  }
+  .about {
+    margin-top: 2px;
+    font-size: var(--t-sm);
+    color: var(--mist);
   }
   .close {
     padding: 8px;
@@ -374,8 +383,8 @@
     border-style: solid;
     color: var(--ink);
   }
-  .choice:focus-visible,
-  .pause:focus-visible {
+  .dialog button:focus-visible,
+  input[type="range"]:focus-visible {
     outline: 2px solid var(--porcelain);
     outline-offset: 2px;
   }
@@ -446,17 +455,18 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
-  .primary {
+  .answer {
     padding: 10px 16px;
     border-radius: var(--r-md);
-    background: var(--porcelain);
-    color: var(--ink);
+    border: 1px solid var(--porcelain);
+    color: var(--porcelain);
     font-weight: 600;
   }
-  .primary:hover {
-    filter: brightness(1.08);
+  .answer:hover {
+    background: var(--porcelain);
+    color: var(--ink);
   }
-  .primary:disabled {
+  .answer:disabled {
     opacity: 0.6;
   }
   .ghost {
@@ -528,15 +538,23 @@
     gap: 4px;
   }
   .marks li {
-    display: grid;
-    place-items: center;
-    width: 24px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
     height: 24px;
+    padding: 0 6px;
     border-radius: var(--r-sm);
     background: var(--slate-700);
     font-size: var(--t-xs);
     font-weight: 600;
     color: var(--porcelain);
+  }
+  .marks svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .marks li.wrong {
     background: transparent;

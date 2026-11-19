@@ -187,12 +187,12 @@ fn thinned(x: &[f32], d: usize) -> Vec<f32> {
 fn likeness_at(a: &[f32], b: &[f32], from: usize, len: usize, lag: isize) -> f64 {
     let (mut ab, mut aa, mut bb) = (0f64, 0f64, 0f64);
     let end = (from + len).min(a.len());
-    for i in from..end {
+    for (i, &x) in a.iter().enumerate().take(end).skip(from) {
         let j = i as isize + lag;
         if j < 0 || j as usize >= b.len() {
             continue;
         }
-        let (x, y) = (a[i] as f64, b[j as usize] as f64);
+        let (x, y) = (x as f64, b[j as usize] as f64);
         ab += x * y;
         aa += x * x;
         bb += y * y;

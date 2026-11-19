@@ -139,7 +139,7 @@ impl Summer {
     /// Interleaved stereo samples of the current track, as decoded (±1.0 = full scale):
     /// 16-bit audio comes back from them exactly.
     pub fn push(&mut self, samples: &[f32]) {
-        for pair in samples.chunks_exact(2) {
+        for pair in samples.as_chunks::<2>().0 {
             for &s in pair {
                 let v = (s * 32_768.0).round().clamp(-32_768.0, 32_767.0) as i16;
                 for b in v.to_le_bytes() {

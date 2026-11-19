@@ -201,6 +201,18 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 
+    /// The real database, asked about a disc it has held for years (The National, "Boxer").
+    /// Needs the network: `cargo test -p hifi-desktop -- --ignored the_database_answers`.
+    #[test]
+    #[ignore]
+    fn the_database_answers() {
+        let toc = "0:15417:31234:46099:59563:76004:94629:110569:125299:140219:155541:173771:194263:209037:227565";
+        let entries = lookup(toc).unwrap();
+        assert!(entries.iter().any(|e| e.crc32 == 0xadd9_0855 && e.confidence >= 9 && e.track_crcs.len() == 14), "{entries:?}");
+        // A table of contents no disc has: known as "nothing", not as an error.
+        assert_eq!(lookup("0:1000:2000:3001").unwrap(), Vec::new());
+    }
+
     /// What the UI reads: the report's fields beside the kind.
     #[test]
     fn results_cross_to_the_ui_flat() {
