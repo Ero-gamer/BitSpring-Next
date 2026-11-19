@@ -19,6 +19,7 @@
     goto = null,
     streaming = null,
     onplay,
+    onshuffle,
     onenqueue,
   }: {
     currentPath?: string | null;
@@ -26,6 +27,8 @@
     /** Show this artist or album (from a click on the now-playing track). */
     goto?: LibraryGoto | null;
     onplay: (paths: string[], start: number) => void;
+    /** Play these in a random order. */
+    onshuffle: (paths: string[]) => void;
     onenqueue: (paths: string[]) => void;
   } = $props();
 
@@ -98,6 +101,8 @@
     return [...list].sort(by[albumSort]);
   });
 
+  /** The track list as its table sorts it: the order "Shuffle" comes back to when switched off. */
+  let shownTracks = $state<LibTrack[]>([]);
   let visibleTracks = $derived.by(() => {
     let list = tracks.filter((t) => !hiResOnly || t.hiRes);
     if (q) list = list.filter((t) => `${t.title} ${t.artist ?? ""} ${t.album ?? ""}`.toLowerCase().includes(q));
@@ -344,6 +349,11 @@
       </label>
     {/if}
 
+    {#if view === "tracks"}
+      <!-- everything listed: the whole library, or what the search and the filter leave of it -->
+      <button class="shuffle-all" onclick={() => onshuffle(shownTracks.map((t) => t.path))} disabled={!visibleTracks.length}>{t("common.shuffle")}</button>
+    {/if}
+
     {#if view !== "playlists"}
       <label class="hires" class:on={hiResOnly}>
         <input type="checkbox" bind:checked={hiResOnly} />
@@ -376,7 +386,7 @@
 
   <div class="body" bind:this={body}>
     {#if view === "playlists" && !openAlbum}
-      <Playlists {tracks} {currentPath} {query} {streaming} {onplay} {onenqueue} />
+      <Playlists {tracks} {currentPath} {query} {streaming} {onplay} {onshuffle} {onenqueue} />
     {:else if isAndroid && status && status.tracks === 0 && !status.scanning}
       <div class="empty">
         <p class="empty-title">{t("lib.empty")}</p>
@@ -430,6 +440,7 @@
             </p>
             <div class="album-actions">
               <button class="primary" onclick={() => playAlbum(openAlbum!)}>{t("common.play")}</button>
+              <button class="ghost" onclick={() => onshuffle(openAlbum!.tracks.map((i) => tracks[i].path))}>{t("common.shuffle")}</button>
               <button class="ghost" onclick={() => onenqueue(openAlbum!.tracks.map((i) => tracks[i].path))}>{t("lib.enqueue")}</button>
               <AddToPlaylist entries={() => albumTracks.map(entryFromTrack)} />
               {#if !isIOS && !isAndroid}
@@ -501,6 +512,7 @@
           {currentPath}
           bind:sortKey={trackSort}
           bind:sortAsc={trackAsc}
+          bind:shown={shownTracks}
           onplay={(list, i) => onplay(list.map((t) => t.path), i)}
         >
           {#snippet actions(tr)}<AddToPlaylist compact entries={() => [entryFromTrack(tr)]} />{/snippet}
@@ -670,6 +682,28 @@
     border-left: 2px solid var(--ink);
     border-bottom: 2px solid var(--ink);
     transform: rotate(-45deg);
+  }
+  /* "Shuffle" over the track list: a toolbar control of the same size. */
+  .shuffle-all {
+    font-size: var(--t-sm);
+    padding: 7px 12px;
+    border: 1px solid var(--slate-600);
+    border-radius: var(--r-md);
+    background-color: var(--slate-900);
+    color: var(--mist);
+    white-space: nowrap;
+  }
+  .shuffle-all:hover:not(:disabled) {
+    color: var(--porcelain);
+    border-color: var(--slate-500);
+  }
+  .shuffle-all:disabled {
+    color: var(--slate-500);
+    cursor: default;
+  }
+  :global(html[data-look="glass"]) .shuffle-all {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: var(--glass-edge);
   }
   :global(html[data-look="glass"]) .hires {
     background-color: rgba(255, 255, 255, 0.07);
