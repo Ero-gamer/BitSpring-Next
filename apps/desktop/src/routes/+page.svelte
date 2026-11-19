@@ -1614,7 +1614,9 @@
   .keys .key.mode:hover:not(:disabled) {
     color: var(--porcelain);
   }
-  .keys .key.mode.on {
+  /* (lit under the pointer too: a key just clicked shows what the click did) */
+  .keys .key.mode.on,
+  .keys .key.mode.on:hover:not(:disabled) {
     color: var(--ink);
     background: var(--porcelain);
   }
