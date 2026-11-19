@@ -15,6 +15,7 @@
     sortable = true,
     sortKey = $bindable<SortKey>("artist"),
     sortAsc = $bindable(true),
+    shown = $bindable<LibTrack[]>([]),
     onplay,
     actions,
     marker,
@@ -26,6 +27,8 @@
     sortable?: boolean;
     sortKey?: SortKey;
     sortAsc?: boolean;
+    /** The tracks in the order the table shows them (for the caller to read). */
+    shown?: LibTrack[];
     /** Play `list` starting at `index` (the list as currently shown). */
     onplay: (list: LibTrack[], index: number) => void;
     /** Buttons at the end of each row (index = position in `tracks` as given). */
@@ -74,6 +77,10 @@
     return [...tracks].sort(
       (a, b) => (v ? filledFirst(v(a), v(b)) : 0) || dir * by[sortKey](a, b) || albumOrder(a, b),
     );
+  });
+
+  $effect(() => {
+    shown = sorted;
   });
 
   /** A touch screen has no double-click: one tap on a row plays it. */

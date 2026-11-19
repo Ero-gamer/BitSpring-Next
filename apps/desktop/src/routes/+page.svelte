@@ -24,6 +24,7 @@
   import { liquidPill } from "$lib/liquid";
   import { fitRow } from "$lib/fitRow";
   import { startGamepad } from "$lib/gamepad";
+  import { nextRepeat, shuffledOrder, straightOrder, type Repeat } from "$lib/playOrder";
 
   // --- persisted preferences (per machine) ---
   function load<T>(key: string, fallback: T): T {
@@ -50,6 +51,13 @@
 
   let queue = $state<string[]>([]);
   let index = $state(-1);
+  /** Each queue entry's place in the order the tracks were added in: what shuffle comes back to. */
+  let straight: number[] = [];
+  let nextPlace = 0;
+  /** Shuffle and repeat stay as they were left, from launch to launch. */
+  let shuffle = $state<boolean>(load("shuffle", false));
+  let repeat = $state<Repeat>(load("repeat", "off"));
+  let canNext = $derived(index < queue.length - 1 || (repeat === "all" && queue.length > 0));
   let now = $state<NowPlaying | null>(null);
   let status = $state<Status>({ active: false, position: 0, duration: 0, paused: false, finished: false, peakDb: null, underruns: 0, buffering: false, buffered: 0, error: null, queueIndex: null, nowRev: 0, advanceError: null, systemVolume: null, playsRev: 0 });
   /** The backend's nowRev we are showing; when it moves, the queue went on by itself. */
@@ -222,7 +230,7 @@
     remember(expanded.flatMap((f) => (f.title ? [{ path: f.path, title: f.title, artist: f.artist }] : [])));
     const files = expanded.map((f) => f.path);
     const first = queue.length;
-    queue.push(...files);
+    append(files);
     if (!status.active || status.finished) await playIndex(first);
   }
 
@@ -245,21 +253,68 @@
     if (picked) await addPaths(Array.isArray(picked) ? picked : [picked]);
   }
 
-  /** Replace the queue with `paths` and play from `start` (library "Play"). */
-  async function playPaths(paths: string[], start: number) {
+  /** Add to the end of the queue — of a shuffled one too: what was just added plays last. */
+  function append(paths: string[]) {
+    queue.push(...paths);
+    for (let i = 0; i < paths.length; i++) straight.push(nextPlace++);
+  }
+
+  function replaceQueue(paths: string[]) {
     queue = [...paths];
+    straight = paths.map((_, i) => i);
+    nextPlace = paths.length;
+  }
+
+  /** Put the queue in `order` (indices into the present one); the playing track stays the playing track. */
+  function reorder(order: number[]) {
+    const [paths, places] = [$state.snapshot(queue), straight];
+    queue = order.map((i) => paths[i]);
+    straight = order.map((i) => places[i]);
+    if (index >= 0) index = order.indexOf(index);
+  }
+
+  /** Replace the queue with `paths` and play from `start` (library "Play"). With shuffle on, the rest follows in a random order. */
+  async function playPaths(paths: string[], start: number) {
+    replaceQueue(paths);
+    if (shuffle) {
+      index = -1;
+      reorder(shuffledOrder(queue.length, start));
+      start = 0;
+    }
     await playIndex(start);
+  }
+
+  /** Replace the queue with `paths` in a random order and play it (library "Shuffle"): shuffle switches on. */
+  async function playShuffled(paths: string[]) {
+    if (!paths.length) return;
+    shuffle = true;
+    replaceQueue(paths);
+    index = -1;
+    reorder(shuffledOrder(queue.length, -1));
+    // Before the first track opens: volume levelling treats a shuffled queue track by track.
+    await api.setPlayModes(true, repeat).catch(() => {});
+    await playIndex(0);
+  }
+
+  /** Shuffle the queue around the playing track, or put it back in the order it was added in. Playback goes on. */
+  async function setShuffle(on: boolean) {
+    if (on === shuffle) return;
+    // The backend may have moved on to the next track a moment ago: go by what plays now.
+    await catchUp();
+    shuffle = on;
+    reorder(on ? shuffledOrder(queue.length, index) : straightOrder(straight));
   }
 
   /** Append to the queue; start playing if nothing is. */
   async function enqueue(paths: string[]) {
     const first = queue.length;
-    queue.push(...paths);
+    append(paths);
     if (!status.active || status.finished) await playIndex(first);
   }
 
   function removeAt(i: number) {
     queue.splice(i, 1);
+    straight.splice(i, 1);
     if (i < index) index--;
     else if (i === index) {
       api.stop();
@@ -270,7 +325,7 @@
 
   function clearQueue() {
     api.stop();
-    queue = [];
+    replaceQueue([]);
     index = -1;
     now = null;
   }
@@ -283,13 +338,15 @@
     await api.setPaused(!status.paused);
   }
 
+  /** With the queue on repeat its ends meet: next from the last track is the first, and back. */
   async function next() {
     if (index < queue.length - 1) await playIndex(index + 1);
+    else if (repeat === "all" && queue.length) await playIndex(0);
   }
 
   async function prev() {
-    if (status.position > 3 || index <= 0) await api.seek(0);
-    else await playIndex(index - 1);
+    if (status.position > 3 || (index <= 0 && repeat !== "all")) await api.seek(0);
+    else await playIndex(index > 0 ? index - 1 : queue.length - 1);
   }
 
   async function channelTest() {
@@ -370,6 +427,29 @@
     api.setQueue($state.snapshot(queue), index < 0 ? null : index, knownRev);
   });
 
+  // The backend decides what follows a track that ends, so it knows how the keys stand.
+  $effect(() => {
+    save("shuffle", shuffle);
+    save("repeat", repeat);
+    api.setPlayModes(shuffle, repeat).catch(() => {});
+  });
+
+  /** Fetch the status; when the backend has moved on to another track by itself, show it. */
+  async function catchUp() {
+    status = await api.status();
+    // A track was counted as listened to: the library's numbers follow.
+    syncPlays(status.playsRev);
+    if (status.nowRev === knownRev || loading) return;
+    knownRev = status.nowRev;
+    const n = await api.nowPlaying();
+    if (n && !testing) {
+      now = n;
+      sweepKey++;
+    }
+    if (status.queueIndex !== null) index = status.queueIndex;
+    if (status.advanceError) error = t("err.play", { name: status.advanceError.name, error: errorText(status.advanceError.error) });
+  }
+
   // Switching device or access mode mid-track: continue the same track on the new output.
   let lastOutput = untrack(() => `${selected}|${exclusive}`);
   $effect(() => {
@@ -418,10 +498,20 @@
       api.seek(Math.min(status.position + 10, status.duration));
     } else if (e.key === "ArrowLeft" && status.active) {
       api.seek(Math.max(status.position - 10, 0));
-    } else if (e.key.toLowerCase() === "l" && !e.metaKey && !e.ctrlKey && !e.altKey && now && !testing) {
+    } else if (e.altKey || e.repeat) {
+      return;
+    } else if (letter(e, "l") && now && !testing) {
       lyricsOn = !lyricsOn;
       screen = "player";
+    } else if (letter(e, "s")) {
+      setShuffle(!shuffle);
+    } else if (letter(e, "r")) {
+      repeat = nextRepeat(repeat);
     }
+  }
+  /** A one-letter shortcut: the letter typed, or its key where the keyboard types another script (Cyrillic, Greek…). */
+  function letter(e: KeyboardEvent, l: string): boolean {
+    return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() === l : e.code === `Key${l.toUpperCase()}`;
   }
 
   onMount(() => {
@@ -434,20 +524,8 @@
     loadEq();
     const stopUpdateChecks = startUpdateChecks();
     const timer = setInterval(async () => {
-      status = await api.status();
-      // A track was counted as listened to: the library's numbers follow.
-      syncPlays(status.playsRev);
       // The backend moved on to the next track (or stopped at one it couldn't play).
-      if (status.nowRev !== knownRev && !loading) {
-        knownRev = status.nowRev;
-        const n = await api.nowPlaying();
-        if (n && !testing) {
-          now = n;
-          sweepKey++;
-        }
-        if (status.queueIndex !== null) index = status.queueIndex;
-        if (status.advanceError) error = t("err.play", { name: status.advanceError.name, error: errorText(status.advanceError.error) });
-      }
+      await catchUp();
       // iPhone: the output route changed (DAC unplugged) — pick up the new one; the device
       // effect above then restarts the track there, paused.
       const outputError = status.error && JSON.stringify(status.error);
@@ -486,6 +564,8 @@
           if (c.kind === "toggle") togglePause();
           else if (c.kind === "next") next();
           else if (c.kind === "prev") prev();
+          else if (c.kind === "shuffle") setShuffle(!shuffle);
+          else if (c.kind === "repeat") repeat = nextRepeat(repeat);
           else if (c.kind === "seek") api.seek(c.secs);
           else if (c.kind === "jump") playIndex(c.index);
           else if (c.kind === "play") playPaths(c.paths, c.index);
@@ -642,6 +722,10 @@
 
     <!-- transport keys keep their tape direction in right-to-left languages -->
     <div class="keys" dir="ltr">
+      <button class="key mode shuffle-key" class:on={shuffle} onclick={() => setShuffle(!shuffle)} aria-pressed={shuffle} aria-label={t("common.shuffle")} title={hint(t("common.shuffle"), "S") ?? t("common.shuffle")} disabled={testing}>
+        <!-- two lines that trade places -->
+        <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 6.5h3.2c1.6 0 2.7.7 3.6 2.1l2.4 3.8c.9 1.4 2 2.1 3.6 2.1H19M3 14.5h3.2c1.2 0 2.1-.4 2.9-1.4M12.9 7.9c.8-1 1.7-1.4 2.9-1.4H19M16.5 4L19 6.5 16.5 9M16.5 12l2.5 2.5-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </button>
       <button class="key" onclick={prev} aria-label={t("common.prev")} title={hint(t("common.prev"), `${modKey}←`)} disabled={!now || testing}>
         <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M6 4v14M18 4L8 11l10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
       </button>
@@ -652,11 +736,15 @@
           <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M8 4.5v17l14-8.5z" fill="currentColor" /></svg>
         {/if}
       </button>
-      <button class="key" onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || index >= queue.length - 1}>
+      <button class="key" onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || !canNext}>
         <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M16 4v14M4 4l10 7-10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
       </button>
+      <button class="key mode repeat-key" class:on={repeat !== "off"} onclick={() => (repeat = nextRepeat(repeat))} aria-label={t(`repeat.${repeat}`)} title={hint(t(`repeat.${repeat}`), "R") ?? t(`repeat.${repeat}`)} disabled={testing}>
+        <!-- a loop; with a 1 inside when it is the one track that repeats -->
+        <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M4 10V8.5a3 3 0 0 1 3-3h10M14.5 3L17 5.5 14.5 8M18 12v1.5a3 3 0 0 1-3 3H5M7.5 14L5 16.5 7.5 19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />{#if repeat === "one"}<path d="M9.9 9.4l1.7-1.2v5.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />{/if}</svg>
+      </button>
       <button
-        class="key lyr-key"
+        class="key mode lyr-key"
         class:on={showLyrics}
         onclick={() => (lyricsOn = !lyricsOn)}
         aria-pressed={showLyrics}
@@ -679,11 +767,11 @@
     </main>
   {:else if screen === "streaming" && streaming?.available}
     <main class="lib">
-      <Streaming status={streaming} currentPath={testing ? null : (now?.path ?? null)} onstatus={refreshStreaming} onplay={playPaths} onenqueue={enqueue} />
+      <Streaming status={streaming} currentPath={testing ? null : (now?.path ?? null)} onstatus={refreshStreaming} onplay={playPaths} onshuffle={playShuffled} onenqueue={enqueue} />
     </main>
   {:else}
     <main class="lib">
-      <Library currentPath={testing ? null : (now?.path ?? null)} goto={libGoto} {streaming} onplay={playPaths} onenqueue={enqueue} />
+      <Library currentPath={testing ? null : (now?.path ?? null)} goto={libGoto} {streaming} onplay={playPaths} onshuffle={playShuffled} onenqueue={enqueue} />
     </main>
   {/if}
 
@@ -712,7 +800,7 @@
             <svg width="16" height="16" viewBox="0 0 26 26" aria-hidden="true"><path d="M8 4.5v17l14-8.5z" fill="currentColor" /></svg>
           {/if}
         </button>
-        <button onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || index >= queue.length - 1}>
+        <button onclick={next} aria-label={t("common.next")} title={hint(t("common.next"), `${modKey}→`)} disabled={testing || !canNext}>
           <svg width="14" height="14" viewBox="0 0 22 22" aria-hidden="true"><path d="M16 4v14M4 4l10 7-10 7z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></svg>
         </button>
       </div>
@@ -1223,10 +1311,11 @@
   }
 
   /* hardware keys */
-  /* prev / play / next in the middle; the lyrics key beside them doesn't move the middle */
+  /* prev / play / next in the middle, shuffle and repeat on either side of them; the lyrics
+     key beside them doesn't move the middle */
   .keys {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) repeat(3, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) repeat(5, auto) minmax(0, 1fr);
     align-items: center;
     gap: 18px;
   }
@@ -1518,24 +1607,52 @@
       font-size: var(--t-xl);
     }
   }
-  /* --- lyrics --- */
-  .keys .key.lyr-key {
+  /* --- the keys that stay down: shuffle, repeat, lyrics --- */
+  .keys .key.mode {
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    margin-inline-start: 6px;
     color: var(--mist);
   }
-  .keys .key.lyr-key:hover:not(:disabled) {
+  .keys .key.mode:hover:not(:disabled) {
     color: var(--porcelain);
   }
-  .keys .key.lyr-key.on {
+  /* (lit under the pointer too: a key just clicked shows what the click did) */
+  .keys .key.mode.on,
+  .keys .key.mode.on:hover:not(:disabled) {
     color: var(--ink);
     background: var(--porcelain);
   }
-  .keys .key.lyr-key:disabled {
+  .keys .key.mode:disabled {
     color: var(--slate-500);
   }
+  .keys .key.lyr-key {
+    margin-inline-start: 6px;
+  }
+  /* narrow phones: the three of them in a row of their own under the transport */
+  @media (max-width: 480px) {
+    .keys {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      /* (twice over: the break between the rows is a row of no height) */
+      row-gap: 5px;
+    }
+    .keys::before {
+      content: "";
+      flex-basis: 100%;
+      order: 1;
+    }
+    .keys .key.mode {
+      order: 2;
+      width: 44px;
+      height: 44px;
+    }
+    .keys .key.lyr-key {
+      margin-inline-start: 0;
+    }
+  }
+  /* --- lyrics --- */
   /* Most windows: the title in brief, the words, where the track is, the keys. The readout
      makes way (the header still names the output and its rate). */
   .panel.with-lyrics {

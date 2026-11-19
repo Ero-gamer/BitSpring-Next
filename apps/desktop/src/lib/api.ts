@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { mock, mockCover } from "./mock";
 import { num, t, tn } from "./i18n.svelte";
+import type { Repeat } from "./playOrder";
 
 export interface Device {
   uid: string;
@@ -573,6 +574,8 @@ export const api = {
   playFile: (path: string, deviceUid: string, exclusive: boolean, startAt = 0, dop = false, index: number | null = null, paused = false) =>
     call<NowPlaying>("play_file", { path, deviceUid, exclusive, startAt, dop, index, paused }),
   setQueue: (paths: string[], index: number | null, rev: number) => call<void>("set_queue", { paths, index, rev }),
+  /** How the shuffle and repeat keys stand: the backend goes by them when a track ends. */
+  setPlayModes: (shuffle: boolean, repeat: Repeat) => call<void>("set_play_modes", { shuffle, repeat }),
   nowPlaying: () => call<NowPlaying | null>("now_playing"),
   /** The track's own lyrics, else (with `online`) LRCLIB's; null when there are none. */
   lyrics: (now: Pick<NowPlaying, "path" | "title" | "artist" | "album" | "duration">, online: boolean) =>
@@ -755,7 +758,7 @@ export interface RemoteStatus {
 
 /** A command from the phone remote, carried out by the window like its own buttons. */
 export type RemoteCommand =
-  | { kind: "toggle" | "next" | "prev" }
+  | { kind: "toggle" | "next" | "prev" | "shuffle" | "repeat" }
   | { kind: "seek"; secs: number }
   | { kind: "jump"; index: number }
   | { kind: "play" | "enqueue"; paths: string[]; index: number };
