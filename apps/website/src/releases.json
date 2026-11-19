@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.20.0",
+    "name": "BitSpring 0.20.0",
+    "date": "2026-11-19T06:28:58Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.20.0",
+    "notes": "- **Shuffle.** A shuffle key sits beside the transport keys (S on a keyboard), and there is a Shuffle button on an album, a playlist, the track list and the Qobuz and TIDAL pages. The queue is put in a random order once, around the track that is playing, and it shows the order that will play. Switch shuffle off and the queue goes back to the order it was added in. Neither switch interrupts the track, and gapless playback works in a shuffled queue too.\n- **Repeat.** The repeat key (R on a keyboard) goes through three states: off, the whole queue, one track. It keeps working with the screen locked. With the queue on repeat, Next from the last track goes to the first, and Previous from the first goes to the last.\n- **Both stay as you left them** between launches, and the phone remote has the same two keys.\n- **Volume levelling \"by album\" goes by track in a shuffled queue.** One gain for a whole album is right when the album plays through, not when its tracks are mixed with others.\n- **A key that is on stays lit under the mouse pointer.** The lyrics key used to lose its lit look while the pointer was over it, so a click seemed to do nothing.\n- **The L, S and R shortcuts work with a keyboard set to another script**, such as Cyrillic or Greek."
+  },
+  {
     "version": "0.19.2",
     "name": "BitSpring 0.19.2",
     "date": "2026-11-18T20:16:23Z",
