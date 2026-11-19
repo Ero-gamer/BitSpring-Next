@@ -50,7 +50,7 @@ the app after installing the package on a clean Windows.
 
 | Field | Value |
 |---|---|
-| Product name | BitSpring (must be the reserved name exactly) |
+| Product name | BitSpring: Hi-Res Music Player, in every language (a second reserved name, picked in each listing's Product name list; `BitSpring` stays reserved and is the name inside the package) |
 | Short description | Bit-perfect hi-res music player for your own FLAC, ALAC and DSD files, with EQ for your headphones. |
 | Search terms (7) | hifi, audiophile, flac, dac, lossless, dsd, wasapi exclusive |
 | Copyright | 2026 Oleksandr Hurov |
