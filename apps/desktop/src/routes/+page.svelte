@@ -559,10 +559,19 @@
       import("@tauri-apps/api/event").then(async ({ listen }) => {
         unlistenRemote = await listen<RemoteCommand>("remote", ({ payload: c }) => {
           if (c.kind === "toggle") togglePause();
-          else if (c.kind === "next") next();
+          // (The API's own: play and pause that say which, and stop.)
+          else if (c.kind === "resume") {
+            if (!status.active) togglePause();
+            else if (status.paused) api.setPaused(false);
+          } else if (c.kind === "pause") {
+            if (status.active && !status.paused) api.setPaused(true);
+          } else if (c.kind === "stop") {
+            api.stop();
+            now = null;
+          } else if (c.kind === "next") next();
           else if (c.kind === "prev") prev();
-          else if (c.kind === "shuffle") setShuffle(!shuffle);
-          else if (c.kind === "repeat") repeat = nextRepeat(repeat);
+          else if (c.kind === "shuffle") setShuffle(c.on ?? !shuffle);
+          else if (c.kind === "repeat") repeat = c.mode ?? nextRepeat(repeat);
           else if (c.kind === "seek") api.seek(c.secs);
           else if (c.kind === "jump") playIndex(c.index);
           else if (c.kind === "play") playPaths(c.paths, c.index);

@@ -12,6 +12,7 @@ const PAGES: Record<string, string> = {
   "": "index.html",
   "download/": "download/index.html",
   "privacy/": "privacy/index.html",
+  "api/": "api/index.html",
   "releases/": "releases/index.html",
 };
 

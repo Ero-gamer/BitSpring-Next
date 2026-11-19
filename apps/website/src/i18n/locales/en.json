@@ -155,5 +155,16 @@
   "releases.lead": "Every version of BitSpring, newest first: what it added or fixed, and when it came out.",
   "releases.english": "Release notes are in English.",
   "releases.files": "Downloads and checksums",
-  "releases.as_hifi": "Released as Hifi"
+  "releases.as_hifi": "Released as Hifi",
+
+  "footer.api": "API",
+  "api.meta_title": "BitSpring local API: control playback from Home Assistant and scripts",
+  "api.meta_description": "BitSpring can be controlled over the local network by Home Assistant, a Stream Deck, Apple Shortcuts or your own scripts: state, queue, transport, volume and events.",
+  "api.title": "Local API",
+  "api.lead": "BitSpring on a computer can be controlled over the local network by Home Assistant, a Stream Deck, Apple Shortcuts or a script of your own. It is the same small server the phone remote uses.",
+  "api.off": "Off by default. It runs only while the phone remote is switched on in Settings, and stops when you switch it off.",
+  "api.local": "Local network only. BitSpring never opens it to the internet.",
+  "api.token": "Every request needs the token from the remote's address. “New address” in the remote's panel makes a new one, and everything that had the old one loses access.",
+  "api.library": "It plays only what is in your library: a request can't make BitSpring open any other file.",
+  "api.english": "The reference below is in English."
 }

@@ -743,7 +743,9 @@ export interface RemoteStatus {
 
 /** A command from the phone remote, carried out by the window like its own buttons. */
 export type RemoteCommand =
-  | { kind: "toggle" | "next" | "prev" | "shuffle" | "repeat" }
+  | { kind: "toggle" | "next" | "prev" | "pause" | "resume" | "stop" }
+  | { kind: "shuffle"; on?: boolean }
+  | { kind: "repeat"; mode?: "off" | "all" | "one" }
   | { kind: "seek"; secs: number }
   | { kind: "jump"; index: number }
   | { kind: "play" | "enqueue"; paths: string[]; index: number };

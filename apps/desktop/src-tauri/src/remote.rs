@@ -7,6 +7,8 @@
 //!
 //! Off until the user switches it on. Every request but the page itself needs the token in
 //! the address the QR code carries (128 random bits); "New address" changes it.
+//!
+//! The same server is the local API for scripts and home automation: see remote_api.rs.
 
 use std::net::{Ipv4Addr, TcpListener, TcpStream, UdpSocket};
 use std::path::{Path, PathBuf};
@@ -97,9 +99,9 @@ impl Remote {
         let port = listener.local_addr()?.port();
         c.port = port;
         let stop = Arc::new(AtomicBool::new(false));
-        let (app2, token) = (app.clone(), c.token.clone());
+        let (app2, token, stopped) = (app.clone(), c.token.clone(), stop.clone());
         http::accept_loop(listener, "hifi-remote", stop.clone(), move |mut conn| {
-            let _ = handle(&app2, &token, &mut conn);
+            let _ = handle(&app2, &token, &mut conn, &stopped);
         })?;
         *running = Some(Running { port, stop });
         drop(c);
@@ -169,7 +171,7 @@ pub fn remote_new_address(app: AppHandle, remote: State<'_, Remote>) -> RemoteSt
 // Requests
 // ---------------------------------------------------------------------------------------------
 
-fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<()> {
+fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream, stop: &AtomicBool) -> anyhow::Result<()> {
     conn.set_write_timeout(Some(std::time::Duration::from_secs(20)))?;
     let req = http::read_request(conn, 1 << 20)?;
     let json_ok = |conn: &mut TcpStream, v: &Value| http::respond(conn, "200 OK", "application/json", &[("Cache-Control", "no-store")], v.to_string().as_bytes());
@@ -196,9 +198,15 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
         }
         _ => {}
     }
-    let given = req.headers.get("x-token").or_else(|| req.query.get("t")).map(String::as_str).unwrap_or("");
+    // The token: in the page's own header, as a bearer token (what automation tools send),
+    // or in the address.
+    let bearer = req.headers.get("authorization").and_then(|a| a.strip_prefix("Bearer ").or_else(|| a.strip_prefix("bearer "))).map(str::trim);
+    let given = req.headers.get("x-token").map(String::as_str).or(bearer).or_else(|| req.query.get("t").map(String::as_str)).unwrap_or("");
     if !same(given, token) {
         return Ok(http::respond(conn, "403 Forbidden", "application/json", &[], br#"{"error":"token"}"#)?);
+    }
+    if let Some(path) = req.path.strip_prefix("/api/v1/") {
+        return crate::remote_api::handle(app, conn, &req, path, stop);
     }
     let state = app.state::<AppState>();
     match (req.method.as_str(), req.path.as_str()) {
@@ -272,12 +280,22 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
     Ok(())
 }
 
-/// A command from the phone, rebuilt from what is expected (and nothing else): tracks only
-/// from the library, numbers in range.
-fn checked(app: &AppHandle, cmd: &Value) -> Option<Value> {
+/// A command from the phone (or the API), rebuilt from what is expected (and nothing else):
+/// tracks only from the library, numbers in range.
+pub(crate) fn checked(app: &AppHandle, cmd: &Value) -> Option<Value> {
     let kind = cmd["kind"].as_str()?;
     Some(match kind {
-        "toggle" | "next" | "prev" | "shuffle" | "repeat" => json!({"kind": kind}),
+        "toggle" | "next" | "prev" | "pause" | "resume" | "stop" => json!({"kind": kind}),
+        // On or off — or, with nothing said, the other one (the remote's key).
+        "shuffle" => match &cmd["on"] {
+            Value::Null => json!({"kind": kind}),
+            on => json!({"kind": kind, "on": on.as_bool()?}),
+        },
+        // A mode — or, with nothing said, the next one.
+        "repeat" => match &cmd["mode"] {
+            Value::Null => json!({"kind": kind}),
+            mode => json!({"kind": kind, "mode": mode.as_str().filter(|m| ["off", "all", "one"].contains(m))?}),
+        },
         "seek" => json!({"kind": kind, "secs": cmd["secs"].as_f64().filter(|s| s.is_finite() && *s >= 0.0)?}),
         "jump" => json!({"kind": kind, "index": cmd["index"].as_u64()?}),
         "play" | "enqueue" => {
@@ -298,7 +316,7 @@ fn same(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-fn file_title(path: &str) -> String {
+pub(crate) fn file_title(path: &str) -> String {
     Path::new(hifi_engine::source_file(path)).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string())
 }
 

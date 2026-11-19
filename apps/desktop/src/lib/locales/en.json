@@ -727,5 +727,8 @@
   "dyn.loudness": "Loudness",
   "dyn.help": "DR shows how far the peaks stand above the loudest passages: 14 and more is a recording with its dynamics intact, 7 and less is heavily compressed. The loudness range (LRA) is the distance between the quiet and the loud passages. Measured from the sound itself; nothing is changed.",
   "sp.f.dr": "Dynamic range (DR)",
-  "sp.f.lra": "Loudness range (LU)"
+  "sp.f.lra": "Loudness range (LU)",
+
+  "remote.api": "The same address lets Home Assistant, a Stream Deck or your own scripts control playback.",
+  "remote.apiLink": "How the API works"
 }
