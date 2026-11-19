@@ -204,9 +204,9 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
     match (req.method.as_str(), req.path.as_str()) {
         ("GET", "/api/state") => {
             let status = crate::status(app.state::<AppState>());
-            let (paths, index) = {
+            let (paths, index, shuffle, repeat) = {
                 let q = state.queue.lock().unwrap();
-                (q.paths.clone(), q.index)
+                (q.paths.clone(), q.index, q.shuffle, q.repeat)
             };
             let lib = app.state::<Library>();
             let known = lib.tracks_by_path(&paths);
@@ -218,7 +218,7 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
                 })
                 .collect();
             let output = state.current.lock().unwrap().as_ref().map(|c| c.device_uid.clone());
-            json_ok(conn, &json!({"status": status, "queue": queue, "index": index, "network": output.as_deref().is_some_and(hifi_engine::net::is_network_uid)}))?;
+            json_ok(conn, &json!({"status": status, "queue": queue, "index": index, "shuffle": shuffle, "repeat": repeat, "network": output.as_deref().is_some_and(hifi_engine::net::is_network_uid)}))?;
         }
         ("GET", "/api/now") => {
             let now = crate::now_playing(app.state::<AppState>());
@@ -277,7 +277,7 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream) -> anyhow::Result<
 fn checked(app: &AppHandle, cmd: &Value) -> Option<Value> {
     let kind = cmd["kind"].as_str()?;
     Some(match kind {
-        "toggle" | "next" | "prev" => json!({"kind": kind}),
+        "toggle" | "next" | "prev" | "shuffle" | "repeat" => json!({"kind": kind}),
         "seek" => json!({"kind": kind, "secs": cmd["secs"].as_f64().filter(|s| s.is_finite() && *s >= 0.0)?}),
         "jump" => json!({"kind": kind, "index": cmd["index"].as_u64()?}),
         "play" | "enqueue" => {

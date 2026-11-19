@@ -176,6 +176,7 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
 
 let mockQueue: string[] = [];
 let mockIndex: number | null = null;
+let mockRepeat: "off" | "all" | "one" = "off";
 let mockRev = 0;
 let mockNow: NowPlaying | null = null;
 let started = 0;
@@ -343,6 +344,9 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       mockQueue = args.paths as string[];
       if (args.rev === mockRev) mockIndex = args.index as number | null;
       return undefined as T;
+    case "set_play_modes":
+      mockRepeat = args.repeat as typeof mockRepeat;
+      return undefined as T;
     case "now_playing":
       return mockNow as T;
     case "lyrics": {
@@ -363,8 +367,9 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       return args.paths as T;
     case "status": {
       // Like the backend: at the end of a track the queue moves on by itself.
-      if (duration > 0 && !paused && now() >= duration && mockIndex !== null && mockIndex + 1 < mockQueue.length && lastDevice) {
-        await mock("play_file", { path: mockQueue[mockIndex + 1], deviceUid: lastDevice.uid, exclusive: lastExclusive, dop: lastDop, index: mockIndex + 1 });
+      if (duration > 0 && !paused && now() >= duration && mockIndex !== null && lastDevice) {
+        const next = mockRepeat === "one" ? mockIndex : mockRepeat === "all" && mockQueue.length ? (mockIndex + 1) % mockQueue.length : mockIndex + 1;
+        if (next < mockQueue.length) await mock("play_file", { path: mockQueue[next], deviceUid: lastDevice.uid, exclusive: lastExclusive, dop: lastDop, index: next });
       }
       const processing = !!(dsp.upsampleKhz || eqOn() || dsp.convolution || dsp.crossfeed);
       const s: Status = {

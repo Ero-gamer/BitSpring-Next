@@ -16,6 +16,7 @@
     currentPath = null,
     onstatus,
     onplay,
+    onshuffle,
     onenqueue,
   }: {
     status: StreamingStatus;
@@ -23,6 +24,7 @@
     /** Sign-in state changed: fetch it again. */
     onstatus: () => void;
     onplay: (paths: string[], start: number) => void;
+    onshuffle: (paths: string[]) => void;
     onenqueue: (paths: string[]) => void;
   } = $props();
 
@@ -136,6 +138,11 @@
     onplay(list.map((t) => t.uri), i);
   }
 
+  function shuffle(list: STrack[]) {
+    remember(list);
+    onshuffle(list.map((t) => t.uri));
+  }
+
   function enqueue(list: STrack[]) {
     remember(list);
     onenqueue(list.map((t) => t.uri));
@@ -243,6 +250,7 @@
             <p class="facts" class:hi={a.hiRes}>{fmt(a)}</p>
             <div class="actions">
               <button class="primary" onclick={() => play(open!.tracks, 0)} disabled={!open.tracks.length}>{t("common.play")}</button>
+              <button class="ghost" onclick={() => shuffle(open!.tracks)} disabled={!open.tracks.length}>{t("common.shuffle")}</button>
               <button class="ghost" onclick={() => enqueue(open!.tracks)}>{t("lib.enqueue")}</button>
               <AddToPlaylist entries={() => open!.tracks.map(entryFromStream)} />
             </div>
@@ -267,6 +275,7 @@
             <p class="facts">{tn("lib.nTracks", open.tracks.length)}</p>
             <div class="actions">
               <button class="primary" onclick={() => play(open!.tracks, 0)} disabled={!open.tracks.length}>{t("common.play")}</button>
+              <button class="ghost" onclick={() => shuffle(open!.tracks)} disabled={!open.tracks.length}>{t("common.shuffle")}</button>
               <button class="ghost" onclick={() => enqueue(open!.tracks)}>{t("lib.enqueue")}</button>
               <button class="ghost" onclick={() => importPlaylist(p)} title={t("stream.saveToMineTitle")}>{t("stream.saveToMine")}</button>
             </div>

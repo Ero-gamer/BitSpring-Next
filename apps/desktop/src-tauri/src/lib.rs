@@ -22,6 +22,7 @@ mod lyrics;
 mod pad;
 mod playlists;
 mod quality;
+mod queue;
 mod remote;
 /// Qobuz and TIDAL: the real thing outside the App Store, a stand-in inside it.
 #[cfg_attr(all(feature = "streaming", not(target_os = "ios")), path = "stream_on.rs")]
@@ -57,6 +58,7 @@ use hifi_engine::dsp::loudness::{Basis, LevelMode, LevelSettings};
 use hifi_engine::dsp::{Convolution, DspSettings, Upsample};
 use hifi_engine::dsd::{self, DsdMode};
 use hifi_engine::{Track, UserError, open_file_at, testsignal};
+use queue::{Queue, Repeat};
 use serde::Serialize;
 use tauri::State;
 
@@ -96,14 +98,6 @@ enum DsdNote {
 struct AdvanceError {
     name: String,
     error: UserError,
-}
-
-/// The play queue, mirrored from the UI so the next track starts from Rust — on time, and
-/// also while the UI sleeps (a locked iPhone suspends the web view, not the audio).
-#[derive(Default)]
-struct Queue {
-    paths: Vec<String>,
-    index: Option<usize>,
 }
 
 #[derive(Default)]
@@ -633,7 +627,20 @@ fn set_level(dsp: &DspSettings, file: &std::path::Path, track: &Arc<Track>, wait
     use tauri::Manager;
     let Some(app) = APP.get() else { return };
     let (levels, lib) = (app.state::<loudness::Loudness>(), app.state::<library::Library>());
-    levels.level(&lib, dsp, &file.to_string_lossy(), track, wait);
+    let shuffled = app.state::<AppState>().queue.lock().unwrap().shuffle;
+    levels.level(&lib, &level_for(dsp, shuffled), &file.to_string_lossy(), track, wait);
+}
+
+/// The settings a track's gain goes by. An album's one gain keeps its quiet tracks quiet next
+/// to its loud ones — right when the album plays through, wrong in a shuffled queue, where a
+/// track follows one from another album: there every track is levelled by itself.
+fn level_for(dsp: &DspSettings, shuffled: bool) -> std::borrow::Cow<'_, DspSettings> {
+    if shuffled && dsp.level.mode == LevelMode::Album {
+        let mut by_track = dsp.clone();
+        by_track.level.mode = LevelMode::Track;
+        return std::borrow::Cow::Owned(by_track);
+    }
+    std::borrow::Cow::Borrowed(dsp)
 }
 
 /// How long opening a track may wait for it to load, to measure a loudness nobody knows yet:
@@ -757,6 +764,15 @@ fn set_queue(state: State<'_, AppState>, paths: Vec<String>, index: Option<usize
     }
 }
 
+/// Shuffle and repeat, as the UI's keys stand. (Shuffling itself is the UI reordering the
+/// queue; here it only changes how volume levelling treats albums.)
+#[tauri::command]
+fn set_play_modes(state: State<'_, AppState>, shuffle: bool, repeat: Repeat) {
+    let mut q = state.queue.lock().unwrap();
+    q.shuffle = shuffle;
+    q.repeat = repeat;
+}
+
 #[tauri::command]
 fn now_playing(state: State<'_, AppState>) -> Option<NowPlayingDto> {
     state.now.lock().unwrap().clone()
@@ -801,15 +817,16 @@ fn play_queue_at(state: &AppState, i: usize) {
     }
 }
 
-/// At the end of a track, start the next one in the queue on the same output. True when
-/// the last track has played out and nothing follows (the player sits finished).
+/// At the end of a track, start the one that follows it in the queue (with repeat on, that
+/// may be the first track, or the same one) on the same output. True when the last track has
+/// played out and nothing follows (the player sits finished).
 fn advance(state: &AppState) -> bool {
     let _one = state.play_lock.lock().unwrap();
     if !state.player.lock().unwrap().as_ref().is_some_and(|p| p.is_finished()) {
         return false;
     }
-    let next = state.queue.lock().unwrap().index.map(|i| i + 1);
-    match next.filter(|&i| i < state.queue.lock().unwrap().paths.len()) {
+    let next = state.queue.lock().unwrap().following();
+    match next {
         Some(i) => {
             play_queue_at(state, i);
             false
@@ -879,7 +896,7 @@ fn follow_queue(state: &AppState) {
     let same = state.current.lock().unwrap().as_ref().is_some_and(|c| Arc::ptr_eq(&c.track, &p.heard()))
         && {
             let q = state.queue.lock().unwrap();
-            q.index.map(|i| i + 1) == Some(want.index) && q.paths.get(want.index) == Some(&want.path)
+            q.following() == Some(want.index) && q.paths.get(want.index) == Some(&want.path)
         };
     if same && !p.queue_next(track.clone()) {
         let mut l = state.lined_up.lock().unwrap();
@@ -916,7 +933,7 @@ fn wanted_next(state: &AppState) -> Option<WantNext> {
     }
     let (index, path) = {
         let q = state.queue.lock().unwrap();
-        let i = q.index? + 1;
+        let i = q.following()?;
         (i, q.paths.get(i)?.clone())
     };
     // Forget what was lined up for a queue that has changed since.
@@ -999,11 +1016,7 @@ pub(crate) fn jump(state: &AppState, delta: i64) {
         }
         None => {}
     }
-    let (index, len) = {
-        let q = state.queue.lock().unwrap();
-        (q.index, q.paths.len())
-    };
-    let Some(i) = index.and_then(|i| i.checked_add_signed(delta as isize)).filter(|&i| i < len) else { return };
+    let Some(i) = state.queue.lock().unwrap().step(delta) else { return };
     play_queue_at(state, i);
 }
 
@@ -1392,6 +1405,7 @@ pub fn run() {
             expand_paths,
             play_file,
             set_queue,
+            set_play_modes,
             now_playing,
             channel_test,
             status,
@@ -1471,4 +1485,23 @@ pub fn run() {
                 drop(app.state::<AppState>().player.lock().unwrap().take());
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Levelling by album holds while albums play through; a shuffled queue is levelled
+    /// track by track. Nothing else in the settings moves, and "by track" and "off" stay.
+    #[test]
+    fn a_shuffled_queue_is_levelled_by_track() {
+        let with = |mode| DspSettings { level: LevelSettings { mode, headroom: true }, ..Default::default() };
+        let album = with(LevelMode::Album);
+        assert_eq!(level_for(&album, false).level.mode, LevelMode::Album);
+        let shuffled = level_for(&album, true);
+        assert_eq!(shuffled.level.mode, LevelMode::Track);
+        assert!(shuffled.level.headroom);
+        assert_eq!(level_for(&with(LevelMode::Track), true).level.mode, LevelMode::Track);
+        assert_eq!(level_for(&with(LevelMode::Off), true).level.mode, LevelMode::Off);
+    }
 }

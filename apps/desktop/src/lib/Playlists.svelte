@@ -15,6 +15,7 @@
     query = "",
     streaming = null,
     onplay,
+    onshuffle,
     onenqueue,
   }: {
     /** The library, to show each file's format. */
@@ -23,6 +24,7 @@
     query?: string;
     streaming?: StreamingStatus | null;
     onplay: (paths: string[], start: number) => void;
+    onshuffle: (paths: string[]) => void;
     onenqueue: (paths: string[]) => void;
   } = $props();
 
@@ -315,6 +317,7 @@
         </p>
         <div class="actions">
           <button class="primary" onclick={() => play()} disabled={!detail.entries.some((e) => e.available)}>{t("common.play")}</button>
+          <button class="ghost" onclick={() => onshuffle(playable().paths)} disabled={!detail.entries.some((e) => e.available)}>{t("common.shuffle")}</button>
           <button class="ghost" onclick={() => { const { paths } = playable(); onenqueue(paths); }} disabled={!detail.entries.some((e) => e.available)}>{t("lib.enqueue")}</button>
           <span class="export">
             <button class="ghost" onclick={() => (exportOpen = !exportOpen)} aria-expanded={exportOpen} disabled={!detail.entries.length}>{t("pl.export")}</button>

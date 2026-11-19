@@ -314,6 +314,20 @@ html[data-look="glass"] .app .keys .key {
     transform 0.15s ease,
     background 0.2s;
 }
+/* shuffle, repeat and lyrics are a size down from the transport, so the row keeps its middle */
+html[data-look="glass"] .app .keys .key.mode {
+  width: 40px;
+  height: 40px;
+}
+@media (max-width: 480px) {
+  html[data-look="glass"] .app .keys {
+    row-gap: 6px;
+  }
+  html[data-look="glass"] .app .keys .key.mode {
+    width: 44px;
+    height: 44px;
+  }
+}
 html[data-look="glass"] .app .keys .key:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.11);
 }
