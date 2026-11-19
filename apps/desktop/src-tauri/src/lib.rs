@@ -11,6 +11,7 @@ mod apple_media;
 mod windows_media;
 #[cfg(target_os = "linux")]
 mod linux_media;
+mod abx;
 mod bookmarks;
 mod crash;
 mod eq;
@@ -24,6 +25,8 @@ mod playlists;
 mod quality;
 mod queue;
 mod remote;
+mod remote_api;
+mod ripcheck;
 mod scrobble;
 mod stats;
 /// Qobuz and TIDAL: the real thing outside the App Store, a stand-in inside it.
@@ -1393,6 +1396,8 @@ pub fn run() {
             app.manage(plays.clone());
             let scrobbling = scrobble::Scrobbling::load(app.handle());
             app.manage(scrobbling.clone());
+            app.manage(abx::Abx::default());
+            app.manage(ripcheck::RipCheck::load(app.handle()));
             *app.state::<AppState>().eq.lock().unwrap() = eq::EqStore::load(app.handle());
             stream::init(app.handle());
             // Android: the main window is made here rather than from the config (see
@@ -1516,6 +1521,16 @@ pub fn run() {
             scrobble::scrobble_sign_in,
             scrobble::scrobble_cancel,
             scrobble::scrobble_disconnect,
+            loudness::dynamics,
+            ripcheck::rip_cached,
+            ripcheck::rip_progress,
+            ripcheck::rip_check,
+            abx::abx_start,
+            abx::abx_listen,
+            abx::abx_set_trials,
+            abx::abx_answer,
+            abx::abx_again,
+            abx::abx_stop,
             crash::crash_report,
             crash::crash_dismiss,
             playlists::playlists_list,

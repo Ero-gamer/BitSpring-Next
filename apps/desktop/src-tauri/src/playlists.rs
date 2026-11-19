@@ -141,7 +141,9 @@ fn smart_entries(app: &AppHandle, rules: &SmartRules, tracks: &[TrackInfo]) -> V
     let plays = app.state::<std::sync::Arc<crate::stats::Plays>>();
     let word = |t: &TrackInfo| quality.word(&t.path);
     let played = |t: &TrackInfo| plays.of(&t.path);
-    smart::select(tracks, rules, &Facts { quality: &word, played: &played, now: now() })
+    let measured = app.state::<crate::loudness::Loudness>().dynamics_of(tracks);
+    let dynamics = |t: &TrackInfo| measured.get(t.path.as_str()).map_or((None, None), |d| (d.dr, d.lra));
+    smart::select(tracks, rules, &Facts { quality: &word, played: &played, dynamics: &dynamics, now: now() })
         .into_iter()
         .map(|i| {
             let t = &tracks[i];

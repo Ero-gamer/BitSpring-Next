@@ -57,6 +57,10 @@ pub enum Field {
     Plays,
     /// When it was last listened to, in days.
     LastPlayed,
+    /// Dynamic range (the DR figure), where it has been measured.
+    Dr,
+    /// Loudness range (LRA) in LU, where it has been measured.
+    Lra,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,6 +110,8 @@ pub struct Facts<'a> {
     pub quality: &'a dyn Fn(&TrackInfo) -> &'static str,
     /// How often and when it was listened to.
     pub played: &'a dyn Fn(&TrackInfo) -> Played,
+    /// Its dynamic range (DR) and loudness range (LRA, in LU), when measured.
+    pub dynamics: &'a dyn Fn(&TrackInfo) -> (Option<f64>, Option<f64>),
     /// The time, in Unix seconds.
     pub now: u64,
 }
@@ -224,6 +230,10 @@ fn matches(t: &TrackInfo, r: &Rule, facts: &Facts) -> bool {
                 _ => false,
             }
         }
+        // (A track nobody measured matches no rule about its dynamics. The DR figure is
+        // compared as it is shown: rounded.)
+        Field::Dr => number((facts.dynamics)(t).0.map(f64::round)),
+        Field::Lra => number((facts.dynamics)(t).1),
         Field::HiRes => flag(t.hi_res()),
         Field::Lossless => flag(t.lossless),
     }
@@ -287,8 +297,12 @@ mod tests {
         Played::default()
     }
 
+    fn unmeasured(_: &TrackInfo) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+
     fn paths(lib: &[TrackInfo], r: &SmartRules) -> Vec<String> {
-        select(lib, r, &Facts { quality: &|_| "unchecked", played: &never, now: NOW }).into_iter().map(|i| lib[i].path.clone()).collect()
+        select(lib, r, &Facts { quality: &|_| "unchecked", played: &never, dynamics: &unmeasured, now: NOW }).into_iter().map(|i| lib[i].path.clone()).collect()
     }
 
     /// The clock of the listening tests (years after the files were added).
@@ -306,7 +320,7 @@ mod tests {
     }
 
     fn listened(lib: &[TrackInfo], r: &SmartRules) -> Vec<String> {
-        select(lib, r, &Facts { quality: &|_| "unchecked", played: &played, now: LATER }).into_iter().map(|i| lib[i].path.clone()).collect()
+        select(lib, r, &Facts { quality: &|_| "unchecked", played: &played, dynamics: &unmeasured, now: LATER }).into_iter().map(|i| lib[i].path.clone()).collect()
     }
 
     #[test]
@@ -346,8 +360,30 @@ mod tests {
         let l = lib();
         let r = rules(true, vec![(Field::Quality, Op::Is, "suspect")], Sort::Album);
         let word = |t: &TrackInfo| if t.path == "/a/1.flac" { "suspect" } else { "genuine" };
-        let picked: Vec<usize> = select(&l, &r, &Facts { quality: &word, played: &never, now: NOW });
+        let picked: Vec<usize> = select(&l, &r, &Facts { quality: &word, played: &never, dynamics: &unmeasured, now: NOW });
         assert_eq!(picked, [2]);
+    }
+
+    /// "Squashed" and "wide" playlists: rules on the DR figure (as shown, rounded) and on
+    /// the loudness range. A track nobody measured is in neither.
+    #[test]
+    fn dynamics_are_fields_where_measured() {
+        let l = lib();
+        let dynamics = |t: &TrackInfo| match t.path.as_str() {
+            "/a/1.flac" => (Some(5.6), Some(3.2)),
+            "/c/1.flac" => (Some(13.4), Some(14.0)),
+            "/b/1.flac" => (Some(6.4), None),
+            _ => (None, None),
+        };
+        let picked = |r: &SmartRules| -> Vec<String> {
+            select(&l, r, &Facts { quality: &|_| "unchecked", played: &never, dynamics: &dynamics, now: NOW }).into_iter().map(|i| l[i].path.clone()).collect()
+        };
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Less, "7")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Is, "6")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Greater, "12")], Sort::Album)), ["/c/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Lra, Op::Greater, "10")], Sort::Album)), ["/c/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Lra, Op::Less, "10")], Sort::Album)), ["/a/1.flac"]);
+        assert!(paths(&l, &rules(true, vec![(Field::Dr, Op::Less, "99")], Sort::Album)).is_empty());
     }
 
     #[test]

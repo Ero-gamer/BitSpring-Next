@@ -58,6 +58,12 @@ export function mockCover(id: string): string {
 }
 
 const mockChecks: Record<string, unknown> = {};
+const mockDynamics: Record<string, { dr: number; lra: number; lufs: number; peakDb: number }> = {};
+let mockDynamicsRev = 1;
+const mockRips: Record<string, unknown> = {};
+let mockRipStart = 0;
+let mockRipTotal = 0;
+let mockAbx: { total: number; answers: { xIsA: boolean; saidA: boolean }[]; xIsA: boolean } | null = null;
 
 let libFolders = libFixed.length ? [...libFixed] : [libRoot];
 let libSkipped: string[] = [];
@@ -331,7 +337,85 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       });
       const r = { verdict: { kind }, sampleRate: rate, bits: t?.bits ?? null, effectiveBits: t?.bits === 24 ? 24 : null, cutoffHz: kind === "genuine" && rate <= 48000 ? null : Math.round(top), wall: kind !== "genuine", spectrum, peakDb: -0.3 - n * 0.4, clipped: n === 3 ? 4 : 0, analysedSecs: t?.duration ?? 60 };
       mockChecks[path] = r;
+      // Measured in the same pass: figures that differ from track to track, steady per track.
+      const seed = [...path].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const dr = 5 + (seed % 100) / 10;
+      mockDynamics[path] = { dr, lra: 2 + ((seed >> 8) % 120) / 10, lufs: -6 - dr * 0.8, peakDb: -0.1 - (seed % 9) / 10 };
+      mockDynamicsRev++;
       return r as T;
+    }
+    // The rip check: every state can be seen — an album of three tracks has a damaged
+    // second one, one of two isn't in the database, the rest are verified.
+    case "rip_cached":
+      return (mockRips[(args.paths as string[])[0]] ?? null) as T;
+    case "rip_progress":
+      return (mockRipStart ? [Math.min(mockRipTotal, Math.floor((performance.now() - mockRipStart) / 300)), mockRipTotal] : null) as T;
+    case "rip_check": {
+      const paths = args.paths as string[];
+      mockRipStart = performance.now();
+      mockRipTotal = paths.length;
+      await new Promise((r) => setTimeout(r, 300 * paths.length + 300));
+      mockRipStart = 0;
+      const base = { kind: "checked", matching: 0, known: 0, offset: 0, tracks: [], checkedAt: Math.floor(Date.now() / 1000) };
+      const r =
+        paths.length === 3
+          ? { ...base, status: "partly", known: 41, tracks: [true, false, true] }
+          : paths.length === 2
+            ? { ...base, status: "unknown" }
+            : { ...base, status: "verified", matching: 116, known: 121, offset: paths.length % 2 ? 664 : 0 };
+      mockRips[paths[0]] = r;
+      return r as T;
+    }
+    // The blind test: getting ready takes a moment, X is a coin toss per trial.
+    case "abx_start": {
+      await new Promise((r) => setTimeout(r, 900));
+      mockAbx = { total: (args.trials as number) ?? 16, answers: [], xIsA: Math.random() < 0.5 };
+      started = performance.now(); paused = false; pausedAt = 0; duration = 204;
+      const files = args.kind === "files";
+      return {
+        prepared: {
+          rate: files ? 96000 : 44100,
+          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0 },
+          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0 },
+          offsetMs: files ? 23 : 0.4, likeness: 0.97, seconds: 204, shortened: files, identical: false,
+        },
+        trials: mockAbx.total,
+      } as T;
+    }
+    case "abx_listen":
+    case "abx_stop":
+      return undefined as T;
+    case "abx_again":
+      if (mockAbx) mockAbx = { ...mockAbx, answers: [] };
+      return undefined as T;
+    case "abx_set_trials":
+      if (mockAbx) mockAbx.total = args.trials as number;
+      return args.trials as T;
+    case "abx_answer": {
+      if (!mockAbx) return { done: 0, total: 0, result: null } as T;
+      mockAbx.answers.push({ xIsA: mockAbx.xIsA, saidA: args.isA as boolean });
+      mockAbx.xIsA = Math.random() < 0.5;
+      const { answers, total } = mockAbx;
+      const correct = answers.filter((a) => a.xIsA === a.saidA).length;
+      // P(at least `correct` of `total` by guessing).
+      let p = 0;
+      for (let k = correct, c = 1; k <= total; k++) {
+        c = 1;
+        for (let i = 0; i < k; i++) c = (c * (total - i)) / (i + 1);
+        p += c / 2 ** total;
+      }
+      return { done: answers.length, total, result: answers.length >= total ? { correct, total, p, trials: answers } : null } as T;
+    }
+    case "dynamics": {
+      if (args.rev === mockDynamicsRev) return { rev: mockDynamicsRev, tracks: null, albums: null } as T;
+      const albums: Record<string, unknown> = {};
+      for (const a of libAlbums) {
+        const all = a.tracks.map((i) => mockDynamics[libTracks[i].path]);
+        if (!all.length || all.some((d) => !d)) continue;
+        const mean = (f: (d: { dr: number; lra: number; lufs: number }) => number) => all.reduce((s, d) => s + f(d), 0) / all.length;
+        albums[a.id] = { dr: Math.round(mean((d) => Math.round(d.dr))), lra: mean((d) => d.lra) + 1.5, lufs: mean((d) => d.lufs), peakDb: -0.1 };
+      }
+      return { rev: mockDynamicsRev, tracks: { ...mockDynamics }, albums } as T;
     }
     case "expand_paths":
       return (args.paths as string[]).map((path) => ({ path, title: null, artist: null })) as T;

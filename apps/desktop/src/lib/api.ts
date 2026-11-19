@@ -89,7 +89,8 @@ export type EngineError =
         | "deviceBusy" | "audioBusy" | "deviceUnplugged" | "deviceStalled" | "deviceNotFound" | "noDevice"
         | "formatRefused" | "exclusiveDisabled" | "dopVolume" | "profileEmpty" | "noAppFolder" | "folderNotOnDevice"
         | "playlistNotFound" | "playlistNoTracks" | "playlistFormat" | "streamingOff" | "signInCancelled"
-        | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed";
+        | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed"
+        | "abxChannels" | "abxNetwork" | "abxNothing" | "abxNotFile";
     }
   | { code: "audioSetup" | "outputFailed" | "profileUnreadable" | "playlistUnreadable" | "writeFailed" | "irUnreadable" | "updateFailed" | "catalogUnavailable"; detail: string }
   | { code: "irChannels"; channels: number }
@@ -346,6 +347,85 @@ export interface LibTrack {
   hiRes: boolean;
 }
 
+/** What checking a CD rip against other people's rips came to (hifi_engine::ripcheck). */
+export type RipResult =
+  | {
+      kind: "checked";
+      /** verified: the whole disc is the same audio as rips in the database. partly: some
+       *  tracks are, the others differ. different: nothing matches. unknown: the database
+       *  doesn't hold this disc. */
+      status: "verified" | "partly" | "different" | "unknown";
+      /** Rips in the database with this very audio. */
+      matching: number;
+      /** Rips of this disc in the database, whatever their audio. */
+      known: number;
+      /** The shift in samples at which it matched (another pressing when not 0). */
+      offset: number;
+      /** When partly: per track, the same as in the database (null: can't tell). */
+      tracks: (boolean | null)[];
+      checkedAt: number;
+    }
+  /** Not a CD rip that could be checked. */
+  | { kind: "unfit"; why: "format" | "frames" | "length" };
+
+export type AbxWhich = "a" | "b" | "x";
+
+/** One side of a blind test, as it was found and as it plays (hifi_engine::abx). */
+export interface AbxSide {
+  rate: number;
+  bits: number | null;
+  /** Brought to the other one's sample rate for the test. */
+  resampled: boolean;
+  /** Turned down by this much to match the other (0 or negative), dB. */
+  gainDb: number;
+}
+
+/** What was done to make the two comparable. */
+export interface AbxPrepared {
+  /** The rate both play at. */
+  rate: number;
+  a: AbxSide;
+  b: AbxSide;
+  /** How much later B's music started than A's (ms, negative: earlier); already cut away. */
+  offsetMs: number;
+  /** 1 = the same waveform, near 0 = different music. */
+  likeness: number;
+  seconds: number;
+  /** The music is longer than what is compared. */
+  shortened: boolean;
+  /** Sample for sample the same: nothing to hear. */
+  identical: boolean;
+}
+
+export interface AbxResult {
+  correct: number;
+  total: number;
+  /** The chance of doing at least this well by guessing. */
+  p: number;
+  trials: { xIsA: boolean; saidA: boolean }[];
+}
+
+/** What was measured of the dynamics of a track, or of an album as a whole. */
+export interface Dynamics {
+  /** The DR figure (not rounded): how far the peaks stand above the loudest passages. */
+  dr: number | null;
+  /** Loudness range (LRA) in LU: how far the quiet passages are from the loud ones. */
+  lra: number | null;
+  /** Integrated loudness, LUFS. */
+  lufs: number | null;
+  /** True peak, dBFS. */
+  peakDb: number | null;
+}
+
+export interface DynamicsUpdate {
+  /** Changes whenever something new was measured. */
+  rev: number;
+  /** By track path; null when nothing changed since the `rev` asked with. */
+  tracks: Record<string, Dynamics> | null;
+  /** By album id, for the albums measured whole. */
+  albums: Record<string, Dynamics> | null;
+}
+
 /** A request to show something in the library ("go to this artist / album"). */
 export interface LibraryGoto {
   kind: "artist" | "album";
@@ -380,7 +460,7 @@ export interface PlaylistSummary {
 }
 
 export type SmartField =
-  | "title" | "artist" | "album" | "albumArtist" | "genre" | "format" | "quality"
+  | "title" | "artist" | "album" | "albumArtist" | "genre" | "format" | "quality" | "dr" | "lra"
   | "year" | "sampleRate" | "bits" | "duration" | "added" | "hiRes" | "lossless" | "plays" | "lastPlayed";
 export type SmartOp =
   | "contains" | "notContains" | "is" | "isNot" | "startsWith" | "greater" | "less" | "withinDays" | "notWithinDays" | "isTrue" | "isFalse";
@@ -631,6 +711,23 @@ export const api = {
   scrobbleSignIn: (service: ScrobbleService) => call<ScrobbleStatus[]>("scrobble_sign_in", { service }),
   scrobbleCancel: () => call<ScrobbleStatus[]>("scrobble_cancel"),
   scrobbleDisconnect: (service: ScrobbleService) => call<ScrobbleStatus[]>("scrobble_disconnect", { service }),
+  /** An earlier check of this album (its tracks' paths, in disc order), if its files are as they were. */
+  ripCached: (paths: string[]) => call<RipResult | null>("rip_cached", { paths }),
+  /** [done, total] tracks read by the check that runs now. */
+  ripProgress: () => call<[number, number] | null>("rip_progress"),
+  /** Check an album against the CUETools Database: one request, carrying the disc's track lengths. */
+  ripCheck: (paths: string[]) => call<RipResult>("rip_check", { paths }),
+  /** Prepare a blind test and start playing A (takes a while: both sides are decoded). */
+  abxStart: (kind: "files" | "processing", a: string, b: string | null, deviceUid: string, exclusive: boolean, trials: number) =>
+    call<{ prepared: AbxPrepared; trials: number }>("abx_start", { kind, a, b, deviceUid, exclusive, trials }),
+  abxListen: (which: AbxWhich) => call<void>("abx_listen", { which }),
+  abxSetTrials: (trials: number) => call<number>("abx_set_trials", { trials }),
+  /** "X is A" (or B). The result comes with the last answer. */
+  abxAnswer: (isA: boolean) => call<{ done: number; total: number; result: AbxResult | null }>("abx_answer", { isA }),
+  abxAgain: () => call<void>("abx_again"),
+  abxStop: () => call<void>("abx_stop"),
+  /** The dynamics measured so far, unless nothing changed since `rev`. */
+  dynamics: (rev: number | null) => call<DynamicsUpdate>("dynamics", { rev }),
   /** Measure every library track not measured yet, in the background (false: stop). */
   loudnessAnalyze: (start: boolean) => call<void>("loudness_analyze", { start }),
   /** Write what was measured into the files' tags (ReplayGain), in the background (false: stop). */
@@ -758,7 +855,9 @@ export interface RemoteStatus {
 
 /** A command from the phone remote, carried out by the window like its own buttons. */
 export type RemoteCommand =
-  | { kind: "toggle" | "next" | "prev" | "shuffle" | "repeat" }
+  | { kind: "toggle" | "next" | "prev" | "pause" | "resume" | "stop" }
+  | { kind: "shuffle"; on?: boolean }
+  | { kind: "repeat"; mode?: "off" | "all" | "one" }
   | { kind: "seek"; secs: number }
   | { kind: "jump"; index: number }
   | { kind: "play" | "enqueue"; paths: string[]; index: number };

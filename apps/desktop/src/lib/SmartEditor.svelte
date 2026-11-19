@@ -27,6 +27,8 @@
     ["bits", "number"],
     ["duration", "number"],
     ["quality", "quality"],
+    ["dr", "number"],
+    ["lra", "number"],
   ];
   const kindOf = (f: SmartField) => FIELDS.find(([x]) => x === f)![1];
   const OPS: Record<Kind, SmartOp[]> = {

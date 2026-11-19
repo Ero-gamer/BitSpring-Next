@@ -2,11 +2,13 @@
   import { api, type Crossfeed, type DspSettings, type IrInfo, type LevelMode, type LoudnessStatus } from "./api";
   import { list, num, t } from "./i18n.svelte";
   import { liquidPill } from "./liquid";
+  import { startAbx } from "./abx.svelte";
 
   let {
     settings,
     eqName,
     ir,
+    track = null,
     onchange,
     onopeneq,
   }: {
@@ -14,6 +16,8 @@
     /** The EQ preset playing on the picked output (null = off). */
     eqName: string | null;
     ir: IrInfo | null;
+    /** What plays now, for the blind test of the processing. */
+    track?: { path: string; title: string } | null;
     onchange: (s: DspSettings) => void;
     onopeneq: () => void;
   } = $props();
@@ -32,6 +36,15 @@
   );
 
   let lossyOn = $derived(settings.headroom || settings.restoreHighs);
+
+  // A blind test needs something to compare (processing that reshapes the sound) and a file
+  // to compare it on (the playing track; not a streaming one).
+  let canTest = $derived(!!track && !/^(qobuz|tidal):/.test(track.path) && !!(eqName || settings.convolution || settings.crossfeed));
+  function blindTest() {
+    if (!track) return;
+    open = false;
+    startAbx({ kind: "processing", a: track.path, title: track.title });
+  }
 
   const UPSAMPLE: (number | null)[] = [null, 192, 384, 768];
   const CROSSFEED: (Crossfeed | null)[] = [null, "light", "medium", "strong"];
@@ -205,6 +218,14 @@
         <p class="help">{t("enh.restoreHelp")}</p>
         <p class="help">{t("enh.losslessNote")}</p>
       </fieldset>
+
+      <!-- "Do I hear it?", answered by listening: the playing track with and without. -->
+      {#if canTest}
+        <fieldset>
+          <button class="load" onclick={blindTest}>{t("enh.abx")}</button>
+          <p class="help">{t("enh.abxHelp")}</p>
+        </fieldset>
+      {/if}
 
       <p class="footer" class:pure={active.length === 0}>
         {#if active.length === 0}

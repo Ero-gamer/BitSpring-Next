@@ -40,11 +40,18 @@ them, and off means bit-perfect again.
 - **Volume levelling** by track or by album: one fixed gain per track towards −18 LUFS, nothing
   compressed. The player reads ReplayGain tags, measures the files that have none (EBU R128), and
   can write the result into their tags. Off by default.
-- **Quality check** looks at a file's spectrum and tells you when "hi-res" is really a CD or an MP3
-  inside a bigger file.
+- **What is really in the file.** The quality check looks at a file's spectrum and tells you when
+  "hi-res" is really a CD or an MP3 inside a bigger file. It also measures the dynamic range (DR
+  and loudness range), and for an album ripped from CD it can compare the audio with other
+  people's rips of the same disc in the CUETools Database.
+- **Blind test (ABX).** Do you hear the hi-res edition, or the equalizer? The player lines the two
+  up, matches their loudness, switches without telling which is which, and gives the odds that
+  you were guessing.
 - **Play counts that stay with you:** how often and when you played each track is kept on your
   device, and smart playlists can use it ("not played this year", "most played"). Scrobbling to
   Last.fm or ListenBrainz is there if you connect an account, and off until you do.
+- **Local API** for Home Assistant, a Stream Deck or your own scripts, on the same local server
+  as the phone remote: off until you switch it on. See [docs/api.md](docs/api.md).
 - **Nothing to sign up for:** no account, no ads, no in-app purchases, nothing collected.
 
 <table>

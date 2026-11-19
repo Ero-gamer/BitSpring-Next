@@ -27,7 +27,7 @@
   function openSite(e: MouseEvent) {
     if (!inTauri) return;
     e.preventDefault();
-    openUrl(SITE).catch(() => {});
+    openUrl((e.currentTarget as HTMLAnchorElement).href).catch(() => {});
   }
 
   // The phone remote is switched on here. Right then its code is shown large, to scan at
@@ -207,6 +207,9 @@
               <p class="help">{t("remote.help")}</p>
               {#if r.error}<p class="help err">{t("remote.failed", { error: r.error })}</p>{/if}
               {#if r.enabled && r.url && !remote.fresh}<p class="help where">{t("remote.where")}</p>{/if}
+              {#if r.enabled && r.url}
+                <p class="help">{t("remote.api")} <a href={`${SITE}/api/`} onclick={openSite}>{t("remote.apiLink")}</a></p>
+              {/if}
             </div>
             <span class="switch">
               <input id="set-remote" type="checkbox" role="switch" checked={r.enabled} onchange={(e) => setRemote(e.currentTarget.checked)} />

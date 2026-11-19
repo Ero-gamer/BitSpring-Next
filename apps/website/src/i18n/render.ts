@@ -127,6 +127,8 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
     releases: opts.page === "releases/" ? releasesHtml(locale, t) : "",
     // The notes themselves are in English; say so on every other language's page.
     "releases-english": locale === DEFAULT_LOCALE ? "" : `<p class="rel-english">${escapeHtml(t("releases.english"))}</p>`,
+    // So is the API reference.
+    "api-english": locale === DEFAULT_LOCALE ? "" : `<p class="prose-note">${escapeHtml(t("api.english"))}</p>`,
     runtime: `<script type="application/json" id="i18n">${escapeJson({ numbers: locale.numbers, strings: runtime })}</script>`,
   };
 
@@ -135,6 +137,7 @@ export function renderPage(template: string, locale: Locale, opts: { site: strin
     download: localeUrl(locale) + "download/",
     privacy: localeUrl(locale) + "privacy/",
     releases: localeUrl(locale) + "releases/",
+    api: localeUrl(locale) + "api/",
   };
 
   return template

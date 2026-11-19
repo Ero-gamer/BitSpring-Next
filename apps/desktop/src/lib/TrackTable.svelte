@@ -1,10 +1,10 @@
 <script lang="ts" module>
-  export type SortKey = "number" | "title" | "artist" | "album" | "year" | "duration" | "format" | "plays" | "lastPlayed";
+  export type SortKey = "number" | "title" | "artist" | "album" | "year" | "duration" | "format" | "dr" | "plays" | "lastPlayed";
 </script>
 
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { clock, khz, resolution, type LibTrack } from "./api";
+  import { clock, khz, resolution, type Dynamics, type LibTrack } from "./api";
   import { ago, collator as makeCollator, dateTime, num, t } from "./i18n.svelte";
   import { plays } from "./plays.svelte";
 
@@ -20,6 +20,7 @@
     actions,
     marker,
     dimmed,
+    dynamics = {},
   }: {
     tracks: LibTrack[];
     currentPath?: string | null;
@@ -37,7 +38,11 @@
     marker?: Snippet<[LibTrack]>;
     /** Rows that can't be played (missing files): shown greyed, not playable. */
     dimmed?: (t: LibTrack) => boolean;
+    /** What was measured of the tracks' dynamics, by path (for the "dr" column). */
+    dynamics?: Record<string, Dynamics>;
   } = $props();
+
+  const drOf = (t: LibTrack) => dynamics[t.path]?.dr ?? null;
 
   const collator = $derived(makeCollator());
   /** How often and when a track was listened to (never: zeros). */
@@ -65,6 +70,7 @@
       year: (a, b) => collator.compare(a.year ?? "", b.year ?? ""),
       duration: (a, b) => a.duration - b.duration,
       format: (a, b) => (a.bits ?? 0) - (b.bits ?? 0) || a.sampleRate - b.sampleRate,
+      dr: (a, b) => (drOf(a) ?? 0) - (drOf(b) ?? 0),
       plays: (a, b) => played(a).count - played(b).count || played(a).last - played(b).last,
       lastPlayed: (a, b) => played(a).last - played(b).last,
     };
@@ -72,6 +78,8 @@
       artist: artistOf,
       album: (t) => t.album ?? "",
       year: (t) => t.year ?? "",
+      // (Not measured yet: last, like an empty tag.)
+      dr: (t) => (drOf(t) == null ? "" : "x"),
     };
     const v = value[sortKey];
     return [...tracks].sort(
@@ -101,7 +109,7 @@
   <thead>
     <tr>
       {#each columns as c (c)}
-        <th class={c} aria-sort={sortable && sortKey === c ? (sortAsc ? "ascending" : "descending") : undefined}>
+        <th class={c} title={c === "dr" ? t("dyn.help") : undefined} aria-sort={sortable && sortKey === c ? (sortAsc ? "ascending" : "descending") : undefined}>
           {#if sortable}
             <button onclick={() => sortBy(c)} title={c === "plays" ? t("col.playsHelp") : undefined}>
               {t(`col.${c}`)}{#if sortKey === c}<span class="arrow" aria-hidden="true">{sortAsc ? "▲" : "▼"}</span>{/if}
@@ -143,6 +151,9 @@
               <span class="num">{tr.year ?? ""}</span>
             {:else if c === "duration"}
               <span class="num">{clock(tr.duration)}</span>
+            {:else if c === "dr"}
+              {@const dr = drOf(tr)}
+              <span class="num" class:none={dr == null}>{dr == null ? "–" : Math.round(dr)}</span>
             {:else if c === "format"}
               <span class="fmt" class:hi={tr.hiRes} class:lossy={!tr.lossless}>
                 {tr.format}{tr.lossless && tr.sampleRate ? (tr.bits ? ` ${resolution(tr.bits, tr.sampleRate)}` : ` ${khz(tr.sampleRate)} ${t("unit.khz")}`) : ""}
@@ -261,6 +272,20 @@
   .format {
     width: 120px;
   }
+  .dr {
+    width: 52px;
+    text-align: end;
+  }
+  th.dr button,
+  th.dr .th {
+    text-align: end;
+  }
+  td.dr {
+    color: var(--mist);
+  }
+  .none {
+    color: var(--mist-dim);
+  }
   .plays {
     width: 104px;
     text-align: end;
@@ -336,6 +361,7 @@
     .artist,
     .album,
     .year,
+    .dr,
     .format,
     .plays,
     .lastPlayed {

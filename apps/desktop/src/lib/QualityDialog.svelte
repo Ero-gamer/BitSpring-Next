@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { resolution, type LibTrack, type QualityReport } from "./api";
+  import { inTauri, isAndroid, isIOS, resolution, type Dynamics, type LibTrack, type QualityReport } from "./api";
+  import { startAbx } from "./abx.svelte";
   import { num, t } from "./i18n.svelte";
   import { SUSPECT, verdictDetail, verdictLabel } from "./quality";
 
-  let { track, report, onclose }: { track: LibTrack; report: QualityReport; onclose: () => void } = $props();
+  let { track, report, dynamics = null, onclose }: { track: LibTrack; report: QualityReport; dynamics?: Dynamics | null; onclose: () => void } = $props();
 
   // ---- chart geometry -------------------------------------------------------------------------
   // Drawn at the width it gets, so its labels stay readable on a phone.
@@ -36,6 +37,23 @@
   let cutoff = $derived(report.cutoffHz != null && (report.wall || report.verdict.kind === "upsampled") ? report.cutoffHz : null);
 
   const khz = (hz: number) => num(hz / 1000, { maximumFractionDigits: 1 });
+
+  /** Another file of the same music (the CD edition of a hi-res album, another master):
+   *  picked here, compared blind. On computers: a phone's file picker hands out copies. */
+  const canCompare = !isIOS && !isAndroid;
+  async function compare() {
+    let other: string | null = "/Music/Another edition/" + track.title + ".flac";
+    if (inTauri) {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const picked = await open({ multiple: false, title: t("abx.pick"), filters: [{ name: t("abx.pick"), extensions: AUDIO }] });
+      other = typeof picked === "string" ? picked : null;
+    }
+    if (!other) return;
+    const name = (p: string) => p.split(/[\\/]/).pop() ?? p;
+    startAbx({ kind: "files", a: track.path, b: other, title: track.title, aName: `${name(track.path.split("#cue:")[0])} (${format})`, bName: name(other) });
+    onclose();
+  }
+  const AUDIO = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "caf", "mka", "dsf", "dff", "ape", "wv", "tta"];
   let format = $derived(
     track.lossless && track.bits ? `${track.format} ${resolution(track.bits, track.sampleRate)}` : `${track.format} ${khz(track.sampleRate)} ${t("unit.khz")}`,
   );
@@ -115,8 +133,32 @@
           <dd class:bad={report.clipped > 0}>{report.clipped > 0 ? num(report.clipped) : t("q.none")}</dd>
         </div>
       {/if}
+      {#if dynamics?.dr != null}
+        <div title={t("dyn.help")}>
+          <dt>{t("dyn.label")}</dt>
+          <dd>{t("dyn.dr", { n: num(Math.round(dynamics.dr)) })}</dd>
+        </div>
+      {/if}
+      {#if dynamics?.lra != null}
+        <div title={t("dyn.help")}>
+          <dt>{t("dyn.range")}</dt>
+          <dd>{num(dynamics.lra, { maximumFractionDigits: 1 })} LU</dd>
+        </div>
+      {/if}
+      {#if dynamics?.lufs != null}
+        <div>
+          <dt>{t("dyn.loudness")}</dt>
+          <dd>{num(dynamics.lufs, { maximumFractionDigits: 1 })} LUFS</dd>
+        </div>
+      {/if}
     </dl>
     <p class="note">{t("q.note")}</p>
+    {#if canCompare}
+      <div class="more">
+        <button class="ghost" onclick={compare}>{t("abx.compare")}</button>
+        <p class="note">{t("abx.compareHelp")}</p>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -266,5 +308,23 @@
     margin: 0;
     font-size: var(--t-xs);
     color: var(--mist-dim);
+  }
+  .more {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+    padding-top: 12px;
+    border-top: 1px solid var(--slate-600);
+  }
+  .ghost {
+    padding: 7px 14px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--slate-500);
+    color: var(--porcelain);
+    font-size: var(--t-sm);
+    font-weight: 500;
+  }
+  .ghost:hover {
+    background: var(--slate-700);
   }
 </style>
