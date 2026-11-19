@@ -770,5 +770,22 @@
   "error.abxChannels": "the two files have different channels and can't be compared",
   "error.abxNetwork": "a blind test needs a device connected to this computer, not a network player",
   "error.abxNothing": "no processing is switched on, so there is nothing to compare",
-  "error.abxNotFile": "only files can be compared in a blind test"
+  "error.abxNotFile": "only files can be compared in a blind test",
+
+  "rip.check": "Verify the rip",
+  "rip.ask": "This compares the album with other people's rips of the same CD in the CUETools Database (db.cue.tools). Only the lengths of the disc's tracks are sent; the comparison is made on this device.",
+  "rip.go": "Verify",
+  "rip.reading": "Reading track {done} of {total}…",
+  "rip.label": "Rip",
+  "rip.verified": {"one": "verified. The audio is the same as in {n} other rip of this disc.", "other": "verified. The audio is the same as in {n} other rips of this disc."},
+  "rip.pressing": "It is another pressing: its audio is shifted by {n} samples.",
+  "rip.partly": {"one": "track {tracks} differs from other people's rips of this disc, the rest match. That track was probably ripped with errors.", "other": "tracks {tracks} differ from other people's rips of this disc, the rest match. Those tracks were probably ripped with errors."},
+  "rip.different": {"one": "it matches nothing in the database, which holds {n} rip of this disc.", "other": "it matches nothing in the database, which holds {n} rips of this disc."},
+  "rip.unknown": "this disc isn't in the database yet, so there is nothing to compare it with.",
+  "rip.unfit.frames": "not checked. A track isn't a whole number of CD frames long, so this isn't an untouched CD rip.",
+  "rip.unfit.format": "not checked. A CD holds 16 bits at 44.1 kHz in stereo.",
+  "rip.unfit.length": "not checked. This is shorter or longer than a CD can be.",
+  "rip.error": "Couldn't verify the rip: {error}",
+  "rip.track": "differs",
+  "rip.trackHelp": "This track's audio differs from other people's rips of the disc"
 }

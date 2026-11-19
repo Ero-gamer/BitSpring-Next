@@ -19,6 +19,7 @@ pub mod player;
 pub mod playlist;
 pub mod quality;
 pub mod rate;
+pub mod ripcheck;
 pub mod sacd;
 pub mod smart;
 pub mod ring;

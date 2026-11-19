@@ -60,6 +60,9 @@ export function mockCover(id: string): string {
 const mockChecks: Record<string, unknown> = {};
 const mockDynamics: Record<string, { dr: number; lra: number; lufs: number; peakDb: number }> = {};
 let mockDynamicsRev = 1;
+const mockRips: Record<string, unknown> = {};
+let mockRipStart = 0;
+let mockRipTotal = 0;
 let mockAbx: { total: number; answers: { xIsA: boolean; saidA: boolean }[]; xIsA: boolean } | null = null;
 
 let libFolders = libFixed.length ? [...libFixed] : [libRoot];
@@ -323,6 +326,28 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       const dr = 5 + (seed % 100) / 10;
       mockDynamics[path] = { dr, lra: 2 + ((seed >> 8) % 120) / 10, lufs: -6 - dr * 0.8, peakDb: -0.1 - (seed % 9) / 10 };
       mockDynamicsRev++;
+      return r as T;
+    }
+    // The rip check: every state can be seen — an album of three tracks has a damaged
+    // second one, one of two isn't in the database, the rest are verified.
+    case "rip_cached":
+      return (mockRips[(args.paths as string[])[0]] ?? null) as T;
+    case "rip_progress":
+      return (mockRipStart ? [Math.min(mockRipTotal, Math.floor((performance.now() - mockRipStart) / 300)), mockRipTotal] : null) as T;
+    case "rip_check": {
+      const paths = args.paths as string[];
+      mockRipStart = performance.now();
+      mockRipTotal = paths.length;
+      await new Promise((r) => setTimeout(r, 300 * paths.length + 300));
+      mockRipStart = 0;
+      const base = { kind: "checked", matching: 0, known: 0, offset: 0, tracks: [], checkedAt: Math.floor(Date.now() / 1000) };
+      const r =
+        paths.length === 3
+          ? { ...base, status: "partly", known: 41, tracks: [true, false, true] }
+          : paths.length === 2
+            ? { ...base, status: "unknown" }
+            : { ...base, status: "verified", matching: 116, known: 121, offset: paths.length % 2 ? 664 : 0 };
+      mockRips[paths[0]] = r;
       return r as T;
     }
     // The blind test: getting ready takes a moment, X is a coin toss per trial.

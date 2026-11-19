@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type Dynamics, type LibTrack, type QualityReport, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
-  import { collator as makeCollator, i18n, list, num, t, tn } from "./i18n.svelte";
+  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type Dynamics, type LibTrack, type QualityReport, type RipResult, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
+  import { collator as makeCollator, i18n, list, num, sentences, t, tn } from "./i18n.svelte";
   import AlbumTile from "./AlbumTile.svelte";
   import { liquidPill } from "./liquid";
   import QualityDialog from "./QualityDialog.svelte";
@@ -220,6 +220,65 @@
     await loadDynamics();
     checking = null;
   }
+
+  // ---- rip check: a CD rip against other people's rips of the same disc ------------------------
+  let rips = $state<Record<string, RipResult>>({});
+  let ripping = $state<{ album: string; done: number; total: number } | null>(null);
+  let ripError = $state<string | null>(null);
+  /** "Verify the rip" was pressed and waits for a yes: it is the one thing here that goes online. */
+  let ripAsking = $state(false);
+  /** What a CD holds: 16 bits, 44.1 kHz, stereo, and not a lossy copy of it. */
+  let ripFit = $derived(albumTracks.length > 0 && albumTracks.every((tr) => tr.lossless && tr.bits === 16 && tr.sampleRate === 44_100 && tr.channels === 2));
+  let rip = $derived(openAlbum ? (rips[openAlbum.id] ?? null) : null);
+  /** Nothing known yet — or the database didn't have the disc, and may by now. */
+  let ripOffer = $derived(ripFit && (!rip || (rip.kind === "checked" && rip.status === "unknown")));
+  $effect(() => {
+    const album = openAlbum;
+    if (!album || !ripFit || rips[album.id]) return;
+    const paths = albumTracks.map((tr) => tr.path);
+    api.ripCached(paths).then((r) => r && (rips[album.id] = r)).catch(() => {});
+  });
+
+  async function checkRip() {
+    const album = openAlbum;
+    if (!album || ripping) return;
+    ripAsking = false;
+    ripError = null;
+    const paths = albumTracks.map((tr) => tr.path);
+    ripping = { album: album.id, done: 0, total: paths.length };
+    const watch = setInterval(async () => {
+      const p = await api.ripProgress().catch(() => null);
+      if (p && ripping) [ripping.done, ripping.total] = p;
+    }, 400);
+    try {
+      rips[album.id] = await api.ripCheck(paths);
+    } catch (e) {
+      ripError = t("rip.error", { error: errorText(e) });
+    }
+    clearInterval(watch);
+    ripping = null;
+  }
+
+  /** The verdict in a sentence. */
+  let ripText = $derived.by(() => {
+    if (!rip) return "";
+    if (rip.kind === "unfit") return t(`rip.unfit.${rip.why}`);
+    switch (rip.status) {
+      case "verified":
+        return sentences([tn("rip.verified", rip.matching), rip.offset !== 0 && t("rip.pressing", { n: num(Math.abs(rip.offset)) })]);
+      case "partly": {
+        const bad = rip.tracks.flatMap((ok, i) => (ok === false ? [num(albumTracks[i]?.trackNumber ?? i + 1)] : []));
+        return tn("rip.partly", bad.length, { tracks: list(bad) });
+      }
+      case "different":
+        return tn("rip.different", rip.known);
+      case "unknown":
+        return t("rip.unknown");
+    }
+  });
+  let ripBad = $derived(rip?.kind === "checked" && (rip.status === "partly" || rip.status === "different"));
+  /** Tracks the database's rips disagree with. */
+  const ripMiss = (i: number) => rip?.kind === "checked" && rip.status === "partly" && rip.tracks[i] === false;
 
   // ---- data loading ---------------------------------------------------------------------------
   let revision = -1;
@@ -480,7 +539,25 @@
                   {checking?.album === openAlbum.id ? t("q.checking", { done: num(checking.done), total: num(checking.total) }) : t("q.check")}
                 </button>
               {/if}
+              {#if ripOffer}
+                <button class="ghost" onclick={() => (ripAsking = true)} disabled={!!ripping || ripAsking}>
+                  {ripping?.album === openAlbum.id ? t("rip.reading", { done: num(ripping.done), total: num(ripping.total) }) : t("rip.check")}
+                </button>
+              {/if}
             </div>
+            {#if ripAsking}
+              <p class="facts quality rip-ask">
+                <span>{t("rip.ask")}</span>
+                <span class="folder-answer">
+                  <button class="quiet-link" onclick={checkRip}>{t("rip.go")}</button>
+                  <button class="quiet-link" onclick={() => (ripAsking = false)}>{t("pl.cancel")}</button>
+                </span>
+              </p>
+            {/if}
+            {#if ripText && !ripping}
+              <p class="facts quality" class:q-err={ripBad}>{t("rip.label")}: {ripText}</p>
+            {/if}
+            {#if ripError}<p class="facts q-err">{ripError}</p>{/if}
             {#if albumQuality.length && !checking}
               <p class="facts quality">{t("q.summary")}: {list(qualitySummary)}</p>
             {/if}
@@ -514,6 +591,9 @@
         >
           {#snippet marker(tr)}
             {@const r = quality[tr.path]}
+            {#if ripMiss(albumTracks.indexOf(tr))}
+              <span class="q-badge suspect" title={t("rip.trackHelp")}>{t("rip.track")}</span>
+            {/if}
             {#if r}
               <button
                 class="q-badge {SUSPECT.includes(r.verdict.kind) ? 'suspect' : r.verdict.kind === 'genuine' ? 'ok' : 'open'}"
@@ -915,6 +995,13 @@
   }
   .facts.q-err {
     color: var(--alarm);
+  }
+  .rip-ask {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    align-items: baseline;
+    max-width: 46em;
   }
   /* Where the album's files are, and a way to leave that folder out of the library. */
   .facts.folder {

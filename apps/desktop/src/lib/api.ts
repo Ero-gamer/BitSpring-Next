@@ -318,6 +318,27 @@ export interface LibTrack {
   hiRes: boolean;
 }
 
+/** What checking a CD rip against other people's rips came to (hifi_engine::ripcheck). */
+export type RipResult =
+  | {
+      kind: "checked";
+      /** verified: the whole disc is the same audio as rips in the database. partly: some
+       *  tracks are, the others differ. different: nothing matches. unknown: the database
+       *  doesn't hold this disc. */
+      status: "verified" | "partly" | "different" | "unknown";
+      /** Rips in the database with this very audio. */
+      matching: number;
+      /** Rips of this disc in the database, whatever their audio. */
+      known: number;
+      /** The shift in samples at which it matched (another pressing when not 0). */
+      offset: number;
+      /** When partly: per track, the same as in the database (null: can't tell). */
+      tracks: (boolean | null)[];
+      checkedAt: number;
+    }
+  /** Not a CD rip that could be checked. */
+  | { kind: "unfit"; why: "format" | "frames" | "length" };
+
 export type AbxWhich = "a" | "b" | "x";
 
 /** One side of a blind test, as it was found and as it plays (hifi_engine::abx). */
@@ -652,6 +673,12 @@ export const api = {
   crashReport: () => call<string | null>("crash_report"),
   crashDismiss: () => call<void>("crash_dismiss"),
   loudnessStatus: () => call<LoudnessStatus>("loudness_status"),
+  /** An earlier check of this album (its tracks' paths, in disc order), if its files are as they were. */
+  ripCached: (paths: string[]) => call<RipResult | null>("rip_cached", { paths }),
+  /** [done, total] tracks read by the check that runs now. */
+  ripProgress: () => call<[number, number] | null>("rip_progress"),
+  /** Check an album against the CUETools Database: one request, carrying the disc's track lengths. */
+  ripCheck: (paths: string[]) => call<RipResult>("rip_check", { paths }),
   /** Prepare a blind test and start playing A (takes a while: both sides are decoded). */
   abxStart: (kind: "files" | "processing", a: string, b: string | null, deviceUid: string, exclusive: boolean, trials: number) =>
     call<{ prepared: AbxPrepared; trials: number }>("abx_start", { kind, a, b, deviceUid, exclusive, trials }),

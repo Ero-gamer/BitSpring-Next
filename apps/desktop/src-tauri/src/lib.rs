@@ -26,6 +26,7 @@ mod quality;
 mod queue;
 mod remote;
 mod remote_api;
+mod ripcheck;
 /// Qobuz and TIDAL: the real thing outside the App Store, a stand-in inside it.
 #[cfg_attr(all(feature = "streaming", not(target_os = "ios")), path = "stream_on.rs")]
 #[cfg_attr(not(all(feature = "streaming", not(target_os = "ios"))), path = "stream_off.rs")]
@@ -1341,6 +1342,7 @@ pub fn run() {
             app.manage(loudness::Loudness::load(app.handle()));
             app.manage(remote::Remote::load(app.handle()));
             app.manage(abx::Abx::default());
+            app.manage(ripcheck::RipCheck::load(app.handle()));
             *app.state::<AppState>().eq.lock().unwrap() = eq::EqStore::load(app.handle());
             stream::init(app.handle());
             // Android: the main window is made here rather than from the config (see
@@ -1457,6 +1459,9 @@ pub fn run() {
             loudness::loudness_analyze,
             loudness::loudness_write_tags,
             loudness::dynamics,
+            ripcheck::rip_cached,
+            ripcheck::rip_progress,
+            ripcheck::rip_check,
             abx::abx_start,
             abx::abx_listen,
             abx::abx_set_trials,
