@@ -350,6 +350,26 @@
     else await playIndex(index > 0 ? index - 1 : queue.length - 1);
   }
 
+  /** What a blind test interrupted: it plays on from there when the test is closed. */
+  let interrupted: { path: string; index: number; position: number; paused: boolean } | null = null;
+  $effect(() => {
+    if (!abx.request) return;
+    untrack(() => {
+      const playing = status.active && !status.finished && !testing && index >= 0 && index < queue.length;
+      interrupted = playing ? { path: queue[index], index, position: status.position, paused: status.paused } : null;
+    });
+  });
+
+  async function endAbx() {
+    const was = interrupted;
+    interrupted = null;
+    abx.request = null;
+    await api.abxStop().catch(() => {});
+    // (Closed before the test had taken the output: the music never stopped.)
+    if (!was || queue[was.index] !== was.path || (await api.status()).active) return;
+    await playIndex(was.index, was.position, was.paused);
+  }
+
   async function channelTest() {
     try {
       const signal = await api.channelTest(selected);
@@ -844,7 +864,7 @@
 
   <UpdateNotice playing={status.active && !status.paused} />
   {#if abx.request}
-    <AbxDialog request={abx.request} device={selected} {exclusive} onclose={() => (abx.request = null)} />
+    <AbxDialog request={abx.request} device={selected} {exclusive} onclose={endAbx} />
   {/if}
   <CrashNotice />
 

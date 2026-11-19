@@ -3,11 +3,11 @@
 //! what X is to itself until the last answer, and plays A, B or X on the chosen output.
 //!
 //! While a test runs it has the player: the queue stands still (as during the channel
-//! check), and nothing is shown as playing. Closing the test stops the sound; the queue is
-//! as it was.
+//! check), and nothing is shown as playing. Closing the test stops its sound; the queue is
+//! as it was, and the window starts what the test interrupted again from where it was.
 
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use hifi_engine::abx::{self, Prepared};
@@ -66,7 +66,12 @@ impl Session {
 }
 
 #[derive(Default)]
-pub struct Abx(Mutex<Option<Session>>);
+pub struct Abx {
+    session: Mutex<Option<Session>>,
+    /// Counts the starts and the stops: a test closed while it was still being prepared
+    /// finds another number here and leaves what is playing alone.
+    asked: AtomicU64,
+}
 
 /// A fair coin, from the OS's random keys for hash maps.
 fn coin() -> bool {
@@ -145,6 +150,8 @@ pub async fn abx_start(
     trials: Option<u32>,
 ) -> CmdResult<AbxInfo> {
     let state = app.state::<AppState>();
+    let abx_state = app.state::<Abx>();
+    let mine = abx_state.asked.fetch_add(1, Ordering::AcqRel) + 1;
     let device = crate::find_device(&device_uid)?;
     if device.is_network() {
         return Err(UserError::AbxNetwork);
@@ -162,6 +169,13 @@ pub async fn abx_start(
     .map_err(crate::err)?;
     let total = trials.unwrap_or(16).clamp(*TRIALS.start(), *TRIALS.end());
     let session = Session { a: pair.a, b: pair.b, device_uid, exclusive, x_is_a: coin(), listening: Which::A, total, answers: Vec::new() };
+    // From here to the session being kept, a stop waits: it finds either nothing or all of it.
+    let mut slot = abx_state.session.lock().unwrap();
+    // The window was closed while the two were being prepared (nobody reads this answer):
+    // what is playing goes on.
+    if abx_state.asked.load(Ordering::Acquire) != mine {
+        return Ok(AbxInfo { prepared: pair.prepared, trials: total });
+    }
     // What was playing ends here: nothing is shown as playing while the test runs.
     crate::stop(app.state::<AppState>());
     state.now_rev.fetch_add(1, Ordering::AcqRel);
@@ -169,14 +183,14 @@ pub async fn abx_start(
     if !pair.prepared.identical {
         play(&state, &session, 0.0)?;
     }
-    *app.state::<Abx>().0.lock().unwrap() = Some(session);
+    *slot = Some(session);
     Ok(AbxInfo { prepared: pair.prepared, trials: total })
 }
 
 /// Listen to A, B or X — from where the music is, or from its start once it has run out.
 #[tauri::command(async)]
 pub fn abx_listen(state: State<'_, AppState>, abx: State<'_, Abx>, which: Which) -> CmdResult<()> {
-    let mut session = abx.0.lock().unwrap();
+    let mut session = abx.session.lock().unwrap();
     let Some(s) = session.as_mut() else { return Ok(()) };
     s.listening = which;
     play(&state, s, 0.0)
@@ -185,7 +199,7 @@ pub fn abx_listen(state: State<'_, AppState>, abx: State<'_, Abx>, which: Which)
 /// How many trials the test has: only before the first answer.
 #[tauri::command]
 pub fn abx_set_trials(abx: State<'_, Abx>, trials: u32) -> u32 {
-    let mut session = abx.0.lock().unwrap();
+    let mut session = abx.session.lock().unwrap();
     match session.as_mut() {
         Some(s) => {
             if s.answers.is_empty() {
@@ -201,7 +215,7 @@ pub fn abx_set_trials(abx: State<'_, Abx>, trials: u32) -> u32 {
 /// told only with the last one.
 #[tauri::command(async)]
 pub fn abx_answer(state: State<'_, AppState>, abx: State<'_, Abx>, is_a: bool) -> CmdResult<AbxProgress> {
-    let mut session = abx.0.lock().unwrap();
+    let mut session = abx.session.lock().unwrap();
     let Some(s) = session.as_mut() else { return Ok(AbxProgress { done: 0, total: 0, result: None }) };
     if (s.answers.len() as u32) < s.total {
         s.answers.push(Trial { x_is_a: s.x_is_a, said_a: is_a });
@@ -218,7 +232,7 @@ pub fn abx_answer(state: State<'_, AppState>, abx: State<'_, Abx>, is_a: bool) -
 /// The same two again, from the first trial.
 #[tauri::command(async)]
 pub fn abx_again(state: State<'_, AppState>, abx: State<'_, Abx>) -> CmdResult<()> {
-    let mut session = abx.0.lock().unwrap();
+    let mut session = abx.session.lock().unwrap();
     let Some(s) = session.as_mut() else { return Ok(()) };
     s.answers.clear();
     s.x_is_a = coin();
@@ -229,7 +243,8 @@ pub fn abx_again(state: State<'_, AppState>, abx: State<'_, Abx>) -> CmdResult<(
 /// End the test: the sound stops, the prepared tracks are let go.
 #[tauri::command(async)]
 pub fn abx_stop(state: State<'_, AppState>, abx: State<'_, Abx>) {
-    let Some(s) = abx.0.lock().unwrap().take() else { return };
+    abx.asked.fetch_add(1, Ordering::AcqRel);
+    let Some(s) = abx.session.lock().unwrap().take() else { return };
     let _one = state.play_lock.lock().unwrap();
     let mut player = state.player.lock().unwrap();
     // (Unless something else has started playing meanwhile.)

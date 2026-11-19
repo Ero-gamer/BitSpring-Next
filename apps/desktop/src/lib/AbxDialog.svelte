@@ -100,8 +100,8 @@
     api.setPaused(paused);
   }
 
+  /** (The page ends the test: it knows what to play again.) */
   function close() {
-    api.abxStop();
     onclose();
   }
 
