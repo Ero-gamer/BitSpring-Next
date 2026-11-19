@@ -58,6 +58,8 @@ export function mockCover(id: string): string {
 }
 
 const mockChecks: Record<string, unknown> = {};
+const mockDynamics: Record<string, { dr: number; lra: number; lufs: number; peakDb: number }> = {};
+let mockDynamicsRev = 1;
 
 let libFolders = libFixed.length ? [...libFixed] : [libRoot];
 let libSkipped: string[] = [];
@@ -315,7 +317,23 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       });
       const r = { verdict: { kind }, sampleRate: rate, bits: t?.bits ?? null, effectiveBits: t?.bits === 24 ? 24 : null, cutoffHz: kind === "genuine" && rate <= 48000 ? null : Math.round(top), wall: kind !== "genuine", spectrum, peakDb: -0.3 - n * 0.4, clipped: n === 3 ? 4 : 0, analysedSecs: t?.duration ?? 60 };
       mockChecks[path] = r;
+      // Measured in the same pass: figures that differ from track to track, steady per track.
+      const seed = [...path].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const dr = 5 + (seed % 100) / 10;
+      mockDynamics[path] = { dr, lra: 2 + ((seed >> 8) % 120) / 10, lufs: -6 - dr * 0.8, peakDb: -0.1 - (seed % 9) / 10 };
+      mockDynamicsRev++;
       return r as T;
+    }
+    case "dynamics": {
+      if (args.rev === mockDynamicsRev) return { rev: mockDynamicsRev, tracks: null, albums: null } as T;
+      const albums: Record<string, unknown> = {};
+      for (const a of libAlbums) {
+        const all = a.tracks.map((i) => mockDynamics[libTracks[i].path]);
+        if (!all.length || all.some((d) => !d)) continue;
+        const mean = (f: (d: { dr: number; lra: number; lufs: number }) => number) => all.reduce((s, d) => s + f(d), 0) / all.length;
+        albums[a.id] = { dr: Math.round(mean((d) => Math.round(d.dr))), lra: mean((d) => d.lra) + 1.5, lufs: mean((d) => d.lufs), peakDb: -0.1 };
+      }
+      return { rev: mockDynamicsRev, tracks: { ...mockDynamics }, albums } as T;
     }
     case "expand_paths":
       return (args.paths as string[]).map((path) => ({ path, title: null, artist: null })) as T;

@@ -27,7 +27,11 @@ pub const TARGET_LUFS: f64 = -18.0;
 /// Highest true peak after the gain: −0.3 dBFS (the same ceiling the lossy headroom uses).
 pub const CEILING: f64 = 0.966;
 /// Version of the measurement: results from older rules are measured again.
-pub const RULES_VERSION: u32 = 1;
+/// 2: dynamic range (DR) and loudness range (LRA) are measured too.
+pub const RULES_VERSION: u32 = 2;
+/// The oldest rules whose loudness and peak still stand (what came later only added figures):
+/// levelling goes on by those results while they wait to be measured again.
+pub const LOUDNESS_SINCE: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -210,12 +214,86 @@ pub struct Measured {
     pub hist_from: u16,
     /// Gating blocks (400 ms) per 1 LU of loudness.
     pub hist: Vec<u32>,
+    /// Dynamic range, the "DR" figure of the dynamic range databases (see [`DrMeter`]), in
+    /// dB and not rounded. None: not measured (older rules), or nothing but silence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dr: Option<f64>,
+    /// Loudness range (LRA, EBU Tech 3342), in LU. None: not measured, or too short or quiet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lra: Option<f64>,
+    /// Bin of the first count in `st`.
+    #[serde(default)]
+    pub st_from: u16,
+    /// Short-term loudness readings (3 s windows, one every 100 ms) per 1 LU: what an
+    /// album's loudness range is worked out from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub st: Vec<u32>,
 }
 
 impl Measured {
     pub fn loudness(&self) -> Option<Loudness> {
         self.lufs.map(|l| Loudness { gain_db: TARGET_LUFS - l, peak: Some(self.peak) })
     }
+
+    /// The DR figure as it is quoted: a whole number.
+    pub fn dr_rounded(&self) -> Option<i32> {
+        self.dr.map(|d| d.round() as i32)
+    }
+}
+
+/// An album's DR: the mean of its tracks' figures, each rounded first — the way the DR
+/// databases list albums. None when no track has one.
+pub fn album_dr<'a>(tracks: impl IntoIterator<Item = &'a Measured>) -> Option<i32> {
+    let (sum, n) = tracks.into_iter().filter_map(Measured::dr_rounded).fold((0i64, 0i64), |(s, n), d| (s + d as i64, n + 1));
+    (n > 0).then(|| (sum as f64 / n as f64).round() as i32)
+}
+
+/// An album's loudness range: its tracks' short-term readings taken as one programme.
+/// Their 1 LU bins put it within about half an LU of measuring the album in one go.
+pub fn album_lra<'a>(tracks: impl IntoIterator<Item = &'a Measured>) -> Option<f64> {
+    let mut count = [0f64; HIST_BINS];
+    for m in tracks {
+        for (i, &n) in m.st.iter().enumerate() {
+            if let Some(c) = count.get_mut(m.st_from as usize + i) {
+                *c += n as f64;
+            }
+        }
+    }
+    loudness_range(&count, HIST_STEP)
+}
+
+/// EBU Tech 3342 over short-term readings above the absolute gate, binned `step` LU wide from
+/// [`HIST_FLOOR`] up: of those no more than 20 LU below their mean, the spread from the 10th
+/// to the 95th percentile. Readings count as spread evenly over their bin.
+fn loudness_range(count: &[f64], step: f64) -> Option<f64> {
+    let total: f64 = count.iter().sum();
+    if total == 0.0 {
+        return None;
+    }
+    let start = |i: usize| HIST_FLOOR + i as f64 * step;
+    let energy = |lufs: f64| 10f64.powf((lufs + 0.691) / 10.0);
+    let mean = count.iter().enumerate().map(|(i, &n)| n * energy(start(i) + step / 2.0)).sum::<f64>() / total;
+    let gate = -0.691 + 10.0 * mean.log10() - 20.0;
+    // What of each bin lies above the gate.
+    let kept: Vec<f64> = count.iter().enumerate().map(|(i, &n)| n * ((start(i) + step - gate) / step).clamp(0.0, 1.0)).collect();
+    let n: f64 = kept.iter().sum();
+    if n < 2.0 {
+        return None;
+    }
+    let at = |fraction: f64| {
+        let want = fraction * n;
+        let mut seen = 0.0;
+        for (i, &k) in kept.iter().enumerate() {
+            if k > 0.0 && seen + k >= want {
+                // The part of the bin above the gate, and how far into it the percentile is.
+                let from = start(i).max(gate);
+                return from + (start(i) + step - from) * ((want - seen) / k);
+            }
+            seen += k;
+        }
+        start(kept.len())
+    };
+    Some((at(0.95) - at(0.10)).max(0.0))
 }
 
 /// The loudness of several tracks as one programme (an album): gated over all their blocks
@@ -361,6 +439,91 @@ pub struct Meter {
     /// Exact energies behind `hist`, for this track's own figure.
     sum: [f64; HIST_BINS],
     peak: f64,
+    /// Mean square of the last thirty steps: a short-term (3 s) reading ends at each step.
+    short: [f64; ST_STEPS],
+    /// Short-term readings per [`ST_FINE`] LU, from [`HIST_FLOOR`] up.
+    st: Vec<u32>,
+    dr: DrMeter,
+}
+
+/// Steps (100 ms) in a short-term loudness window.
+const ST_STEPS: usize = 30;
+/// Width of the bins a track's own loudness range is read from, in LU.
+const ST_FINE: f64 = 0.1;
+
+/// The "DR" dynamic range figure (TT Dynamic Range Meter, the one the dynamic range
+/// databases collect). Per channel, over blocks of three seconds: how far the second-highest
+/// peak stands above the RMS of the loudest fifth of the blocks. The track's figure is the
+/// mean over its channels. RMS is taken 3 dB up, so a full-scale sine reads 0.
+struct DrMeter {
+    /// Frames per block.
+    block: usize,
+    in_block: usize,
+    /// Per channel: sum of squares and peak of the block being filled.
+    acc: Vec<(f64, f64)>,
+    /// Per channel: (mean square × 2, peak) of each finished block.
+    blocks: Vec<Vec<(f64, f64)>>,
+}
+
+impl DrMeter {
+    fn new(sample_rate: u32, channels: usize) -> Self {
+        Self { block: (sample_rate as usize * 3).max(1), in_block: 0, acc: vec![(0.0, 0.0); channels], blocks: vec![Vec::new(); channels] }
+    }
+
+    #[inline(always)]
+    fn sample(&mut self, channel: usize, x: f64) {
+        let a = &mut self.acc[channel];
+        a.0 += x * x;
+        a.1 = a.1.max(x.abs());
+    }
+
+    #[inline(always)]
+    fn end_frame(&mut self) {
+        self.in_block += 1;
+        if self.in_block == self.block {
+            self.end_block();
+        }
+    }
+
+    fn end_block(&mut self) {
+        if self.in_block == 0 {
+            return;
+        }
+        let n = self.in_block as f64;
+        for (a, blocks) in self.acc.iter_mut().zip(&mut self.blocks) {
+            blocks.push((2.0 * a.0 / n, a.1));
+            *a = (0.0, 0.0);
+        }
+        self.in_block = 0;
+    }
+
+    /// `counted`: the channels that take part (not the LFE).
+    fn finish(mut self, counted: impl Fn(usize) -> bool) -> Option<f64> {
+        // What is left of the last block counts as one.
+        self.end_block();
+        let mut sum = 0.0;
+        let mut channels = 0;
+        for (c, blocks) in self.blocks.iter_mut().enumerate() {
+            if !counted(c) || blocks.is_empty() {
+                continue;
+            }
+            let second_peak = {
+                let mut peaks: Vec<f64> = blocks.iter().map(|b| b.1).collect();
+                peaks.sort_by(|a, b| b.total_cmp(a));
+                peaks[1.min(peaks.len() - 1)]
+            };
+            blocks.sort_by(|a, b| b.0.total_cmp(&a.0));
+            let top = ((blocks.len() as f64 * 0.2) as usize).max(1);
+            let rms = (blocks[..top].iter().map(|b| b.0).sum::<f64>() / top as f64).sqrt();
+            // Silence (or one lone click in it) has no dynamics to speak of.
+            if rms < 1e-6 || second_peak <= 0.0 {
+                continue;
+            }
+            sum += 20.0 * (second_peak / rms).log10();
+            channels += 1;
+        }
+        (channels > 0).then(|| sum / channels as f64)
+    }
 }
 
 impl Meter {
@@ -384,6 +547,9 @@ impl Meter {
             hist: [0; HIST_BINS],
             sum: [0.0; HIST_BINS],
             peak: 0.0,
+            short: [0.0; ST_STEPS],
+            st: vec![0; (HIST_BINS as f64 * HIST_STEP / ST_FINE) as usize],
+            dr: DrMeter::new(sample_rate, channels.max(1)),
         }
     }
 
@@ -391,8 +557,9 @@ impl Meter {
     pub fn push(&mut self, samples: &[f32]) {
         let n = self.channels.len();
         for frame in samples.chunks_exact(n) {
-            for (ch, &s) in self.channels.iter_mut().zip(frame) {
+            for (c, (ch, &s)) in self.channels.iter_mut().zip(frame).enumerate() {
                 let x = s as f64;
+                self.dr.sample(c, x);
                 // True peak: the sample, and — only around samples loud enough to matter —
                 // the points between.
                 let a = x.abs();
@@ -426,6 +593,7 @@ impl Meter {
                     self.acc += ch.weight * y * y;
                 }
             }
+            self.dr.end_frame();
             self.in_step += 1;
             if self.in_step == self.step {
                 self.end_step();
@@ -436,9 +604,19 @@ impl Meter {
     fn end_step(&mut self) {
         self.steps.copy_within(1.., 0);
         self.steps[3] = self.acc / self.step as f64;
+        self.short.copy_within(1.., 0);
+        self.short[ST_STEPS - 1] = self.steps[3];
         self.acc = 0.0;
         self.in_step = 0;
         self.filled += 1;
+        if self.filled >= ST_STEPS {
+            let energy = self.short.iter().sum::<f64>() / ST_STEPS as f64;
+            let lufs = if energy > 0.0 { -0.691 + 10.0 * energy.log10() } else { f64::NEG_INFINITY };
+            if lufs >= HIST_FLOOR {
+                let bin = (((lufs - HIST_FLOOR) / ST_FINE) as usize).min(self.st.len() - 1);
+                self.st[bin] += 1;
+            }
+        }
         if self.filled < 4 {
             return;
         }
@@ -460,12 +638,23 @@ impl Meter {
         let blocks: f64 = count.iter().sum();
         let from = self.hist.iter().position(|&n| n > 0).unwrap_or(0);
         let to = self.hist.iter().rposition(|&n| n > 0).map_or(from, |i| i + 1);
+        // The short-term readings: read finely for this track, kept per 1 LU for its album.
+        let fine: Vec<f64> = self.st.iter().map(|&n| n as f64).collect();
+        let per_lu = (HIST_STEP / ST_FINE) as usize;
+        let coarse: Vec<u32> = self.st.chunks(per_lu).map(|c| c.iter().sum()).collect();
+        let st_from = coarse.iter().position(|&n| n > 0).unwrap_or(0);
+        let st_to = coarse.iter().rposition(|&n| n > 0).map_or(st_from, |i| i + 1);
+        let weights: Vec<f64> = self.channels.iter().map(|c| c.weight).collect();
         Measured {
             lufs: gated(&count, &self.sum),
             peak: self.peak,
             energy: if blocks > 0.0 { self.sum.iter().sum::<f64>() / blocks } else { 0.0 },
             hist_from: from as u16,
             hist: self.hist[from..to].to_vec(),
+            dr: self.dr.finish(|c| weights[c] > 0.0),
+            lra: loudness_range(&fine, ST_FINE),
+            st_from: st_from as u16,
+            st: coarse[st_from..st_to].to_vec(),
         }
     }
 }
@@ -595,6 +784,93 @@ mod tests {
         // One track: the same as its own figure, within the histogram's grain.
         let one = super::album([&a]).unwrap();
         assert!((one.gain_db - a.loudness().unwrap().gain_db).abs() < 0.1);
+    }
+
+    /// EBU Tech 3342, cases 1 to 4: steady tones at two (or three) levels read the distance
+    /// between them, within 1 LU; what lies more than 20 LU under the mean is left out.
+    #[test]
+    fn loudness_range_reads_the_reference_cases() {
+        let rate = 48_000;
+        let part = |db: f64, secs: f64| sine(rate, secs, 1000.0, 10f64.powf(db / 20.0), 2);
+        let lra = |parts: &[(f64, f64)]| {
+            let s: Vec<f32> = parts.iter().flat_map(|&(db, secs)| part(db, secs)).collect();
+            measure(rate, 2, &s).lra.unwrap()
+        };
+        for (parts, expect) in [
+            (&[(-20.0, 20.0), (-30.0, 20.0)][..], 10.0),
+            (&[(-20.0, 20.0), (-15.0, 20.0)][..], 5.0),
+            (&[(-40.0, 20.0), (-20.0, 20.0)][..], 20.0),
+            (&[(-50.0, 20.0), (-35.0, 20.0), (-20.0, 20.0), (-35.0, 20.0), (-50.0, 20.0)][..], 15.0),
+        ] {
+            let got = lra(parts);
+            assert!((got - expect).abs() < 1.0, "{parts:?}: {got:.2} LU, expected {expect}");
+        }
+        // A steady tone has no range; three seconds are the least it takes to say anything.
+        assert!(measure(rate, 2, &part(-20.0, 30.0)).lra.unwrap() < 0.2);
+        assert_eq!(measure(rate, 2, &part(-20.0, 2.0)).lra, None);
+    }
+
+    /// An album's range is that of its tracks as one programme: a loud track and a quiet one,
+    /// each steady in itself, make an album with the range between them.
+    #[test]
+    fn an_album_has_the_loudness_range_of_its_tracks_together() {
+        let rate = 44_100;
+        let track = |db: f64| measure(rate, 2, &sine(rate, 30.0, 1000.0, 10f64.powf(db / 20.0), 2));
+        let (loud, quiet) = (track(-12.0), track(-24.0));
+        assert!(loud.lra.unwrap() < 0.2 && quiet.lra.unwrap() < 0.2);
+        let together = album_lra([&loud, &quiet]).unwrap();
+        assert!((together - 12.0).abs() < 1.0, "{together:.2}");
+        assert_eq!(album_lra([&measure(rate, 2, &vec![0.0; 44_100 * 2 * 5])]), None);
+        // Results from before the range was measured have nothing to add.
+        let old = Measured { st: Vec::new(), st_from: 0, lra: None, dr: None, ..loud.clone() };
+        assert_eq!(album_lra([&old]), None);
+    }
+
+    /// The DR figure: a steady sine reads 0 (its RMS, taken 3 dB up, is its peak) at any
+    /// level; music with peaks above its body reads how far above.
+    #[test]
+    fn dynamic_range_is_peak_over_the_loudest_fifth() {
+        let rate = 44_100;
+        for amp in [1.0, 0.1] {
+            let m = measure(rate, 2, &sine(rate, 30.0, 1000.0, amp, 2));
+            assert!(m.dr.unwrap().abs() < 0.05, "{:?}", m.dr);
+            assert_eq!(m.dr_rounded(), Some(0));
+        }
+        // Twenty blocks of three seconds: two at full scale, eighteen at a tenth of it. The
+        // loudest fifth is four blocks, two of each: RMS² = (1 + 1 + 0.01 + 0.01) / 4.
+        let mut s = sine(rate, 6.0, 1000.0, 1.0, 2);
+        s.extend(sine(rate, 54.0, 1000.0, 0.1, 2));
+        let m = measure(rate, 2, &s);
+        let expect = -10.0 * (2.02f64 / 4.0).log10();
+        assert!((m.dr.unwrap() - expect).abs() < 0.05, "{:?} vs {expect:.2}", m.dr);
+        // One loud block alone is not the peak the figure goes by: the second-highest is.
+        let mut s = sine(rate, 3.0, 1000.0, 1.0, 2);
+        s.extend(sine(rate, 57.0, 1000.0, 0.1, 2));
+        assert!(measure(rate, 2, &s).dr.unwrap() < 0.0);
+        // Silence has none.
+        assert_eq!(measure(rate, 2, &vec![0.0; 44_100 * 2 * 4]).dr, None);
+        // Channels are read one by one and averaged: a silent one is left out.
+        let one_sided: Vec<f32> = sine(rate, 30.0, 1000.0, 0.5, 1).into_iter().flat_map(|v| [v, 0.0]).collect();
+        assert!(measure(rate, 2, &one_sided).dr.unwrap().abs() < 0.05);
+    }
+
+    #[test]
+    fn an_album_s_dr_is_the_mean_of_its_tracks_rounded() {
+        let with = |dr: Option<f64>| Measured { lufs: None, peak: 0.0, energy: 0.0, hist_from: 0, hist: Vec::new(), dr, lra: None, st_from: 0, st: Vec::new() };
+        assert_eq!(album_dr([&with(Some(7.6)), &with(Some(9.4)), &with(Some(12.5))]), Some(10));
+        assert_eq!(album_dr([&with(Some(5.4)), &with(None)]), Some(5));
+        assert_eq!(album_dr([&with(None)]), None);
+        assert_eq!(album_dr([]), None);
+    }
+
+    /// What was stored before the dynamics were measured still reads, as "not measured".
+    #[test]
+    fn older_results_still_read() {
+        let old = r#"{"lufs":-9.5,"peak":0.98,"energy":0.11,"hist_from":50,"hist":[3,9,40]}"#;
+        let m: Measured = serde_json::from_str(old).unwrap();
+        assert_eq!((m.lufs, m.dr, m.lra, m.st.len()), (Some(-9.5), None, None, 0));
+        let again: Measured = serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
+        assert_eq!(again, m);
     }
 
     #[test]

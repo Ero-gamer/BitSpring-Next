@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { resolution, type LibTrack, type QualityReport } from "./api";
+  import { resolution, type Dynamics, type LibTrack, type QualityReport } from "./api";
   import { num, t } from "./i18n.svelte";
   import { SUSPECT, verdictDetail, verdictLabel } from "./quality";
 
-  let { track, report, onclose }: { track: LibTrack; report: QualityReport; onclose: () => void } = $props();
+  let { track, report, dynamics = null, onclose }: { track: LibTrack; report: QualityReport; dynamics?: Dynamics | null; onclose: () => void } = $props();
 
   // ---- chart geometry -------------------------------------------------------------------------
   // Drawn at the width it gets, so its labels stay readable on a phone.
@@ -113,6 +113,24 @@
         <div>
           <dt>{t("q.clipping")}</dt>
           <dd class:bad={report.clipped > 0}>{report.clipped > 0 ? num(report.clipped) : t("q.none")}</dd>
+        </div>
+      {/if}
+      {#if dynamics?.dr != null}
+        <div title={t("dyn.help")}>
+          <dt>{t("dyn.label")}</dt>
+          <dd>{t("dyn.dr", { n: num(Math.round(dynamics.dr)) })}</dd>
+        </div>
+      {/if}
+      {#if dynamics?.lra != null}
+        <div title={t("dyn.help")}>
+          <dt>{t("dyn.range")}</dt>
+          <dd>{num(dynamics.lra, { maximumFractionDigits: 1 })} LU</dd>
+        </div>
+      {/if}
+      {#if dynamics?.lufs != null}
+        <div>
+          <dt>{t("dyn.loudness")}</dt>
+          <dd>{num(dynamics.lufs, { maximumFractionDigits: 1 })} LUFS</dd>
         </div>
       {/if}
     </dl>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type LibTrack, type QualityReport, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
+  import { api, artistLabel, errorText, coverUrl, entryFromTrack, inTauri, isAndroid, isIOS, longDuration, resolution, UNKNOWN_ARTIST, type Album, type Dynamics, type LibTrack, type QualityReport, type QualityVerdict, type LibraryGoto, type LibraryStatus, type StreamingStatus } from "./api";
   import { collator as makeCollator, i18n, list, num, t, tn } from "./i18n.svelte";
   import AlbumTile from "./AlbumTile.svelte";
   import { liquidPill } from "./liquid";
@@ -159,8 +159,30 @@
     await leaveAlbum();
   }
 
+  // ---- dynamics (DR, loudness range): measured with the quality check and with levelling ------
+  let dynamics = $state<Record<string, Dynamics>>({});
+  let albumDynamics = $state<Record<string, Dynamics>>({});
+  let dynamicsRev: number | null = null;
+  async function loadDynamics() {
+    try {
+      const d = await api.dynamics(dynamicsRev);
+      dynamicsRev = d.rev;
+      if (d.tracks) [dynamics, albumDynamics] = [d.tracks, d.albums ?? {}];
+    } catch {
+      // (An older backend, or the mock without it: the column simply stays away.)
+    }
+  }
+  /** The open album's figures as one line: "DR 9, loudness range 7 LU". */
+  let openDynamics = $derived.by(() => {
+    const d = openAlbum && albumDynamics[openAlbum.id];
+    if (!d) return "";
+    return list([d.dr != null && t("dyn.dr", { n: num(Math.round(d.dr)) }), d.lra != null && t("dyn.lra", { n: num(Math.round(d.lra)) })]);
+  });
+  let anyDynamics = $derived(visibleTracks.some((tr) => dynamics[tr.path]?.dr != null));
+
   let albumQuality = $derived(albumTracks.map((tr) => quality[tr.path]).filter(Boolean));
-  let albumChecked = $derived(albumTracks.length > 0 && albumQuality.length === albumTracks.length);
+  // (An album checked before the dynamics were measured still owes those.)
+  let albumChecked = $derived(albumTracks.length > 0 && albumQuality.length === albumTracks.length && albumTracks.every((tr) => dynamics[tr.path]));
   /** "Upsampled (11), Genuine (1)": the album's verdicts, most common first. */
   let qualitySummary = $derived.by(() => {
     const counts = new Map<QualityVerdict, number>();
@@ -178,7 +200,7 @@
   async function checkQuality() {
     const album = openAlbum;
     if (!album || checking) return;
-    const todo = albumTracks.filter((tr) => !quality[tr.path]);
+    const todo = albumTracks.filter((tr) => !quality[tr.path] || !dynamics[tr.path]);
     checking = { album: album.id, done: 0, total: todo.length };
     qualityError = null;
     // A few at once: each decodes a whole file, and the disk may be slow.
@@ -195,15 +217,22 @@
       }
     };
     await Promise.all([worker(), worker(), worker()]);
+    await loadDynamics();
     checking = null;
   }
 
   // ---- data loading ---------------------------------------------------------------------------
   let revision = -1;
+  let ticks = 0;
   async function refresh() {
     status = await api.libraryStatus();
+    // What was measured meanwhile (a background analysis stores a track every moment or so:
+    // looked at every few seconds, and only fetched when something changed).
+    if (ticks++ % 4 === 0) loadDynamics();
     if (status.revision !== revision) {
       revision = status.revision;
+      // (Albums may have regrouped: their figures are worked out again.)
+      dynamicsRev = null;
       [albums, tracks] = await Promise.all([api.libraryAlbums(), api.libraryTracks()]);
       // The queue names tracks by their files; a CUE track's file is its whole album.
       remember(tracks.filter((t) => t.path.includes("#cue:")));
@@ -455,6 +484,9 @@
             {#if albumQuality.length && !checking}
               <p class="facts quality">{t("q.summary")}: {list(qualitySummary)}</p>
             {/if}
+            {#if openDynamics}
+              <p class="facts quality" title={t("dyn.help")}>{t("dyn.label")}: {openDynamics}</p>
+            {/if}
             {#if qualityError}<p class="facts q-err">{qualityError}</p>{/if}
             {#if albumFolder}
               <p class="facts folder">
@@ -476,7 +508,8 @@
           tracks={albumTracks}
           {currentPath}
           sortable={false}
-          columns={["number", "title", "duration", "format"]}
+          columns={albumTracks.some((tr) => dynamics[tr.path]?.dr != null) ? ["number", "title", "duration", "dr", "format"] : ["number", "title", "duration", "format"]}
+          {dynamics}
           onplay={(_, i) => playAlbum(openAlbum!, i)}
         >
           {#snippet marker(tr)}
@@ -502,7 +535,7 @@
           <TagEditor tracks={albumTracks} onclose={() => (editingTags = false)} onsaved={(p) => (followPath = p)} />
         {/if}
         {#if shownQuality && quality[shownQuality.path]}
-          <QualityDialog track={shownQuality} report={quality[shownQuality.path]} onclose={() => (shownQuality = null)} />
+          <QualityDialog track={shownQuality} report={quality[shownQuality.path]} dynamics={dynamics[shownQuality.path]} onclose={() => (shownQuality = null)} />
         {/if}
       </div>
     {:else if view === "tracks"}
@@ -510,6 +543,8 @@
         <TrackTable
           tracks={visibleTracks}
           {currentPath}
+          columns={anyDynamics ? ["number", "title", "artist", "album", "year", "duration", "dr", "format"] : undefined}
+          {dynamics}
           bind:sortKey={trackSort}
           bind:sortAsc={trackAsc}
           bind:shown={shownTracks}

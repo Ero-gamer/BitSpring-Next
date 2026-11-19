@@ -358,6 +358,12 @@ impl Library {
         }
     }
 
+    /// Every album: its id and its tracks' paths.
+    pub fn albums_with_paths(&self) -> Vec<(String, Vec<String>)> {
+        let g = self.0.lock().unwrap();
+        g.albums.iter().map(|a| (a.id.clone(), a.tracks.iter().filter_map(|&i| g.tracks.get(i)).map(|t| t.path.clone()).collect())).collect()
+    }
+
     /// A library of these tracks, for tests.
     #[cfg(test)]
     pub fn of(tracks: Vec<TrackInfo>) -> Self {

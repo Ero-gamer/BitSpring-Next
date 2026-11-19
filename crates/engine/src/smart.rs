@@ -52,6 +52,10 @@ pub enum Field {
     Lossless,
     /// The quality check's word: "genuine", "suspect" or "unchecked".
     Quality,
+    /// Dynamic range (the DR figure), where it has been measured.
+    Dr,
+    /// Loudness range (LRA) in LU, where it has been measured.
+    Lra,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,9 +91,18 @@ pub enum Sort {
     Random,
 }
 
-/// The library tracks the rules pick, in their order (indices into `tracks`). `quality`
-/// answers the quality check's word for a track; `now` is the time in Unix seconds.
-pub fn select(tracks: &[TrackInfo], rules: &SmartRules, quality: &dyn Fn(&TrackInfo) -> &'static str, now: u64) -> Vec<usize> {
+/// What the rules ask about a track that the library index doesn't hold.
+pub struct Facts<'a> {
+    /// The quality check's word for a track.
+    pub quality: &'a dyn Fn(&TrackInfo) -> &'static str,
+    /// Its dynamic range (DR) and loudness range (LRA, in LU), when measured.
+    pub dynamics: &'a dyn Fn(&TrackInfo) -> (Option<f64>, Option<f64>),
+    /// The time, in Unix seconds.
+    pub now: u64,
+}
+
+/// The library tracks the rules pick, in their order (indices into `tracks`).
+pub fn select(tracks: &[TrackInfo], rules: &SmartRules, facts: &Facts) -> Vec<usize> {
     let mut picked: Vec<usize> = tracks
         .iter()
         .enumerate()
@@ -97,7 +110,7 @@ pub fn select(tracks: &[TrackInfo], rules: &SmartRules, quality: &dyn Fn(&TrackI
             if rules.rules.is_empty() {
                 return true;
             }
-            let mut hits = rules.rules.iter().map(|r| matches(t, r, quality, now));
+            let mut hits = rules.rules.iter().map(|r| matches(t, r, facts));
             if rules.match_all { hits.all(|h| h) } else { hits.any(|h| h) }
         })
         .map(|(i, _)| i)
@@ -133,7 +146,8 @@ fn year(t: &TrackInfo) -> Option<u32> {
     t.year.as_deref().and_then(|y| y.get(..4)).and_then(|y| y.parse().ok())
 }
 
-fn matches(t: &TrackInfo, r: &Rule, quality: &dyn Fn(&TrackInfo) -> &'static str, now: u64) -> bool {
+fn matches(t: &TrackInfo, r: &Rule, facts: &Facts) -> bool {
+    let (quality, now) = (facts.quality, facts.now);
     let value = r.value.trim();
     let text = |s: Option<&str>| {
         let s = s.unwrap_or("").to_lowercase();
@@ -178,6 +192,10 @@ fn matches(t: &TrackInfo, r: &Rule, quality: &dyn Fn(&TrackInfo) -> &'static str
             (Op::WithinDays, Ok(days)) => now.saturating_sub(t.mtime) <= days * 86_400,
             _ => false,
         },
+        // (A track nobody measured matches no rule about its dynamics. The DR figure is
+        // compared as it is shown: rounded.)
+        Field::Dr => number((facts.dynamics)(t).0.map(f64::round)),
+        Field::Lra => number((facts.dynamics)(t).1),
         Field::HiRes => flag(t.hi_res()),
         Field::Lossless => flag(t.lossless),
     }
@@ -237,8 +255,12 @@ mod tests {
         SmartRules { match_all, rules: rules.into_iter().map(|(field, op, v)| Rule { field, op, value: v.into() }).collect(), sort, limit: None }
     }
 
+    fn unmeasured(_: &TrackInfo) -> (Option<f64>, Option<f64>) {
+        (None, None)
+    }
+
     fn paths(lib: &[TrackInfo], r: &SmartRules) -> Vec<String> {
-        select(lib, r, &|_| "unchecked", NOW).into_iter().map(|i| lib[i].path.clone()).collect()
+        select(lib, r, &Facts { quality: &|_| "unchecked", dynamics: &unmeasured, now: NOW }).into_iter().map(|i| lib[i].path.clone()).collect()
     }
 
     #[test]
@@ -277,8 +299,31 @@ mod tests {
     fn the_quality_word_is_a_field() {
         let l = lib();
         let r = rules(true, vec![(Field::Quality, Op::Is, "suspect")], Sort::Album);
-        let picked: Vec<usize> = select(&l, &r, &|t| if t.path == "/a/1.flac" { "suspect" } else { "genuine" }, NOW);
+        let word = |t: &TrackInfo| if t.path == "/a/1.flac" { "suspect" } else { "genuine" };
+        let picked: Vec<usize> = select(&l, &r, &Facts { quality: &word, dynamics: &unmeasured, now: NOW });
         assert_eq!(picked, [2]);
+    }
+
+    /// "Squashed" and "wide" playlists: rules on the DR figure (as shown, rounded) and on
+    /// the loudness range. A track nobody measured is in neither.
+    #[test]
+    fn dynamics_are_fields_where_measured() {
+        let l = lib();
+        let dynamics = |t: &TrackInfo| match t.path.as_str() {
+            "/a/1.flac" => (Some(5.6), Some(3.2)),
+            "/c/1.flac" => (Some(13.4), Some(14.0)),
+            "/b/1.flac" => (Some(6.4), None),
+            _ => (None, None),
+        };
+        let picked = |r: &SmartRules| -> Vec<String> {
+            select(&l, r, &Facts { quality: &|_| "unchecked", dynamics: &dynamics, now: NOW }).into_iter().map(|i| l[i].path.clone()).collect()
+        };
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Less, "7")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Is, "6")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Greater, "12")], Sort::Album)), ["/c/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Lra, Op::Greater, "10")], Sort::Album)), ["/c/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Lra, Op::Less, "10")], Sort::Album)), ["/a/1.flac"]);
+        assert!(paths(&l, &rules(true, vec![(Field::Dr, Op::Less, "99")], Sort::Album)).is_empty());
     }
 
     #[test]

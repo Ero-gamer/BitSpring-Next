@@ -317,6 +317,27 @@ export interface LibTrack {
   hiRes: boolean;
 }
 
+/** What was measured of the dynamics of a track, or of an album as a whole. */
+export interface Dynamics {
+  /** The DR figure (not rounded): how far the peaks stand above the loudest passages. */
+  dr: number | null;
+  /** Loudness range (LRA) in LU: how far the quiet passages are from the loud ones. */
+  lra: number | null;
+  /** Integrated loudness, LUFS. */
+  lufs: number | null;
+  /** True peak, dBFS. */
+  peakDb: number | null;
+}
+
+export interface DynamicsUpdate {
+  /** Changes whenever something new was measured. */
+  rev: number;
+  /** By track path; null when nothing changed since the `rev` asked with. */
+  tracks: Record<string, Dynamics> | null;
+  /** By album id, for the albums measured whole. */
+  albums: Record<string, Dynamics> | null;
+}
+
 /** A request to show something in the library ("go to this artist / album"). */
 export interface LibraryGoto {
   kind: "artist" | "album";
@@ -351,7 +372,7 @@ export interface PlaylistSummary {
 }
 
 export type SmartField =
-  | "title" | "artist" | "album" | "albumArtist" | "genre" | "format" | "quality"
+  | "title" | "artist" | "album" | "albumArtist" | "genre" | "format" | "quality" | "dr" | "lra"
   | "year" | "sampleRate" | "bits" | "duration" | "added" | "hiRes" | "lossless";
 export type SmartOp =
   | "contains" | "notContains" | "is" | "isNot" | "startsWith" | "greater" | "less" | "withinDays" | "isTrue" | "isFalse";
@@ -593,6 +614,8 @@ export const api = {
   crashReport: () => call<string | null>("crash_report"),
   crashDismiss: () => call<void>("crash_dismiss"),
   loudnessStatus: () => call<LoudnessStatus>("loudness_status"),
+  /** The dynamics measured so far, unless nothing changed since `rev`. */
+  dynamics: (rev: number | null) => call<DynamicsUpdate>("dynamics", { rev }),
   /** Measure every library track not measured yet, in the background (false: stop). */
   loudnessAnalyze: (start: boolean) => call<void>("loudness_analyze", { start }),
   /** Write what was measured into the files' tags (ReplayGain), in the background (false: stop). */

@@ -11,7 +11,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, UNIX_EPOCH};
 
@@ -80,6 +80,8 @@ struct Work {
 pub struct Loudness {
     cache: Arc<Mutex<HashMap<String, Entry>>>,
     dirty: Arc<AtomicBool>,
+    /// Bumped with every result stored, so the UI knows when to fetch the figures again.
+    rev: Arc<AtomicU64>,
     file: Option<PathBuf>,
     work: Arc<Work>,
 }
@@ -95,7 +97,7 @@ impl Loudness {
     pub fn load(app: &AppHandle) -> Self {
         let file = app.path().app_data_dir().ok().map(|d| d.join("loudness.json"));
         let cache = file.as_deref().and_then(hifi_engine::store::load_json).unwrap_or_default();
-        let l = Self { cache: Arc::new(Mutex::new(cache)), dirty: Arc::default(), file, work: Arc::default() };
+        let l = Self { cache: Arc::new(Mutex::new(cache)), dirty: Arc::default(), rev: Arc::default(), file, work: Arc::default() };
         // Results arrive one track at a time: write them out at most every few seconds.
         let saver = l.clone();
         std::thread::spawn(move || {
@@ -113,22 +115,56 @@ impl Loudness {
         l
     }
 
+    /// What was measured of the file as it is now — by the current rules, or by older ones
+    /// whose loudness still stands (what levelling goes by; their dynamics are missing).
     fn cached(&self, path: &str) -> Option<Measured> {
         let s = stamp(path)?;
-        self.cache.lock().unwrap().get(path).filter(|e| (e.rules, e.size, e.mtime) == (loudness::RULES_VERSION, s.0, s.1)).map(|e| e.measured.clone())
+        self.cache.lock().unwrap().get(path).filter(|e| e.rules >= loudness::LOUDNESS_SINCE && (e.size, e.mtime) == s).map(|e| e.measured.clone())
     }
 
-    fn store(&self, path: &str, measured: Measured) {
+    /// Measured by the current rules, as the file is now: nothing more to find out.
+    fn up_to_date(&self, path: &str) -> bool {
+        stamp(path).is_some_and(|s| self.cache.lock().unwrap().get(path).is_some_and(|e| (e.rules, e.size, e.mtime) == (loudness::RULES_VERSION, s.0, s.1)))
+    }
+
+    pub(crate) fn store(&self, path: &str, measured: Measured) {
         let Some((size, mtime)) = stamp(path) else { return };
-        self.cache.lock().unwrap().insert(path.to_string(), Entry { rules: loudness::RULES_VERSION, size, mtime, measured, tagged: false });
+        // (Measured again by newer rules: what its tags hold is as it was.)
+        let mut cache = self.cache.lock().unwrap();
+        let tagged = cache.get(path).is_some_and(|e| e.tagged && (e.size, e.mtime) == (size, mtime));
+        cache.insert(path.to_string(), Entry { rules: loudness::RULES_VERSION, size, mtime, measured, tagged });
+        drop(cache);
         self.dirty.store(true, Ordering::Release);
+        self.rev.fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// The file's dynamics are known (see [`Self::up_to_date`]); else measure it.
+    pub(crate) fn has_dynamics(&self, path: &str) -> bool {
+        self.up_to_date(path) || self.failed(path)
+    }
+
+    /// The dynamics measured so far, for those of `tracks` that have them. (Taken as they
+    /// were measured, without looking at the files again: this is for lists of thousands.)
+    pub(crate) fn dynamics_of<'a>(&self, tracks: &'a [hifi_engine::library::TrackInfo]) -> HashMap<&'a str, Dynamics> {
+        let cache = self.cache.lock().unwrap();
+        tracks
+            .iter()
+            .filter_map(|t| {
+                let e = cache.get(&t.path).filter(|e| e.rules == loudness::RULES_VERSION)?;
+                Some((t.path.as_str(), Dynamics::of(&e.measured)))
+            })
+            .collect()
     }
 
     /// The file's tags now hold loudness values. (Writing them changed the file's size and
     /// time: what we measured still stands, under the new ones.)
     fn mark_tagged(&self, path: &str, measured: Measured) {
         let Some((size, mtime)) = stamp(path) else { return };
-        self.cache.lock().unwrap().insert(path.to_string(), Entry { rules: loudness::RULES_VERSION, size, mtime, measured, tagged: true });
+        let mut cache = self.cache.lock().unwrap();
+        // (Under the rules it was measured by: older ones still owe the dynamics.)
+        let rules = cache.get(path).map_or(loudness::RULES_VERSION, |e| e.rules);
+        cache.insert(path.to_string(), Entry { rules, size, mtime, measured, tagged: true });
+        drop(cache);
         self.dirty.store(true, Ordering::Release);
     }
 
@@ -138,7 +174,7 @@ impl Loudness {
         let cache = self.cache.lock().unwrap();
         let refused = self.work.tagging.refused.lock().unwrap();
         paths
-            .filter(|p| cache.get(*p).is_some_and(|e| e.rules == loudness::RULES_VERSION && !e.tagged && e.measured.lufs.is_some()))
+            .filter(|p| cache.get(*p).is_some_and(|e| e.rules >= loudness::LOUDNESS_SINCE && !e.tagged && e.measured.lufs.is_some()))
             .filter(|p| hifi_engine::tags::can_write_gain(p) && !refused.contains(*p))
             .map(str::to_string)
             .collect()
@@ -351,7 +387,7 @@ impl Loudness {
                     q = w.wake.wait(q).unwrap();
                 }
             };
-            if self.cached(&path).is_none() {
+            if !self.up_to_date(&path) {
                 match loudness::analyze(Path::new(&path)) {
                     Ok(m) => self.store(&path, m),
                     // It can't be decoded: it stays unknown, and isn't tried again.
@@ -382,6 +418,68 @@ impl Loudness {
             w.done.store(0, Ordering::Release);
         }
     }
+}
+
+/// What a track's (or album's) dynamics come to, for the library's lists.
+#[derive(Serialize, Clone, Copy, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Dynamics {
+    /// The DR figure, not rounded.
+    pub dr: Option<f64>,
+    /// Loudness range, LU.
+    pub lra: Option<f64>,
+    /// Integrated loudness, LUFS.
+    pub lufs: Option<f64>,
+    /// True peak, dBFS.
+    pub peak_db: Option<f64>,
+}
+
+impl Dynamics {
+    fn of(m: &Measured) -> Self {
+        Self { dr: m.dr, lra: m.lra, lufs: m.lufs, peak_db: (m.peak > 0.0).then(|| 20.0 * m.peak.log10()) }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DynamicsDto {
+    /// Changes whenever something new was measured.
+    rev: u64,
+    /// Per track path. None: nothing new since the `rev` the caller has.
+    tracks: Option<HashMap<String, Dynamics>>,
+    /// Per album id, for the albums measured whole: its DR (the mean of its tracks' figures)
+    /// and its loudness range as one programme.
+    albums: Option<HashMap<String, Dynamics>>,
+}
+
+/// The dynamics measured so far (see [`Dynamics`]), unless nothing changed since `rev`.
+#[tauri::command(async)]
+pub fn dynamics(l: State<'_, Loudness>, lib: State<'_, Library>, rev: Option<u64>) -> DynamicsDto {
+    // (Offset by one, so a caller that has nothing yet never matches.)
+    let now = l.rev.load(Ordering::Acquire) + 1;
+    if rev == Some(now) {
+        return DynamicsDto { rev: now, tracks: None, albums: None };
+    }
+    let tracks = lib.tracks();
+    let cache = l.cache.lock().unwrap();
+    let measured = |path: &str| cache.get(path).filter(|e| e.rules == loudness::RULES_VERSION).map(|e| &e.measured);
+    let per_track = tracks.iter().filter_map(|t| Some((t.path.clone(), Dynamics::of(measured(&t.path)?)))).collect();
+    let mut albums = HashMap::new();
+    for (id, paths) in lib.albums_with_paths() {
+        let all: Option<Vec<&Measured>> = paths.iter().map(|p| measured(p)).collect();
+        let Some(all) = all.filter(|a| !a.is_empty()) else { continue };
+        let together = loudness::album(all.iter().copied());
+        albums.insert(
+            id,
+            Dynamics {
+                dr: loudness::album_dr(all.iter().copied()).map(f64::from),
+                lra: loudness::album_lra(all.iter().copied()),
+                lufs: together.map(|a| loudness::TARGET_LUFS - a.gain_db),
+                peak_db: together.and_then(|a| a.peak).filter(|p| *p > 0.0).map(|p| 20.0 * p.log10()),
+            },
+        );
+    }
+    DynamicsDto { rev: now, tracks: Some(per_track), albums: Some(albums) }
 }
 
 #[derive(Serialize)]
@@ -719,6 +817,43 @@ mod tests {
             assert!(l.untagged([p.as_str()].into_iter()).is_empty());
             let _ = std::fs::remove_dir_all(&locked);
         }
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Results from before the dynamics were measured: levelling still goes by them, with
+    /// nothing to wait for; they have no dynamics to show until the analysis (or a quality
+    /// check) measures the file again.
+    #[test]
+    fn older_results_level_and_are_measured_again_for_their_dynamics() {
+        let d = tmpdir("rules");
+        let path = tone(&d, "tone.flac", 0.5);
+        let lib = Library::of(vec![hifi_engine::library::scan_file(Path::new(&path)).unwrap().0]);
+        let l = Loudness::default();
+        let now = loudness::analyze(Path::new(&path)).unwrap();
+        assert!(now.dr.is_some() && now.lra.is_some());
+        let old = Measured { dr: None, lra: None, st_from: 0, st: Vec::new(), ..now.clone() };
+        let (size, mtime) = stamp(&path).unwrap();
+        l.cache.lock().unwrap().insert(path.clone(), Entry { rules: 1, size, mtime, measured: old, tagged: true });
+        assert!(l.cached(&path).is_some() && !l.has_dynamics(&path));
+        assert!(l.dynamics_of(&lib.tracks()).is_empty());
+        let t = open(&path);
+        l.level(&lib, &settings(LevelMode::Track), &path, &t, Duration::ZERO);
+        assert!((t.level().unwrap().gain_db() + 11.98).abs() < 0.15);
+        // "Measure the whole library" takes it up again.
+        l.want(vec![path.clone()]);
+        let deadline = std::time::Instant::now() + WAIT;
+        while !l.has_dynamics(&path) {
+            assert!(std::time::Instant::now() < deadline, "never measured again");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let tracks = lib.tracks();
+        let found = l.dynamics_of(&tracks);
+        let dynamics = found[path.as_str()];
+        // (A steady tone: no dynamics, and it says so with a figure, not with "unknown".)
+        assert!(dynamics.dr.unwrap().abs() < 0.1 && dynamics.lra.unwrap() < 0.2, "{dynamics:?}");
+        assert!((dynamics.lufs.unwrap() + 6.02).abs() < 0.15 && (dynamics.peak_db.unwrap() + 6.02).abs() < 0.1);
+        // What its tags hold didn't change by measuring it again.
+        assert!(l.cache.lock().unwrap()[&path].tagged);
         let _ = std::fs::remove_dir_all(&d);
     }
 

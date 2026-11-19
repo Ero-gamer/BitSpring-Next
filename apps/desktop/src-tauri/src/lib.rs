@@ -1453,6 +1453,7 @@ pub fn run() {
             loudness::loudness_status,
             loudness::loudness_analyze,
             loudness::loudness_write_tags,
+            loudness::dynamics,
             crash::crash_report,
             crash::crash_dismiss,
             playlists::playlists_list,

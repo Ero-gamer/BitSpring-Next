@@ -83,17 +83,29 @@ pub fn quality_cached(q: State<'_, Quality>, paths: Vec<String>) -> Vec<Option<R
 }
 
 /// Check one track (or return what is known about it). Takes a moment: the whole file is
-/// decoded.
+/// decoded. The same pass measures its loudness and dynamic range, where nobody has yet.
 #[tauri::command]
-pub async fn quality_check(q: State<'_, Quality>, path: String) -> Result<Report, String> {
+pub async fn quality_check(q: State<'_, Quality>, loud: State<'_, crate::loudness::Loudness>, path: String) -> Result<Report, String> {
+    let measure = !loud.has_dynamics(&path);
     if let Some(r) = q.cached(&path) {
+        // Checked before the dynamics were measured: only those are missing.
+        if measure {
+            let p = path.clone();
+            let measured = tauri::async_runtime::spawn_blocking(move || hifi_engine::dsp::loudness::analyze(Path::new(&p))).await.map_err(|e| e.to_string())?;
+            if let Ok(m) = measured {
+                loud.store(&path, m);
+            }
+        }
         return Ok(r);
     }
     let p = path.clone();
-    let report = tauri::async_runtime::spawn_blocking(move || hifi_engine::quality::analyze(Path::new(&p)))
+    let (report, measured) = tauri::async_runtime::spawn_blocking(move || hifi_engine::quality::analyze_with(Path::new(&p), measure))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| format!("{e:#}"))?;
+    if let Some(m) = measured {
+        loud.store(&path, m);
+    }
     if let Some((size, mtime)) = stamp(&path) {
         q.cache.lock().unwrap().insert(path, Entry { rules: quality::RULES_VERSION, size, mtime, report: report.clone() });
         q.dirty.store(true, Ordering::Release);
