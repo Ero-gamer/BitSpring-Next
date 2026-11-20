@@ -59,8 +59,17 @@ export interface Signal {
   layout: string;
   /** A multichannel source folded down to the device's speakers (gainDb keeps it from clipping). */
   downmix: { to: string; gainDb: number } | null;
+  /** The long upsampling filter that runs; null: the standard resampler, or no upsampling. */
+  upsampleFilter: UpsampleFilter | null;
+  /** Its length in taps (null for apodizing, which has one length). */
+  upsampleTaps: number | null;
   bitPerfect: boolean;
 }
+
+/** The long upsampling filters (null in settings: the standard one). */
+export type UpsampleFilter = "linear" | "minimum" | "apodizing";
+/** The two lengths offered, in taps: 64k and 1M. */
+export type UpsampleTaps = 65536 | 1048576;
 
 export type Crossfeed = "light" | "medium" | "strong";
 
@@ -172,6 +181,10 @@ export interface IrInfo {
 
 export interface DspSettings {
   upsampleKhz: number | null;
+  /** Upsample through a long filter where the DAC runs at twice the source's rate or more; null: the standard one. */
+  upsampleFilter: UpsampleFilter | null;
+  /** Its length (Linear and Minimum only; phones always get the shorter). */
+  upsampleTaps: UpsampleTaps;
   crossfeed: Crossfeed | null;
   /** Impulse response file to convolve with. */
   convolution: string | null;
@@ -255,6 +268,17 @@ export interface Status {
   advanceError: AdvanceError | null;
   /** iOS: system volume 0…1 (below 1 iOS may scale the samples). Null elsewhere. */
   systemVolume: number | null;
+  /** The processing's share of one core (0 until measured); null on the direct path. */
+  load: number | null;
+  /** The processor couldn't keep up: the backend stepped the upsampling filter down and plays on with it. */
+  filterStep: FilterStep | null;
+}
+
+/** An automatic step down of the upsampling filter. `seq` grows with each; `filter: null` = the standard one now. */
+export interface FilterStep {
+  seq: number;
+  filter: UpsampleFilter | null;
+  taps: number | null;
 }
 
 export interface LibraryStatus {

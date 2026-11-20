@@ -34,7 +34,14 @@
     if (signal.dsdRate !== null && !signal.dop) steps.push(t("step.dsdToPcm", { dsd: dsdName(signal.dsdRate), rate: khz(signal.sourceRate) }));
     if (signal.downmix)
       steps.push(t("step.downmix", { from: layoutName(signal.layout), to: layoutName(signal.downmix.to), db: num(signal.downmix.gainDb) }));
-    if (signal.resampled) steps.push(t("step.resample", { from: khz(signal.sourceRate), to: khz(signal.deviceRate) }));
+    if (signal.resampled) {
+      const rates = { from: khz(signal.sourceRate), to: khz(signal.deviceRate) };
+      // A long filter is named, with its length where it has a choice of one.
+      const f = signal.upsampleFilter;
+      if (f === "apodizing") steps.push(t("step.resampleApodizing", rates));
+      else if (f) steps.push(t(f === "linear" ? "step.resampleLinear" : "step.resampleMinimum", { ...rates, length: t(`enh.len.${signal.upsampleTaps}`) }));
+      else steps.push(t("step.resample", rates));
+    }
     if (signal.eq) steps.push(t(signal.eqLinear ? "step.eqLinear" : "step.eq", { name: signal.eq }));
     if (signal.convolution) steps.push(t("step.convolution", { name: signal.convolution }));
     if (signal.crossfeed) steps.push(t(`step.crossfeed.${signal.crossfeed}`));

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { api, type Crossfeed, type DspSettings, type IrInfo, type LevelMode, type LoudnessStatus } from "./api";
-  import { list, num, t } from "./i18n.svelte";
+  import { api, isAndroid, isIOS, type Crossfeed, type DspSettings, type IrInfo, type LevelMode, type LoudnessStatus, type Signal, type UpsampleFilter, type UpsampleTaps } from "./api";
+  import { list, num, sentences, t } from "./i18n.svelte";
   import { liquidPill } from "./liquid";
   import { startAbx } from "./abx.svelte";
 
@@ -9,6 +9,9 @@
     eqName,
     ir,
     track = null,
+    signal = null,
+    load = null,
+    stepped = null,
     onchange,
     onopeneq,
   }: {
@@ -18,6 +21,12 @@
     ir: IrInfo | null;
     /** What plays now, for the blind test of the processing. */
     track?: { path: string; title: string } | null;
+    /** The playing track's signal path, for the processor load of a long filter. */
+    signal?: Signal | null;
+    /** The processing's share of one core (status.load). */
+    load?: number | null;
+    /** The filter an automatic step down left on, while it is still the one chosen. */
+    stepped?: { filter: UpsampleFilter | null; taps: number | null } | null;
     onchange: (s: DspSettings) => void;
     onopeneq: () => void;
   } = $props();
@@ -49,6 +58,43 @@
   const UPSAMPLE: (number | null)[] = [null, 192, 384, 768];
   const CROSSFEED: (Crossfeed | null)[] = [null, "light", "medium", "strong"];
   const LEVEL: (LevelMode | null)[] = [null, "track", "album"];
+
+  const FILTERS: (UpsampleFilter | null)[] = [null, "linear", "minimum", "apodizing"];
+  const TAPS: UpsampleTaps[] = [65536, 1048576];
+  /** Hz of transition band at each length, for a 44.1 kHz recording. */
+  const TRANSITION_HZ: Record<UpsampleTaps, number> = { 65536: 13, 1048576: 0.8 };
+
+  // Phones play the shorter length only (the backend holds them to it): nothing to choose.
+  const phone = isIOS || isAndroid;
+  let hasLength = $derived(!phone && (settings.upsampleFilter === "linear" || settings.upsampleFilter === "minimum"));
+  let loadPct = $derived(signal?.upsampleFilter && load ? load * 100 : null);
+
+  /** The step-down notice. A length written with an abbreviation's dot ("64 тыс.") ends the
+   *  sentence with that dot, not a second one. */
+  function shortened(taps: number): string {
+    const length = t(`enh.len.${taps}`);
+    const text = t("enh.stepShorter", { length });
+    return length.endsWith(".") ? text.replace(`${length}.`, length) : text;
+  }
+
+  /** Arrow keys walk the filter list; Enter or a click picks (each pick restarts playback, so
+   *  walking past a choice doesn't pick it; Space stays play/pause). Tab enters at the chosen one. */
+  function filterKeys(e: KeyboardEvent) {
+    const group = e.currentTarget as HTMLElement;
+    const rows = [...group.querySelectorAll<HTMLButtonElement>("button")];
+    const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+    // Sideways follows the reading direction.
+    const back = getComputedStyle(group).direction === "rtl" ? "ArrowRight" : "ArrowLeft";
+    let to: number;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      const step = e.key === "ArrowUp" || e.key === back ? -1 : 1;
+      to = ((at < 0 ? 0 : at) + step + rows.length) % rows.length;
+    } else if (e.key === "Home") to = 0;
+    else if (e.key === "End") to = rows.length - 1;
+    else return;
+    e.preventDefault();
+    rows[to].focus();
+  }
 
   // How much of the library is measured: asked while the panel is open and levelling is on,
   // more often while the analysis runs.
@@ -116,6 +162,46 @@
           {/each}
         </div>
         <p class="help">{t("enh.upsamplingHelp", { a: num(44.1), b: num(352.8) })}</p>
+        {#if settings.upsampleKhz !== null}
+          <div class="sub">
+            <span class="sub-title" id="enh-filter">{t("enh.filter")}</span>
+            <!-- A list rather than a row: four names don't fit side by side in most languages. -->
+            <div class="radios" role="radiogroup" aria-labelledby="enh-filter" tabindex="-1" onkeydown={filterKeys}>
+              {#each FILTERS as f (f)}
+                {@const sel = settings.upsampleFilter === f}
+                {@const key = f ?? "standard"}
+                <button role="radio" aria-checked={sel} class:sel tabindex={sel ? 0 : -1} aria-describedby={`enh-f-${key}`} onclick={() => sel || set({ upsampleFilter: f })}>
+                  <span class="r-name">{t(`enh.filter.${key}`)}</span>
+                  <span class="r-desc" id={`enh-f-${key}`}>{t(`enh.filter.${key}Help`)}</span>
+                </button>
+              {/each}
+            </div>
+            {#if hasLength}
+              <span class="sub-title" id="enh-length">{t("enh.length")}</span>
+              <div class="seg" role="radiogroup" aria-labelledby="enh-length" use:liquidPill={settings.upsampleTaps}>
+                {#each TAPS as v (v)}
+                  <button role="radio" aria-checked={settings.upsampleTaps === v} class:sel={settings.upsampleTaps === v} onclick={() => set({ upsampleTaps: v })}>
+                    {t(`enh.len.${v}`)}
+                  </button>
+                {/each}
+              </div>
+              <p class="help">
+                {sentences([
+                  t("enh.lengthHelp", { a: num(TRANSITION_HZ[65536]), b: num(TRANSITION_HZ[1048576]), rate: num(44.1) }),
+                  settings.upsampleFilter === "linear" && settings.upsampleTaps === 1048576 && t("enh.lengthAhead"),
+                ])}
+              </p>
+            {/if}
+            {#if loadPct !== null}
+              <p class="help figure">{t("enh.load", { pct: num(loadPct, { maximumFractionDigits: loadPct < 10 ? 1 : 0 }) })}</p>
+            {/if}
+            {#if stepped && stepped.filter === settings.upsampleFilter}
+              <p class="help notice" role="status">
+                {stepped.filter && stepped.taps ? shortened(stepped.taps) : t("enh.stepStandard")}
+              </p>
+            {/if}
+          </div>
+        {/if}
       </fieldset>
 
       <fieldset>
@@ -332,6 +418,62 @@
     font-size: var(--t-xs);
     line-height: 1.5;
     color: var(--mist);
+  }
+
+  /* The upsampling filter: a sub-block of its own under the rate. */
+  .sub {
+    clear: both;
+  }
+  .sub-title {
+    display: block;
+    margin: 16px 0 8px;
+    font-size: var(--t-sm);
+    font-weight: 600;
+  }
+  .radios {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    background: var(--slate-800);
+    border-radius: var(--r-md);
+    padding: 3px;
+  }
+  .radios:focus {
+    outline: none;
+  }
+  .radios button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 7px 10px 8px;
+    border-radius: var(--r-md);
+    text-align: start;
+    color: var(--mist);
+  }
+  .r-name {
+    font-size: var(--t-sm);
+  }
+  .r-desc {
+    font-size: var(--t-xs);
+    line-height: 1.45;
+    color: var(--mist);
+  }
+  .radios button:hover {
+    color: var(--porcelain);
+  }
+  .radios button.sel {
+    background: var(--slate-600);
+    color: var(--porcelain);
+  }
+  .radios button.sel .r-name {
+    font-weight: 600;
+  }
+  .help.figure {
+    font-variant-numeric: tabular-nums;
+  }
+  .help.notice {
+    color: var(--porcelain);
   }
 
   .eq-head {
