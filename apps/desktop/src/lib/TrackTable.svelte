@@ -118,13 +118,15 @@
   <thead>
     <tr>
       {#each shownColumns as c (c)}
-        <th class={c} title={c === "dr" ? t("dyn.help") : undefined} aria-sort={sortable && sortKey === c ? (sortAsc ? "ascending" : "descending") : undefined}>
+        <th class={c} title={c === "dr" ? t("dyn.help") : undefined} aria-label={c === "fav" ? t("col.fav") : undefined} aria-sort={sortable && sortKey === c ? (sortAsc ? "ascending" : "descending") : undefined}>
           {#if c === "fav"}
-            <!-- the heart stands for its name; sorted by it, the favourites come first -->
+            <!-- the heart stands for its name; sorted by it, the favourites come first. A list
+                 that can't be sorted has no heart up here: it would look like a button that
+                 does nothing (the rows' own hearts say what the column is). -->
             {#if sortable}
               <button onclick={() => ((sortKey = c), (sortAsc = true))} aria-label={t("col.fav")} title={t("col.fav")}><Heart size={13} on={sortKey === c} /></button>
             {:else}
-              <span class="th" title={t("col.fav")}><Heart size={13} /></span>
+              <span class="th"></span>
             {/if}
           {:else if sortable}
             <button onclick={() => sortBy(c)}>
@@ -182,7 +184,7 @@
                   onclick={(e) => (e.stopPropagation(), setFavorite(tr.path, !on))}
                   ondblclick={(e) => e.stopPropagation()}
                 >
-                  <Heart {on} size={15} />
+                  <Heart {on} size={15} beats />
                 </button>
               {/if}
             {:else if c === "rating"}
@@ -338,8 +340,8 @@
     place-items: center;
     width: 34px;
     height: 32px;
-    /* not a favourite: the outline waits out of sight until the row is pointed at */
-    color: transparent;
+    /* not a favourite: the outline is there, faint — a button nobody sees isn't pressed */
+    color: var(--slate-500);
   }
   .heart.on {
     color: var(--porcelain);
@@ -355,7 +357,7 @@
   }
   @media (hover: hover) {
     tr:hover .heart:not(.on) {
-      color: var(--mist-dim);
+      color: var(--mist);
     }
     tr:hover .heart:not(.on):hover {
       color: var(--porcelain);
@@ -363,12 +365,6 @@
     /* the stars nobody gave show with the row, like the heart's outline */
     tbody tr:not(:hover) td.rating :global(.stars:not(.rated):not(:focus-within)) {
       visibility: hidden;
-    }
-  }
-  /* a touch screen has no pointer to reveal it: the outline is always there, faint */
-  @media (hover: none) {
-    .heart:not(.on) {
-      color: var(--slate-500);
     }
   }
   /* the playing row is in the signal's colour; its marks stay the listener's own */

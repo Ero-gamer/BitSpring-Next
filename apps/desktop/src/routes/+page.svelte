@@ -774,7 +774,7 @@
     <!-- transport keys keep their tape direction in right-to-left languages -->
     <div class="keys" dir="ltr">
       <button class="key mode fav-key" class:on={isFavorite} onclick={toggleFavorite} aria-pressed={isFavorite} aria-label={t(isFavorite ? "fav.remove" : "fav.add")} title={hint(t(isFavorite ? "fav.remove" : "fav.add"), "F") ?? t(isFavorite ? "fav.remove" : "fav.add")} disabled={!canMark}>
-        <Heart on={isFavorite} size={18} />
+        {#key now?.path}<Heart on={isFavorite} size={18} beats />{/key}
       </button>
       <button class="key mode shuffle-key" class:on={shuffle} onclick={() => setShuffle(!shuffle)} aria-pressed={shuffle} aria-label={t("common.shuffle")} title={hint(t("common.shuffle"), "S") ?? t("common.shuffle")} disabled={testing}>
         <!-- two lines that trade places -->

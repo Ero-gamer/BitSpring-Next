@@ -541,7 +541,7 @@
                 title={t(marks.album(openAlbum.id) ? "fav.removeAlbum" : "fav.addAlbum")}
                 onclick={() => setAlbumFavorite(openAlbum!.id, !marks.album(openAlbum!.id))}
               >
-                <Heart on={marks.album(openAlbum.id)} size={24} />
+                {#key openAlbum.id}<Heart on={marks.album(openAlbum.id)} size={24} beats />{/key}
               </button>
             </div>
             <button class="artist-link" onclick={() => ((artist = openAlbum!.artist), (view = "artists"), (openAlbum = null))}>{artistLabel(openAlbum.artist)}</button>
