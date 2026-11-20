@@ -4,6 +4,9 @@
   import { api, clock, isNetworkUid, inTauri, isMac, isIOS, isAndroid, isLinux, khz, dsdName, artistLabel, errorText, AUDIO_EXTENSIONS, type Device, type DspSettings, type LibraryGoto, type EqState, type IrInfo, type NowPlaying, type PlaylistEntry, type Status, type StreamingStatus, type RemoteCommand } from "$lib/api";
   import { i18n, sentences, t } from "$lib/i18n.svelte";
   import Settings from "$lib/Settings.svelte";
+  import Heart from "$lib/Heart.svelte";
+  import Stars from "$lib/Stars.svelte";
+  import { loadMarks, markable, marks, setFavorite, setRating } from "$lib/marks.svelte";
   import { labels, labelOf, remember } from "$lib/labels.svelte";
   import AddToPlaylist from "$lib/AddToPlaylist.svelte";
   import Library from "$lib/Library.svelte";
@@ -524,11 +527,20 @@
     } else if (letter(e, "l") && now && !testing) {
       lyricsOn = !lyricsOn;
       screen = "player";
+    } else if (letter(e, "f") && canMark) {
+      toggleFavorite();
     } else if (letter(e, "s")) {
       setShuffle(!shuffle);
     } else if (letter(e, "r")) {
       repeat = nextRepeat(repeat);
     }
+  }
+  /** The playing track can carry the listener's heart (a file; not the channel test, not a
+   *  streaming track). */
+  let canMark = $derived(!!now && !testing && markable(now.path));
+  let isFavorite = $derived(canMark && marks.fav(now!.path));
+  function toggleFavorite() {
+    if (canMark) setFavorite(now!.path, !isFavorite);
   }
   /** A one-letter shortcut: the letter typed, or its key where the keyboard types another script (Cyrillic, Greek…). */
   function letter(e: KeyboardEvent, l: string): boolean {
@@ -543,6 +555,7 @@
     if (!untrack(() => fades)) api.setFades(false).catch(() => {});
     loadRemote();
     loadEq();
+    loadMarks();
     const stopUpdateChecks = startUpdateChecks();
     const timer = setInterval(async () => {
       // The backend moved on to the next track (or stopped at one it couldn't play).
@@ -564,6 +577,7 @@
 
     let unlisten: (() => void) | undefined;
     let unlistenRemote: (() => void) | undefined;
+    let unlistenMarks: (() => void) | undefined;
     let stopGamepad: (() => void) | undefined;
     // Linux: a game controller drives the window.
     if (inTauri && isLinux) {
@@ -581,6 +595,8 @@
     if (inTauri) {
       // The phone remote: its commands, carried out like the window's own buttons.
       import("@tauri-apps/api/event").then(async ({ listen }) => {
+        // A mark made without the window (the phone remote, the API, a scan): show it.
+        unlistenMarks = await listen("marks", () => loadMarks());
         unlistenRemote = await listen<RemoteCommand>("remote", ({ payload: c }) => {
           if (c.kind === "toggle") togglePause();
           // (The API's own: play and pause that say which, and stop.)
@@ -619,6 +635,7 @@
       stopUpdateChecks();
       unlisten?.();
       unlistenRemote?.();
+      unlistenMarks?.();
       stopGamepad?.();
     };
   });
@@ -732,6 +749,10 @@
               {#if testing}{now.album}{:else}<button class="link" onclick={() => goToLibrary("album")} title={t("np.openAlbum")}><bdi>{now.album}</bdi></button>{/if}{now.year ? `${t("list.sep")}${now.year}` : ""}
             </p>
           {/if}
+          <!-- the stars of what plays, where they are switched on: the one place a phone has for them -->
+          {#if marks.ratings && canMark}
+            <p class="np-stars"><Stars large value={marks.rating(now.path)} label={t("rate.of", { title: now.title })} onchange={(n) => setRating(now!.path, n)} /></p>
+          {/if}
         {:else}
           <h1 class="idle">{t("np.idle")}</h1>
           <p class="album">{sentences([t(isAndroid ? "np.hintAndroid" : isIOS ? "np.hintIos" : "np.hint"), t("np.promise")])}</p>
@@ -752,6 +773,9 @@
 
     <!-- transport keys keep their tape direction in right-to-left languages -->
     <div class="keys" dir="ltr">
+      <button class="key mode fav-key" class:on={isFavorite} onclick={toggleFavorite} aria-pressed={isFavorite} aria-label={t(isFavorite ? "fav.remove" : "fav.add")} title={hint(t(isFavorite ? "fav.remove" : "fav.add"), "F") ?? t(isFavorite ? "fav.remove" : "fav.add")} disabled={!canMark}>
+        {#key now?.path}<Heart on={isFavorite} size={18} beats />{/key}
+      </button>
       <button class="key mode shuffle-key" class:on={shuffle} onclick={() => setShuffle(!shuffle)} aria-pressed={shuffle} aria-label={t("common.shuffle")} title={hint(t("common.shuffle"), "S") ?? t("common.shuffle")} disabled={testing}>
         <!-- two lines that trade places -->
         <svg width="18" height="18" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 6.5h3.2c1.6 0 2.7.7 3.6 2.1l2.4 3.8c.9 1.4 2 2.1 3.6 2.1H19M3 14.5h3.2c1.2 0 2.1-.4 2.9-1.4M12.9 7.9c.8-1 1.7-1.4 2.9-1.4H19M16.5 4L19 6.5 16.5 9M16.5 12l2.5 2.5-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -1331,6 +1355,12 @@
     color: var(--mist);
     max-width: 60ch;
   }
+  /* (the first star stands under the first letter of the lines above it) */
+  .np-stars {
+    margin: 6px 0 0;
+    margin-inline-start: -6px;
+    line-height: 0;
+  }
   .primary {
     margin-top: 14px;
     padding: 9px 16px;
@@ -1344,16 +1374,16 @@
   }
 
   /* hardware keys */
-  /* prev / play / next in the middle, shuffle and repeat on either side of them; the lyrics
-     key beside them doesn't move the middle */
+  /* prev / play / next in the middle, shuffle and repeat on either side of them; the heart
+     and the lyrics key stand beside those, one on each side, and don't move the middle */
   .keys {
     display: grid;
     grid-template-columns: minmax(0, 1fr) repeat(5, auto) minmax(0, 1fr);
     align-items: center;
     gap: 18px;
   }
-  .keys > :first-child {
-    grid-column: 2;
+  .keys > .fav-key {
+    justify-self: end;
   }
   .keys > .lyr-key {
     justify-self: start;
@@ -1564,6 +1594,9 @@
     .link {
       text-align: center;
     }
+    .np-stars {
+      margin-inline-start: 0;
+    }
     h1 {
       font-size: var(--t-xl);
     }
@@ -1662,7 +1695,10 @@
   .keys .key.lyr-key {
     margin-inline-start: 6px;
   }
-  /* narrow phones: the three of them in a row of their own under the transport */
+  .keys .key.fav-key {
+    margin-inline-end: 6px;
+  }
+  /* narrow phones: the four of them in a row of their own under the transport */
   @media (max-width: 480px) {
     .keys {
       display: flex;
@@ -1683,6 +1719,9 @@
     }
     .keys .key.lyr-key {
       margin-inline-start: 0;
+    }
+    .keys .key.fav-key {
+      margin-inline-end: 0;
     }
   }
   /* --- lyrics --- */

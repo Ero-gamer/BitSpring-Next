@@ -19,6 +19,7 @@ mod folders;
 mod library;
 mod loudness;
 mod lyrics;
+mod marks;
 #[cfg(target_os = "linux")]
 mod pad;
 mod playlists;
@@ -1335,6 +1336,8 @@ pub fn run() {
             use tauri::Manager;
             // First: whatever breaks from here on leaves a report (on this device only).
             crash::install(app.handle());
+            // (Before the library: its first scan looks the favourite albums up when it ends.)
+            app.manage(marks::Marks::load(app.handle()));
             let lib = library::Library::load(app.handle());
             app.manage(lib);
             app.manage(playlists::Playlists::default());
@@ -1459,6 +1462,10 @@ pub fn run() {
             loudness::loudness_analyze,
             loudness::loudness_write_tags,
             loudness::dynamics,
+            marks::marks,
+            marks::mark_favorite,
+            marks::mark_rating,
+            marks::mark_album,
             ripcheck::rip_cached,
             ripcheck::rip_progress,
             ripcheck::rip_check,

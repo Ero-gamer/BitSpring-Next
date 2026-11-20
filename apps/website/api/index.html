@@ -77,6 +77,8 @@ X-Token: &lt;token&gt;
     "year": "1959",
     "duration": 251.0,
     "albumId": "8c1f0a9be2d34f10",
+    "favorite": true,
+    "rating": 4,
     "cover": "/api/v1/cover/current?rev=7"
   },
   "signal": {
@@ -95,6 +97,7 @@ X-Token: &lt;token&gt;
         <ul>
           <li><code>state</code>: <code>playing</code>, <code>paused</code> or <code>stopped</code>. <code>position</code> and <code>duration</code> are in seconds.</li>
           <li><code>track</code> and <code>signal</code> are <code>null</code> when nothing is loaded. <code>albumId</code> is <code>null</code> for a file outside the library, <code>cover</code> when the file has no cover.</li>
+          <li><code>track.favorite</code> and <code>track.rating</code> (0 to 5 stars, 0: not rated) are the listener's marks, since 0.21.1. A file outside the library has none: <code>false</code> and <code>0</code>.</li>
           <li><code>signal.bitPerfect</code>: the samples reach the DAC untouched. The <code>sourceRate</code> of a DSD file is its 1-bit rate (2822400 for DSD64).</li>
           <li><code>repeat</code>: <code>off</code>, <code>all</code> (the queue) or <code>one</code> (the track).</li>
         </ul>
@@ -107,22 +110,31 @@ X-Token: &lt;token&gt;
 }</code></pre>
         <h3><code>GET /api/v1/library</code></h3>
         <p>Every album and track of the library, as <code>albums</code> and <code>tracks</code>. A track's <code>path</code> is what the queue commands take; an album's <code>tracks</code> are positions in the <code>tracks</code> list.</p>
+        <h3><code>GET /api/v1/favorites</code></h3>
+        <p>Since 0.21.1. Everything the listener marked in the library: tracks by <code>path</code>, and the ids of favourite albums. A track is listed when it is a favourite, has a rating, or both.</p>
+        <pre><code>{
+  "tracks": {
+    "/Music/…/01 So What.flac": { "favorite": true, "rating": 5 },
+    "/Music/…/02 Freddie Freeloader.flac": { "favorite": false, "rating": 4 }
+  },
+  "albums": ["8c1f0a9be2d34f10"]
+}</code></pre>
         <h3><code>GET /api/v1/cover/&lt;albumId&gt;</code>, <code>GET /api/v1/cover/current</code></h3>
         <p>The cover of an album, or of the track that plays now. <code>404</code> when there is none.</p>
         <h3><code>GET /api/v1/volume</code></h3>
         <p><code>{"volume": 40}</code>, 0 to 100, when the output is a network player (UPnP, Chromecast) with a volume of its own. <code>null</code> otherwise: BitSpring doesn't scale the samples it sends to a DAC.</p>
         <h3><code>GET /api/v1/info</code></h3>
-        <p>The app's name and version, and the API version: <code>{"app": "BitSpring", "version": "0.21.0", "api": 1}</code>.</p>
+        <p>The app's name and version, and the API version: <code>{"app": "BitSpring", "version": "0.21.1", "api": 1}</code>.</p>
 
         <h2>Events</h2>
         <h3><code>GET /api/v1/events</code></h3>
-        <p>A Server-Sent Events stream. It sends the state (the same object as <code>GET state</code>) at once, and again whenever something changes: another track, play or pause, a seek, the queue, shuffle or repeat.</p>
+        <p>A Server-Sent Events stream. It sends the state (the same object as <code>GET state</code>) at once, and again whenever something changes: another track, play or pause, a seek, the queue, shuffle or repeat, the playing track's marks.</p>
         <pre><code>event: state
 data: {"state":"playing","position":61.5, …}</code></pre>
         <p>The position is not sent while it simply runs on: count it from the last event. A comment line (<code>: ping</code>) comes after 15 seconds of silence. At most 8 connections per client address.</p>
 
         <h2>Commands</h2>
-        <p>All are <code>POST</code>; those with values take a JSON body. The answer is <code>{"ok":true}</code>. The BitSpring window carries a command out the way its own buttons work, so the state changes a moment after the answer.</p>
+        <p>All are <code>POST</code>; those with values take a JSON body. The answer is <code>{"ok":true}</code>. The BitSpring window carries a command out the way its own buttons work, so the state changes a moment after the answer. <code>favorite</code> and <code>rating</code> are the exception: the mark is saved before the answer comes, and stays on the device like the marks made in the app.</p>
         <div class="api-table">
           <table>
             <thead><tr><th>Address</th><th>Body</th><th>What it does</th></tr></thead>
@@ -140,6 +152,8 @@ data: {"state":"playing","position":61.5, …}</code></pre>
               <tr><td><code>/api/v1/queue/jump</code></td><td><code>{"index": 3}</code></td><td>Plays that entry of the queue.</td></tr>
               <tr><td><code>/api/v1/queue/play</code></td><td><code>{"paths": […], "index": 0}</code></td><td>Replaces the queue with these library tracks and plays from <code>index</code>.</td></tr>
               <tr><td><code>/api/v1/queue/add</code></td><td><code>{"paths": […]}</code></td><td>Adds these library tracks to the end of the queue.</td></tr>
+              <tr><td><code>/api/v1/favorite</code></td><td><code>{"path": "…", "on": true}</code></td><td>Makes a library track a favourite, or no longer one. Without <code>on</code>: the other one. Without <code>path</code>: the track that plays. With <code>"albumId": "…"</code> instead of <code>path</code>: the album. Answers <code>{"ok":true,"favorite":true}</code>. Since 0.21.1.</td></tr>
+              <tr><td><code>/api/v1/rating</code></td><td><code>{"path": "…", "rating": 4}</code></td><td>Gives a library track 1 to 5 stars; 0 takes them away. Without <code>path</code>: the track that plays. Since 0.21.1.</td></tr>
             </tbody>
           </table>
         </div>

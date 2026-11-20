@@ -13,6 +13,8 @@
   import LibraryFolders from "./LibraryFolders.svelte";
   import { folderLabel, folderName, isInside, parentOf } from "./folderPlace";
   import TrackTable, { type SortKey } from "./TrackTable.svelte";
+  import Heart from "./Heart.svelte";
+  import { marks, setAlbumFavorite } from "./marks.svelte";
 
   let {
     currentPath = null,
@@ -57,6 +59,9 @@
   let trackSort = $state<SortKey>(load("trackSort", "artist"));
   let trackAsc = $state<boolean>(load("trackAsc", true));
   let hiResOnly = $state<boolean>(load("hiResOnly", false));
+  /** Only what carries the listener's heart: favourite albums in the grids, favourite
+   *  tracks in the track list. */
+  let favOnly = $state<boolean>(load("favOnly", false));
   let query = $state("");
   let openAlbum = $state<Album | null>(null);
   let artist = $state<string | null>(null);
@@ -71,6 +76,7 @@
     save("trackSort", trackSort);
     save("trackAsc", trackAsc);
     save("hiResOnly", hiResOnly);
+    save("favOnly", favOnly);
   });
 
   const collator = $derived(makeCollator());
@@ -89,8 +95,18 @@
     return m;
   });
 
+  /** How many favourite tracks each album has (only albums that have any). */
+  let favTracksIn = $derived.by(() => {
+    const m = new Map<string, number>();
+    for (const t of tracks) if (marks.fav(t.path)) m.set(t.albumId, (m.get(t.albumId) ?? 0) + 1);
+    return m;
+  });
+  /** Under the heart filter an album shows for its own heart or for a heart on any of its
+   *  tracks: whoever marked a track looks for it under "favourites" wherever they are. */
+  const favAlbum = (a: Album) => marks.album(a.id) || favTracksIn.has(a.id);
+
   let visibleAlbums = $derived.by(() => {
-    let list = albums.filter((a) => !hiResOnly || a.hiRes);
+    let list = albums.filter((a) => (!hiResOnly || a.hiRes) && (!favOnly || favAlbum(a)));
     if (q) list = list.filter((a) => `${a.title} ${artistLabel(a.artist)} ${a.genre ?? ""} ${a.year ?? ""}`.toLowerCase().includes(q));
     const by: Record<AlbumSort, (a: Album, b: Album) => number> = {
       artist: (a, b) => byArtist(a.artist, b.artist) || collator.compare(a.year ?? "", b.year ?? ""),
@@ -104,7 +120,7 @@
   /** The track list as its table sorts it: the order "Shuffle" comes back to when switched off. */
   let shownTracks = $state<LibTrack[]>([]);
   let visibleTracks = $derived.by(() => {
-    let list = tracks.filter((t) => !hiResOnly || t.hiRes);
+    let list = tracks.filter((t) => (!hiResOnly || t.hiRes) && (!favOnly || marks.fav(t.path)));
     if (q) list = list.filter((t) => `${t.title} ${t.artist ?? ""} ${t.album ?? ""}`.toLowerCase().includes(q));
     return list;
   });
@@ -126,6 +142,12 @@
       : view === "genres" && genre
         ? (genres.find(([n]) => n === genre)?.[1] ?? [])
         : visibleAlbums,
+  );
+
+  /** What the counter says: the list as it is shown, so a filter or a search is seen to work
+   *  (playlists are not the library's own list: there it stays the library's size). */
+  let shownCount = $derived(
+    view === "tracks" ? tn("lib.nTracks", visibleTracks.length) : view === "playlists" ? tn("lib.nAlbums", status?.albums ?? 0) : tn("lib.nAlbums", shelf.length),
   );
 
   let currentAlbumId = $derived(tracks.find((t) => t.path === currentPath)?.albumId ?? null);
@@ -351,6 +373,7 @@
       albums.find((a) => same(a.title, g.album) && (!g.artist || same(a.artist, g.artist))) ??
       null;
     if (album && !album.hiRes) hiResOnly = false;
+    if (album && !favAlbum(album)) favOnly = false;
     if (g.kind === "album") {
       if (album) {
         openAlbum = album;
@@ -414,7 +437,8 @@
   }
 
   const VIEWS: View[] = ["albums", "artists", "tracks", "genres", "playlists"];
-  const nothing = $derived(q ? t("lib.nothingFor", { q: query.trim() }) : t("lib.nothing"));
+  // (With "Favourites" on and nothing marked yet, say where the heart is.)
+  const nothing = $derived(q ? t("lib.nothingFor", { q: query.trim() }) : favOnly ? t(view === "tracks" ? "fav.noTracks" : "fav.noAlbums") : t("lib.nothing"));
 </script>
 
 <svelte:window onclick={onWindowClick} />
@@ -452,6 +476,11 @@
         <span class="box" aria-hidden="true"></span>
         {t("lib.hiresOnly")}
       </label>
+      <!-- the same kind of switch, as small as its mark: the heart it filters by -->
+      <label class="hires fav-only" class:on={favOnly} title={t("fav.only")}>
+        <input type="checkbox" bind:checked={favOnly} aria-label={t("fav.only")} />
+        <Heart on={favOnly} size={17} />
+      </label>
     {/if}
 
     <div class="folders" bind:this={foldersRoot}>
@@ -464,7 +493,7 @@
         {#if status?.scanning}
           {t("lib.scanning", { done: num(status.scanning[0]), total: num(status.scanning[1]) })}
         {:else if status}
-          {tn("lib.nAlbums", status.albums)}
+          {shownCount}
         {/if}
       </button>
       {#if foldersOpen && status}
@@ -518,7 +547,19 @@
             {/if}
           </div>
           <div class="album-info">
-            <h2>{openAlbum.title}</h2>
+            <div class="album-title">
+              <h2>{openAlbum.title}</h2>
+              <button
+                class="album-heart"
+                class:on={marks.album(openAlbum.id)}
+                aria-pressed={marks.album(openAlbum.id)}
+                aria-label={t(marks.album(openAlbum.id) ? "fav.removeAlbum" : "fav.addAlbum")}
+                title={t(marks.album(openAlbum.id) ? "fav.removeAlbum" : "fav.addAlbum")}
+                onclick={() => setAlbumFavorite(openAlbum!.id, !marks.album(openAlbum!.id))}
+              >
+                {#key openAlbum.id}<Heart on={marks.album(openAlbum.id)} size={24} beats />{/key}
+              </button>
+            </div>
             <button class="artist-link" onclick={() => ((artist = openAlbum!.artist), (view = "artists"), (openAlbum = null))}>{artistLabel(openAlbum.artist)}</button>
             <p class="facts">
               {list([openAlbum.year, openAlbum.genre, tn("lib.nTracks", openAlbum.trackCount), longDuration(openAlbum.duration)])}
@@ -681,7 +722,7 @@
         {#if shelf.length}
           <div class="grid">
             {#each shelf as a (a.id)}
-              <AlbumTile album={a} playing={a.id === currentAlbumId} onopen={enterAlbum} />
+              <AlbumTile album={a} playing={a.id === currentAlbumId} favorite={marks.album(a.id)} favTracks={favTracksIn.get(a.id) ?? 0} onopen={enterAlbum} />
             {/each}
           </div>
         {:else}
@@ -819,6 +860,11 @@
     border-left: 2px solid var(--ink);
     border-bottom: 2px solid var(--ink);
     transform: rotate(-45deg);
+  }
+  .fav-only {
+    /* as tall as the switch with words beside it */
+    align-self: stretch;
+    padding-inline: 9px;
   }
   /* "Shuffle" over the track list: a toolbar control of the same size. */
   .shuffle-all {
@@ -989,7 +1035,34 @@
     font-size: 4rem;
     color: var(--slate-500);
   }
+  /* The album's heart follows its title, on the title's first line. */
+  .album-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 100%;
+  }
+  .album-heart {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: var(--mist);
+  }
+  .album-heart.on {
+    color: var(--porcelain);
+  }
+  /* hover only where there is a pointer: on a touch screen it sticks after a tap */
+  @media (hover: hover) {
+    .album-heart:hover {
+      color: var(--porcelain);
+      background: var(--slate-700);
+    }
+  }
   .album-info h2 {
+    min-width: 0;
     margin: 0;
     font-family: var(--font-display);
     font-weight: 600;

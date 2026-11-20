@@ -72,6 +72,31 @@ pub fn handle(app: &AppHandle, conn: &mut TcpStream, req: &http::Request, path: 
                 None => refuse(conn, "409 Conflict", "nothing is playing")?,
             },
         },
+        ("GET", "favorites") => json_response(conn, "200 OK", &favorites(app))?,
+        ("POST", "favorite") => {
+            let body = body();
+            let on = body["on"].as_bool();
+            // An album by its id, else a track by its path, else the track that plays.
+            let done = match body["albumId"].as_str() {
+                Some(id) => crate::marks::remote_album(app, id, on),
+                None => marked_path(app, &body).and_then(|p| crate::marks::remote_favorite(app, &p, on)),
+            };
+            match done {
+                Some(on) => json_response(conn, "200 OK", &json!({ "ok": true, "favorite": on }))?,
+                None => refuse(conn, "400 Bad Request", "path: a library track, or albumId: a library album (or neither while a library track plays)")?,
+            }
+        }
+        ("POST", "rating") => {
+            let body = body();
+            let stars = body["rating"].as_u64().filter(|r| *r <= u64::from(hifi_engine::marks::MAX_RATING));
+            match (stars, marked_path(app, &body)) {
+                (None, _) => refuse(conn, "400 Bad Request", "rating: a whole number from 0 to 5")?,
+                (Some(stars), path) => match path.and_then(|p| crate::marks::remote_rating(app, &p, stars as u8)) {
+                    Some(()) => json_response(conn, "200 OK", &json!({ "ok": true, "rating": stars }))?,
+                    None => refuse(conn, "400 Bad Request", "path: a library track (or leave it out while a library track plays)")?,
+                },
+            }
+        }
         ("GET", "events") => events(app, conn, stop)?,
         ("POST", name) => match command(name, &body()).and_then(|c| crate::remote::checked(app, &c)) {
             Some(c) => {
@@ -82,15 +107,18 @@ pub fn handle(app: &AppHandle, conn: &mut TcpStream, req: &http::Request, path: 
             None if READS.contains(&name) || name.starts_with("cover/") => refuse(conn, "405 Method Not Allowed", "this address is read with GET")?,
             None => refuse(conn, "404 Not Found", "no such address")?,
         },
-        (_, name) if COMMANDS.contains(&name) || READS.contains(&name) => refuse(conn, "405 Method Not Allowed", "wrong method")?,
+        (_, name) if COMMANDS.contains(&name) || READS.contains(&name) || MARKS.contains(&name) => refuse(conn, "405 Method Not Allowed", "wrong method")?,
         _ => refuse(conn, "404 Not Found", "no such address")?,
     }
     Ok(())
 }
 
 /// What is read (with GET).
-const READS: [&str; 6] = ["info", "state", "queue", "library", "volume", "events"];
+const READS: [&str; 7] = ["info", "state", "queue", "library", "favorites", "volume", "events"];
+/// What goes to the window to be carried out.
 const COMMANDS: [&str; 12] = ["play", "pause", "toggle", "next", "previous", "stop", "seek", "shuffle", "repeat", "queue/jump", "queue/play", "queue/add"];
+/// What is done here (the marks are kept by the app, not by its window).
+const MARKS: [&str; 2] = ["favorite", "rating"];
 
 /// A command of the API as the one the window understands (see `remote::checked`, which
 /// still has to pass it).
@@ -107,6 +135,31 @@ fn command(name: &str, body: &Value) -> Option<Value> {
         "queue/add" => json!({ "kind": "enqueue", "paths": body["paths"] }),
         _ => return None,
     })
+}
+
+/// The track a mark is for: the one `body` names, else the one that plays.
+fn marked_path(app: &AppHandle, body: &Value) -> Option<String> {
+    match &body["path"] {
+        Value::Null => crate::now_playing(app.state::<AppState>()).map(|n| n.path),
+        path => path.as_str().map(str::to_string),
+    }
+}
+
+/// `GET favorites`: every marked track of the library and every favourite album.
+fn favorites(app: &AppHandle) -> Value {
+    let marks = app.state::<crate::marks::Marks>().all();
+    let lib = app.state::<Library>();
+    let known = lib.known_paths();
+    let albums: std::collections::HashSet<String> = lib.albums_with_paths().into_iter().map(|(id, _)| id).collect();
+    let tracks: serde_json::Map<String, Value> = marks
+        .tracks
+        .iter()
+        .filter(|(path, _)| known.contains(*path))
+        .map(|(path, m)| (path.clone(), json!({ "favorite": m.fav, "rating": m.rating })))
+        .collect();
+    let mut favorite_albums: Vec<&String> = marks.albums.keys().filter(|id| albums.contains(*id)).collect();
+    favorite_albums.sort();
+    json!({ "tracks": tracks, "albums": favorite_albums })
 }
 
 fn output_uid(app: &AppHandle) -> Option<String> {
@@ -158,6 +211,8 @@ pub(crate) fn state(app: &AppHandle) -> Value {
     };
     let track = now.as_ref().map(|n| {
         let album_id = app.state::<Library>().tracks_by_path(std::slice::from_ref(&n.path)).remove(&n.path).map(|t| t.album_id);
+        // (A track from outside the library has no marks: false and 0.)
+        let mark = app.state::<crate::marks::Marks>().of(&n.path);
         json!({
             "path": n.path,
             "title": n.title,
@@ -166,6 +221,8 @@ pub(crate) fn state(app: &AppHandle) -> Value {
             "year": n.year,
             "duration": n.duration,
             "albumId": album_id,
+            "favorite": mark.fav,
+            "rating": mark.rating,
             // (Changes with the track, so a client that caches by address shows the new one.)
             "cover": n.cover.as_ref().map(|_| format!("/api/v1/cover/current?rev={}", n.rev)),
         })
@@ -271,6 +328,10 @@ mod tests {
         // Every documented command is one `command` knows.
         for name in COMMANDS {
             assert!(command(name, &Value::Null).is_some(), "{name}");
+        }
+        // The marks never go to the window.
+        for name in MARKS {
+            assert_eq!(command(name, &Value::Null), None, "{name}");
         }
     }
 

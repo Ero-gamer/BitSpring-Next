@@ -5,6 +5,7 @@
   import { hasRemote, loadRemote, newAddress, remote, setRemote } from "./remote.svelte";
   import { look, LOOKS } from "./look.svelte";
   import { lyricsPrefs } from "./lyricsPrefs.svelte";
+  import { marks } from "./marks.svelte";
   import { liquidPill } from "./liquid";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -95,6 +96,16 @@
               </button>
             {/each}
           </div>
+        </div>
+        <div class="row">
+          <div class="what">
+            <label for="set-ratings">{t("settings.ratings")}</label>
+            <p class="help">{t("settings.ratingsHelp")}</p>
+          </div>
+          <span class="switch">
+            <input id="set-ratings" type="checkbox" role="switch" checked={marks.ratings} onchange={(e) => (marks.ratings = e.currentTarget.checked)} />
+            <span class="knob" aria-hidden="true"></span>
+          </span>
         </div>
       </div>
     </section>
