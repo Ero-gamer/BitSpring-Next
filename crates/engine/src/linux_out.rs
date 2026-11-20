@@ -127,7 +127,9 @@ impl Device {
     /// DoP can't be queried — that's the user's per-device switch.)
     pub fn supports_dop(&self, dsd_rate: u32) -> bool {
         let Self::Hw { .. } = self else { return false };
-        let Some(caps) = caps_cache().lock().unwrap().get(&self.uid()).cloned().or_else(|| probe(self)) else { return false };
+        // In its own statement, so the cache's lock is let go before `probe` takes it again.
+        let cached = caps_cache().lock().unwrap().get(&self.uid()).cloned();
+        let Some(caps) = cached.or_else(|| probe(self)) else { return false };
         caps.wide_int && caps.rates.contains(&(dsd_rate / 16))
     }
 }

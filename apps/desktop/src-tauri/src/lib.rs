@@ -433,8 +433,8 @@ fn find_device(uid: &str) -> CmdResult<Output> {
 /// its hog mode is released and the device restored before we claim it again.
 ///
 /// `dsd_out_note`: why the DSD output asked for doesn't run (see [`dsp_for`]), for the signal
-/// path. A device that was opened for DSD output and couldn't take DoP after all gets one
-/// more try with PCM, and the signal path says why.
+/// path. A device that was opened for DSD output and failed to start (for any reason) gets
+/// one more try with PCM, and the signal path says why.
 fn start(state: &AppState, device: &Output, track: Arc<Track>, opts: PlayOptions, dsd_out_note: Option<DsdOutNote>) -> CmdResult<SignalDto> {
     let mut slot = state.player.lock().unwrap();
     if let Some(p) = slot.take() {
@@ -442,10 +442,12 @@ fn start(state: &AppState, device: &Output, track: Arc<Track>, opts: PlayOptions
         p.fade_out();
     }
     let mut refused = None;
-    let player = match Player::start(device, track.clone(), &opts).map_err(err) {
-        Err(e) if opts.dsp.dsd_out.is_some() && !track.is_dop() => {
-            let Some(note) = DsdOutNote::refused(&e) else { return Err(e) };
-            refused = Some(note);
+    let player = match (Player::start(device, track.clone(), &opts).map_err(err), opts.dsp.dsd_out) {
+        // Opened for DSD output and failed, whatever the reason (the device refused DoP, or
+        // the format, or the rate, or didn't open at that rate at all): once more with PCM.
+        // Should that fail too, its error is the one to show: it is about plain playback.
+        (Err(_), Some(asked)) if !track.is_dop() => {
+            refused = Some(DsdOutNote::refused(device.name(), asked));
             // The track's gain stays as it was set for the encoder (`set_level`): levelling
             // gives the same gain either way, and the peak headroom it adds (a dB or so, at
             // most what keeps the true peaks at full scale) applies only if this playback
@@ -454,7 +456,7 @@ fn start(state: &AppState, device: &Output, track: Arc<Track>, opts: PlayOptions
             let pcm = PlayOptions { dsp: DspSettings { dsd_out: None, ..opts.dsp.clone() }, ..opts.clone() };
             Player::start(device, track.clone(), &pcm).map_err(err)?
         }
-        r => r?,
+        (r, _) => r?,
     };
     let mut signal = SignalDto::from(&player.path);
     signal.dsd_out_note = if signal.dsd_out.is_some() || track.is_dop() { None } else { refused.or(dsd_out_note) };
@@ -1314,9 +1316,12 @@ async fn set_dsp(
         None => None,
     };
     // A long filter is designed once and kept; the longest minimum-phase one takes about half a
-    // second the first time: that too off the IPC thread, before the restart needs it.
+    // second the first time: that too off the IPC thread, before the restart needs it. It runs
+    // when upsampling is on, and with DSD output (which always upsamples to the wire rate, see
+    // `dsp::long_filter`) even when "upsample to" is off.
     let filter = upsampling::parse(upsample_filter.as_deref(), upsample_taps);
-    if let Some(spec) = filter.filter(|_| upsample_khz.is_some()) {
+    let dsd_out = dsd_out::parse(dsd_out, dsd_order);
+    if let Some(spec) = filter.filter(|_| upsample_khz.is_some() || dsd_out.is_some()) {
         tauri::async_runtime::spawn_blocking(move || drop(upsample::filter(spec))).await.map_err(err)?;
     }
     let ir_dto = ir.as_ref().map(|r| IrDto {
@@ -1343,7 +1348,7 @@ async fn set_dsp(
             headroom: peak_headroom.unwrap_or(false),
         },
         // What the user wants: each playback runs what its device can take of it (`dsp_for`).
-        dsd_out: dsd_out::parse(dsd_out, dsd_order),
+        dsd_out,
     };
     // The UI's own choice now: an earlier automatic step is no longer news.
     *state.filter_step.lock().unwrap() = None;

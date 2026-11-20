@@ -6,7 +6,6 @@
 //! with is that wish resolved for the output and the playback ([`resolve`]): only the exclusive
 //! playback of a DAC the user said takes DoP, at a rate it can carry, ever gets one.
 
-use hifi_engine::UserError;
 use hifi_engine::dsd;
 use hifi_engine::dsp::dsd_encode::{DsdOut, DsdRate, ModOrder};
 use hifi_engine::dsp::upsample::FilterSpec;
@@ -55,21 +54,27 @@ pub enum DsdOutNote {
     /// The device doesn't run at the PCM rate DoP needs (`khz`) even for the lowest DSD rate
     /// (`dsd`).
     Rate { device: String, dsd: String, khz: f64 },
-    /// The device was opened for DoP at `khz` (`dsd`) and couldn't take it after all.
+    /// The device was opened for DoP at `khz` (`dsd`) and failed to start; PCM plays.
     Refused { device: String, dsd: String, khz: f64 },
 }
 
 impl DsdOutNote {
-    /// The note for the engine's "the device can't take DoP" error, if `e` is that.
-    pub fn refused(e: &UserError) -> Option<Self> {
-        match e {
-            UserError::DopRefused { device, dsd, khz } => Some(Self::Refused { device: device.clone(), dsd: dsd.clone(), khz: *khz }),
-            _ => None,
-        }
+    /// `device` failed to start with DSD output `asked`, for whatever reason (the engine's
+    /// error may be about DoP, the format, the rate or the device not opening): what was
+    /// asked for, not what the error says.
+    pub fn refused(device: &str, asked: DsdOut) -> Self {
+        let (dsd, khz) = Self::wire(asked.rate);
+        Self::Refused { device: device.trim().to_string(), dsd, khz }
     }
 
     fn rate(device: &str, rate: DsdRate) -> Self {
-        Self::Rate { device: device.to_string(), dsd: dsd::dsd_name(rate.hz()), khz: rate.wire_rate() as f64 / 1000.0 }
+        let (dsd, khz) = Self::wire(rate);
+        Self::Rate { device: device.to_string(), dsd, khz }
+    }
+
+    /// The rate's name ("DSD64") and the PCM rate DoP carries it at, in kHz.
+    fn wire(rate: DsdRate) -> (String, f64) {
+        (dsd::dsd_name(rate.hz()), rate.wire_rate() as f64 / 1000.0)
     }
 }
 
@@ -262,10 +267,11 @@ mod tests {
     }
 
     #[test]
-    fn refused_comes_from_the_engines_error() {
-        let e = UserError::DopRefused { device: "DAC".into(), dsd: "DSD128".into(), khz: 352.8 };
-        assert_eq!(DsdOutNote::refused(&e), Some(DsdOutNote::Refused { device: "DAC".into(), dsd: "DSD128".into(), khz: 352.8 }));
-        assert_eq!(DsdOutNote::refused(&UserError::DeviceNotFound), None);
+    fn refused_names_what_was_asked_for() {
+        let note = |m, o| DsdOutNote::refused(" DAC ", out(m, o));
+        assert_eq!(note(64, 7), DsdOutNote::Refused { device: "DAC".into(), dsd: "DSD64".into(), khz: 176.4 });
+        assert_eq!(note(128, 5), DsdOutNote::Refused { device: "DAC".into(), dsd: "DSD128".into(), khz: 352.8 });
+        assert_eq!(note(256, 7), DsdOutNote::Refused { device: "DAC".into(), dsd: "DSD256".into(), khz: 705.6 });
     }
 
     #[test]
@@ -276,7 +282,7 @@ mod tests {
             DsdOutNote::Volume,
             DsdOutNote::Network,
             DsdOutNote::rate("DAC", DsdRate::Dsd64),
-            DsdOutNote::Refused { device: "DAC".into(), dsd: "DSD256".into(), khz: 705.6 },
+            DsdOutNote::refused("DAC", out(256, 7)),
         ];
         let json: Vec<String> = notes.iter().map(|n| serde_json::to_string(n).unwrap()).collect();
         for j in &json {
