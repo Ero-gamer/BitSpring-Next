@@ -83,6 +83,16 @@ pub fn startup_frames(spec: FilterSpec) -> usize {
 /// The render thread's share of a core from which the filter is stepped down: well before
 /// 1.0 (falling behind), with room for whatever else the machine does meanwhile.
 pub const MAX_LOAD: f32 = 0.8;
+/// [`MAX_LOAD`], or in a debug build what `BITSPRING_STEP_DOWN_AT` says instead (0.0001: any
+/// measured load is too much), to watch the step down on a machine that keeps up.
+fn max_load() -> f32 {
+    static AT: std::sync::OnceLock<f32> = std::sync::OnceLock::new();
+    *AT.get_or_init(|| {
+        let asked = cfg!(debug_assertions).then(|| std::env::var("BITSPRING_STEP_DOWN_AT").ok()?.parse().ok()).flatten();
+        asked.unwrap_or(MAX_LOAD)
+    })
+}
+
 /// Dropouts on one playback from which the filter is stepped down.
 pub const MAX_UNDERRUNS: u64 = 3;
 
@@ -90,7 +100,7 @@ pub const MAX_UNDERRUNS: u64 = 3;
 /// cheaper one. `load`: the render thread's share of a core (None or 0: not measured yet);
 /// `underruns`: dropouts since this playback started.
 pub fn should_step_down(load: Option<f32>, underruns: u64, long_filter: bool) -> bool {
-    long_filter && (load.is_some_and(|l| l >= MAX_LOAD) || underruns >= MAX_UNDERRUNS)
+    long_filter && (load.is_some_and(|l| l >= max_load()) || underruns >= MAX_UNDERRUNS)
 }
 
 #[cfg(test)]

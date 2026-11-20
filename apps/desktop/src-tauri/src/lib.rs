@@ -1319,6 +1319,10 @@ fn step_down_filter(state: &AppState) {
         let Ok(_one) = state.play_lock.try_lock() else { return };
         let player = state.player.lock().unwrap();
         let Some(p) = player.as_ref() else { return };
+        // A debug build run with BITSPRING_TRACE says what the filter is doing.
+        if cfg!(debug_assertions) && std::env::var_os("BITSPRING_TRACE").is_some() {
+            eprintln!("filter {:?}, {} → {} Hz, load {:?}, underruns {}, at {:.1} s", p.path.upsample_filter, p.path.source_rate, p.path.device_rate, p.load(), p.underruns(), p.position_secs());
+        }
         if p.is_finished() || !upsampling::should_step_down(p.load(), p.underruns(), p.path.upsample_filter.is_some()) {
             return;
         }
