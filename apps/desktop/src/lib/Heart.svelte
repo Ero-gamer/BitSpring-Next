@@ -12,9 +12,10 @@
 
   // The heart is "M11 18.2L4.6 11.6A4 4 0 0 1 11 6.8a4 4 0 0 1 6.4 4.8z" under a 1.5 line, but
   // drawn as fills: FULL is that line's outer edge, HOLE its inner one, and the outlined heart
-  // is the ring between them. Not a stroke on purpose: in a track list, Android's WebView
-  // (seen on Chrome 124) answered the stroked curve by painting other things wrong, the
-  // header's Enhancers button gone and rows drawn a second time over the header.
+  // is the ring between them. Not a stroke on purpose: the Android emulator's software
+  // graphics answered a stroked curve in a track list by painting other things wrong (the
+  // header's Enhancers button gone, rows drawn a second time over the header). A real GPU
+  // draws both the same; the fills keep the emulator usable for checking a release.
   const FULL = "M10.46 18.72L4.06 12.12L4 12.05A4.75 4.75 0 0 1 11 5.69A4.75 4.75 0 0 1 18 12.05L17.94 12.12L11.54 18.72A.75 .75 0 0 1 10.46 18.72Z";
   const HOLE = "M11 17.12L5.17 11.11A3.25 3.25 0 0 1 10.4 7.25A.75 .75 0 0 0 11.6 7.25A3.25 3.25 0 0 1 16.83 11.11Z";
   const RING = FULL + HOLE;
