@@ -801,7 +801,7 @@
   "rate.clear": "Fjern vurderingen",
   "rate.of": "Vurdering av «{title}»",
   "settings.ratings": "Stjernevurderinger",
-  "settings.ratingsHelp": "En kolonne med én til fem stjerner i sporlistene, ved siden av hjertet. I likhet med favoritter blir vurderingene på denne enheten.",
+  "settings.ratingsHelp": "Én til fem stjerner for et spor: en kolonne i sporlistene og en rad under tittelen på det som spilles. I likhet med favoritter blir vurderingene på denne enheten.",
   "sp.f.favorite": "Favoritt",
   "sp.f.albumFavorite": "Albumet er en favoritt",
   "sp.f.rating": "Vurdering (stjerner)",

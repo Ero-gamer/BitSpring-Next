@@ -801,7 +801,7 @@
   "rate.clear": "Elimină evaluarea",
   "rate.of": "Evaluarea piesei „{title}”",
   "settings.ratings": "Evaluări cu stele",
-  "settings.ratingsHelp": "O coloană cu una până la cinci stele în listele de piese, lângă inimă. La fel ca preferatele, evaluările rămân pe acest dispozitiv.",
+  "settings.ratingsHelp": "De la una la cinci stele pentru o piesă: o coloană în listele de piese și un rând sub titlul piesei care se redă. La fel ca preferatele, evaluările rămân pe acest dispozitiv.",
   "sp.f.favorite": "Preferată",
   "sp.f.albumFavorite": "Albumul este preferat",
   "sp.f.rating": "Evaluare (stele)",

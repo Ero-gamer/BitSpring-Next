@@ -801,7 +801,7 @@
   "rate.clear": "평점 제거",
   "rate.of": "“{title}”의 평점",
   "settings.ratings": "별점",
-  "settings.ratingsHelp": "곡 목록의 하트 옆에 별 1~5개의 평점 열을 표시합니다. 즐겨찾기와 마찬가지로 평점은 이 기기에만 저장됩니다.",
+  "settings.ratingsHelp": "곡에 별 1~5개의 평점을 매깁니다. 곡 목록에 열이, 재생 중인 곡의 제목 아래에 줄이 추가됩니다. 즐겨찾기와 마찬가지로 평점은 이 기기에만 저장됩니다.",
   "sp.f.favorite": "즐겨찾기",
   "sp.f.albumFavorite": "앨범이 즐겨찾기임",
   "sp.f.rating": "평점(별)",

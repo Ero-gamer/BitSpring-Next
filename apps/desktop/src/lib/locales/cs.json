@@ -806,7 +806,7 @@
   "rate.clear": "Odebrat hodnocení",
   "rate.of": "Hodnocení skladby „{title}“",
   "settings.ratings": "Hodnocení hvězdičkami",
-  "settings.ratingsHelp": "Sloupec s jednou až pěti hvězdičkami v seznamech skladeb, vedle srdce. Stejně jako oblíbené zůstává hodnocení v tomto zařízení.",
+  "settings.ratingsHelp": "Jedna až pět hvězdiček pro skladbu: sloupec v seznamech skladeb a řádek pod názvem přehrávané skladby. Stejně jako oblíbené zůstává hodnocení v tomto zařízení.",
   "sp.f.favorite": "Oblíbená",
   "sp.f.albumFavorite": "Album je oblíbené",
   "sp.f.rating": "Hodnocení (hvězdičky)",

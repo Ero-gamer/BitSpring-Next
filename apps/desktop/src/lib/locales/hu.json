@@ -801,7 +801,7 @@
   "rate.clear": "Értékelés eltávolítása",
   "rate.of": "„{title}” értékelése",
   "settings.ratings": "Csillagos értékelések",
-  "settings.ratingsHelp": "Egytől öt csillagig terjedő oszlop a számlistákban, a szív mellett. A kedvencekhez hasonlóan az értékelések is ezen az eszközön maradnak.",
+  "settings.ratingsHelp": "Egytől öt csillagig egy számra: oszlop a számlistákban, és egy sor az éppen szóló szám címe alatt. A kedvencekhez hasonlóan az értékelések is ezen az eszközön maradnak.",
   "sp.f.favorite": "Kedvenc",
   "sp.f.albumFavorite": "Az album kedvenc",
   "sp.f.rating": "Értékelés (csillag)",

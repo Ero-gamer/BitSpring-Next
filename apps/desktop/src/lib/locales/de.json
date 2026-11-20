@@ -801,7 +801,7 @@
   "rate.clear": "Bewertung entfernen",
   "rate.of": "Bewertung von „{title}“",
   "settings.ratings": "Sternebewertungen",
-  "settings.ratingsHelp": "Eine Spalte mit einem bis fünf Sternen in den Titellisten, neben dem Herz. Wie die Favoriten bleiben Bewertungen auf diesem Gerät.",
+  "settings.ratingsHelp": "Ein bis fünf Sterne für einen Titel: eine Spalte in den Titellisten und eine Zeile unter dem Namen des laufenden Titels. Wie die Favoriten bleiben Bewertungen auf diesem Gerät.",
   "sp.f.favorite": "Favorit",
   "sp.f.albumFavorite": "Album ist Favorit",
   "sp.f.rating": "Bewertung (Sterne)",

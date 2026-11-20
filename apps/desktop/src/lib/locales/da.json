@@ -801,7 +801,7 @@
   "rate.clear": "Fjern bedømmelsen",
   "rate.of": "Bedømmelse af »{title}«",
   "settings.ratings": "Stjernebedømmelser",
-  "settings.ratingsHelp": "En kolonne med en til fem stjerner i nummerlisterne, ved siden af hjertet. Ligesom favoritter bliver bedømmelser på denne enhed.",
+  "settings.ratingsHelp": "En til fem stjerner til et nummer: en kolonne i nummerlisterne og en række under titlen på det, der afspilles. Ligesom favoritter bliver bedømmelser på denne enhed.",
   "sp.f.favorite": "Favorit",
   "sp.f.albumFavorite": "Albummet er en favorit",
   "sp.f.rating": "Bedømmelse (stjerner)",

@@ -801,7 +801,7 @@
   "rate.clear": "Poista arvio",
   "rate.of": "Kappaleen ”{title}” arvio",
   "settings.ratings": "Tähtiarviot",
-  "settings.ratingsHelp": "Sarake, jossa on yhdestä viiteen tähteä, kappaleluetteloissa sydämen vieressä. Suosikkien tapaan arviot pysyvät tällä laitteella.",
+  "settings.ratingsHelp": "Yhdestä viiteen tähteä kappaleelle: sarake kappaleluetteloissa ja rivi soivan kappaleen nimen alla. Suosikkien tapaan arviot pysyvät tällä laitteella.",
   "sp.f.favorite": "Suosikki",
   "sp.f.albumFavorite": "Albumi on suosikki",
   "sp.f.rating": "Arvio (tähdet)",

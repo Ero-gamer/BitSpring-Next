@@ -804,7 +804,7 @@
   "rate.clear": "Remove the rating",
   "rate.of": "Rating of “{title}”",
   "settings.ratings": "Star ratings",
-  "settings.ratingsHelp": "A column of one to five stars in the track lists, beside the heart. Like favourites, ratings stay on this device.",
+  "settings.ratingsHelp": "One to five stars for a track: a column in the track lists, and a row under the title of what plays. Like favourites, ratings stay on this device.",
   "sp.f.favorite": "Favourite",
   "sp.f.albumFavorite": "Album is a favourite",
   "sp.f.rating": "Rating (stars)",

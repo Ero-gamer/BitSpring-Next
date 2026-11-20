@@ -801,7 +801,7 @@
   "rate.clear": "Retirer la note",
   "rate.of": "Note de « {title} »",
   "settings.ratings": "Notes en étoiles",
-  "settings.ratingsHelp": "Une colonne d’une à cinq étoiles dans les listes de morceaux, à côté du cœur. Comme les favoris, les notes restent sur cet appareil.",
+  "settings.ratingsHelp": "D’une à cinq étoiles pour un morceau : une colonne dans les listes de morceaux et une ligne sous le titre du morceau en cours. Comme les favoris, les notes restent sur cet appareil.",
   "sp.f.favorite": "Favori",
   "sp.f.albumFavorite": "Album favori",
   "sp.f.rating": "Note (étoiles)",

@@ -801,7 +801,7 @@
   "rate.clear": "移除評分",
   "rate.of": "「{title}」的評分",
   "settings.ratings": "星級評分",
-  "settings.ratingsHelp": "在歌曲列表中愛心旁顯示一至五星的評分欄。與收藏一樣，評分只保存在本裝置上。",
+  "settings.ratingsHelp": "為歌曲評一至五星：歌曲列表中多出一欄，正在播放的歌曲標題下方多出一行。與收藏一樣，評分只保存在本裝置上。",
   "sp.f.favorite": "已收藏",
   "sp.f.albumFavorite": "專輯已收藏",
   "sp.f.rating": "評分（星）",

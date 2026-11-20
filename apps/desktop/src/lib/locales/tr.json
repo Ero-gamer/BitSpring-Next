@@ -801,7 +801,7 @@
   "rate.clear": "Puanı kaldır",
   "rate.of": "“{title}” parçasının puanı",
   "settings.ratings": "Yıldızlı puanlar",
-  "settings.ratingsHelp": "Parça listelerinde, kalbin yanında bir ile beş yıldız arası bir sütun. Favoriler gibi puanlar da bu cihazda kalır.",
+  "settings.ratingsHelp": "Bir parça için bir ile beş arası yıldız: parça listelerinde bir sütun ve çalan parçanın başlığının altında bir satır. Favoriler gibi puanlar da bu cihazda kalır.",
   "sp.f.favorite": "Favori",
   "sp.f.albumFavorite": "Albüm favori",
   "sp.f.rating": "Puan (yıldız)",

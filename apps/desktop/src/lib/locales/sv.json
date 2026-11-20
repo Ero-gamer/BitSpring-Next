@@ -801,7 +801,7 @@
   "rate.clear": "Ta bort betyget",
   "rate.of": "Betyg för ”{title}”",
   "settings.ratings": "Stjärnbetyg",
-  "settings.ratingsHelp": "En kolumn med en till fem stjärnor i låtlistorna, bredvid hjärtat. Precis som favoriter stannar betygen på den här enheten.",
+  "settings.ratingsHelp": "En till fem stjärnor för en låt: en kolumn i låtlistorna och en rad under titeln på det som spelas. Precis som favoriter stannar betygen på den här enheten.",
   "sp.f.favorite": "Favorit",
   "sp.f.albumFavorite": "Albumet är en favorit",
   "sp.f.rating": "Betyg (stjärnor)",

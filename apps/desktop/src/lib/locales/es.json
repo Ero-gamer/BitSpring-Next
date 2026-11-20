@@ -801,7 +801,7 @@
   "rate.clear": "Quitar la valoración",
   "rate.of": "Valoración de «{title}»",
   "settings.ratings": "Valoraciones con estrellas",
-  "settings.ratingsHelp": "Una columna de una a cinco estrellas en las listas de pistas, junto al corazón. Como los favoritos, las valoraciones se quedan en este dispositivo.",
+  "settings.ratingsHelp": "De una a cinco estrellas para una pista: una columna en las listas de pistas y una fila bajo el título de la que suena. Como los favoritos, las valoraciones se quedan en este dispositivo.",
   "sp.f.favorite": "Favorita",
   "sp.f.albumFavorite": "El álbum es favorito",
   "sp.f.rating": "Valoración (estrellas)",

@@ -801,7 +801,7 @@
   "rate.clear": "評価を削除",
   "rate.of": "「{title}」の評価",
   "settings.ratings": "星での評価",
-  "settings.ratingsHelp": "曲のリストのハートの隣に、星 1〜5 個の評価の列を表示します。お気に入りと同じく、評価はこのデバイスにのみ保存されます。",
+  "settings.ratingsHelp": "曲に星 1〜5 個の評価を付けます。曲のリストに列が、再生中の曲のタイトルの下に行が加わります。お気に入りと同じく、評価はこのデバイスにのみ保存されます。",
   "sp.f.favorite": "お気に入り",
   "sp.f.albumFavorite": "アルバムがお気に入り",
   "sp.f.rating": "評価（星）",

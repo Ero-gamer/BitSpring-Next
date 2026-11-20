@@ -806,7 +806,7 @@
   "rate.clear": "Usuń ocenę",
   "rate.of": "Ocena utworu „{title}”",
   "settings.ratings": "Oceny w gwiazdkach",
-  "settings.ratingsHelp": "Kolumna z oceną od jednej do pięciu gwiazdek na listach utworów, obok serca. Tak jak ulubione, oceny zostają na tym urządzeniu.",
+  "settings.ratingsHelp": "Od jednej do pięciu gwiazdek dla utworu: kolumna na listach utworów i wiersz pod tytułem odtwarzanego utworu. Tak jak ulubione, oceny zostają na tym urządzeniu.",
   "sp.f.favorite": "Ulubiony",
   "sp.f.albumFavorite": "Album jest ulubiony",
   "sp.f.rating": "Ocena (gwiazdki)",

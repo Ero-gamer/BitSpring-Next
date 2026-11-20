@@ -5,7 +5,8 @@
   import { i18n, sentences, t } from "$lib/i18n.svelte";
   import Settings from "$lib/Settings.svelte";
   import Heart from "$lib/Heart.svelte";
-  import { loadMarks, markable, marks, setFavorite } from "$lib/marks.svelte";
+  import Stars from "$lib/Stars.svelte";
+  import { loadMarks, markable, marks, setFavorite, setRating } from "$lib/marks.svelte";
   import { labels, labelOf, remember } from "$lib/labels.svelte";
   import AddToPlaylist from "$lib/AddToPlaylist.svelte";
   import Library from "$lib/Library.svelte";
@@ -748,6 +749,10 @@
               {#if testing}{now.album}{:else}<button class="link" onclick={() => goToLibrary("album")} title={t("np.openAlbum")}><bdi>{now.album}</bdi></button>{/if}{now.year ? `${t("list.sep")}${now.year}` : ""}
             </p>
           {/if}
+          <!-- the stars of what plays, where they are switched on: the one place a phone has for them -->
+          {#if marks.ratings && canMark}
+            <p class="np-stars"><Stars large value={marks.rating(now.path)} label={t("rate.of", { title: now.title })} onchange={(n) => setRating(now!.path, n)} /></p>
+          {/if}
         {:else}
           <h1 class="idle">{t("np.idle")}</h1>
           <p class="album">{sentences([t(isAndroid ? "np.hintAndroid" : isIOS ? "np.hintIos" : "np.hint"), t("np.promise")])}</p>
@@ -1350,6 +1355,12 @@
     color: var(--mist);
     max-width: 60ch;
   }
+  /* (the first star stands under the first letter of the lines above it) */
+  .np-stars {
+    margin: 6px 0 0;
+    margin-inline-start: -6px;
+    line-height: 0;
+  }
   .primary {
     margin-top: 14px;
     padding: 9px 16px;
@@ -1582,6 +1593,9 @@
     }
     .link {
       text-align: center;
+    }
+    .np-stars {
+      margin-inline-start: 0;
     }
     h1 {
       font-size: var(--t-xl);
