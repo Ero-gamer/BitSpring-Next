@@ -1193,6 +1193,7 @@ async fn set_dsp(
     });
     *state.dsp.lock().unwrap() = DspSettings {
         upsample: upsample_khz.map_or(Upsample::Off, |k| Upsample::UpTo(k * 1000.0)),
+        upsample_filter: None,
         eq: None,
         eq_bypass: false,
         convolution: ir.map(Convolution),

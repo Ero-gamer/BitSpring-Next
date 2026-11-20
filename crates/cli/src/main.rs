@@ -11,6 +11,7 @@ use clap::{Parser, Subcommand};
 use hifi_engine::output::{self, Device, DeviceInfo, PlayOptions};
 use hifi_engine::player::{self as outputs, Output, Player};
 use hifi_engine::dsp::crossfeed::CrossfeedLevel;
+use hifi_engine::dsp::upsample::{self, FilterKind, FilterSpec};
 use hifi_engine::dsp::{DspSettings, Upsample};
 use hifi_engine::dsp::lossy::LossySettings;
 use hifi_engine::dsp::loudness::{self, Known, LevelMode, LevelSettings, Measured};
@@ -43,6 +44,14 @@ enum Cmd {
         /// Upsample to the highest same-family rate up to this many kHz (e.g. 192, 384).
         #[arg(long, value_name = "KHZ")]
         upsample: Option<f64>,
+        /// With --upsample: a long filter instead of the standard one (linear, minimum or
+        /// apodizing), where the DAC runs at twice the source rate or more.
+        #[arg(long, value_name = "KIND")]
+        filter: Option<String>,
+        /// Length of the long filter (a power of two from 4096 to 16777216; minimum phase up to
+        /// 1048576; apodizing has its own).
+        #[arg(long, value_name = "N", default_value_t = 65_536)]
+        taps: usize,
         /// AutoEQ ParametricEQ.txt profile to apply.
         #[arg(long, value_name = "FILE")]
         eq: Option<PathBuf>,
@@ -98,9 +107,20 @@ fn main() -> Result<()> {
             Ok(())
         }
         Cmd::Loudness { files } => loudness(files),
-        Cmd::Play { files, device, shared, upsample, eq, crossfeed, headroom, restore_highs, dop, level, peak_headroom } => {
+        Cmd::Play { files, device, shared, upsample, filter, taps, eq, crossfeed, headroom, restore_highs, dop, level, peak_headroom } => {
+            let kind = match filter.as_deref() {
+                None => None,
+                Some("linear") => Some(FilterKind::Linear),
+                Some("minimum") => Some(FilterKind::Minimum),
+                Some("apodizing") => Some(FilterKind::Apodizing),
+                Some(other) => bail!("unknown filter {other:?}"),
+            };
+            if kind.is_some() && upsample.is_none() {
+                bail!("--filter needs --upsample");
+            }
             let dsp = DspSettings {
                 upsample: upsample.map_or(Upsample::Off, |k| Upsample::UpTo(k * 1000.0)),
+                upsample_filter: kind.map(|kind| FilterSpec { kind, taps }),
                 eq: match eq {
                     Some(p) => hifi_engine::dsp::eq_io::import(
                         &p.file_stem().unwrap_or_default().to_string_lossy(),
@@ -352,6 +372,9 @@ fn play(files: Vec<PathBuf>, device: Option<String>, dsd_mode: DsdMode, opts: Pl
     loop {
         let mut player = Player::start(&out, track, &opts)?;
         describe(&dev_name, &player.path);
+        // A long filter holds seconds of input back: line the next file up that much earlier,
+        // or the render thread reaches the end before it is there.
+        let held = player.path.upsample_filter.map_or(0.0, |f| upsample::filter(f).startup_frames() as f64 / player.path.source_rate as f64);
         // The next file, opened ahead: joined on, or to start anew if it couldn't be.
         let mut ahead: Option<(usize, Arc<Track>)> = None;
         let mut switches = player.switches();
@@ -365,7 +388,7 @@ fn play(files: Vec<PathBuf>, device: Option<String>, dsd_mode: DsdMode, opts: Pl
                 describe(&dev_name, &player.path);
             }
             let (pos, dur) = (player.position_secs(), player.duration_secs());
-            if ahead.is_none() && i + 1 < files.len() && dur - pos < 20.0 {
+            if ahead.is_none() && i + 1 < files.len() && dur - pos < 20.0 + held {
                 println!();
                 let t = open(&files[i + 1])?;
                 if player.queue_next(t.clone()) {
@@ -384,7 +407,8 @@ fn play(files: Vec<PathBuf>, device: Option<String>, dsd_mode: DsdMode, opts: Pl
         }
         println!();
         if let Some(peak) = player.output_peak() {
-            println!("Peak:    {:.1} dBFS, underruns: {}", 20.0 * peak.max(1e-9).log10(), player.underruns());
+            let load = player.load().map_or("–".into(), |l| format!("{:.1}% of a core", l * 100.0));
+            println!("Peak:    {:.1} dBFS, underruns: {}, load: {load}", 20.0 * peak.max(1e-9).log10(), player.underruns());
         }
         drop(player); // releases hog mode and restores the device's previous rate
         match ahead {
@@ -431,7 +455,10 @@ fn describe(dev_name: &str, p: &hifi_engine::output::SignalPath) {
         dsp.push(format!("{} → PCM {} kHz", dsd::dsd_name(d.rate), p.source_rate as f64 / 1000.0));
     }
     if p.resampled {
-        dsp.push(format!("resample {} → {} Hz", p.source_rate, p.device_rate));
+        dsp.push(match p.upsample_filter {
+            Some(f) => format!("upsample {} → {} Hz, {:?} filter {} taps", p.source_rate, p.device_rate, f.kind, f.taps),
+            None => format!("resample {} → {} Hz", p.source_rate, p.device_rate),
+        });
     }
     if let Some(name) = &p.eq {
         dsp.push(format!("EQ {name}"));

@@ -78,6 +78,20 @@ impl FilterSpec {
         };
         Self { kind: self.kind, taps }
     }
+
+    /// The next cheaper setting, for when the processing can't keep up: the sharp filters step
+    /// down 2^24 → 2^20 → 2^16 taps, and below that (and from Apodizing, already short) None:
+    /// the standard resampler.
+    pub fn shorter(self) -> Option<FilterSpec> {
+        let s = self.effective();
+        let taps = match s.kind {
+            FilterKind::Apodizing => return None,
+            FilterKind::Linear | FilterKind::Minimum if s.taps > 1 << 20 => 1 << 20,
+            FilterKind::Linear | FilterKind::Minimum if s.taps > 1 << 16 => 1 << 16,
+            _ => return None,
+        };
+        Some(Self { kind: s.kind, taps })
+    }
 }
 
 /// Stop-band attenuation the Kaiser designs aim at (dB). Kaiser's length formula is an
@@ -757,6 +771,21 @@ mod tests {
         assert_eq!(spec(FilterKind::Minimum, 1 << 22).effective().taps, MAX_MINIMUM_TAPS);
         assert_eq!(spec(FilterKind::Linear, 5000).effective().taps, 8192);
         assert_eq!(spec(FilterKind::Linear, 1 << 30).effective().taps, MAX_TAPS);
+    }
+
+    #[test]
+    fn shorter_steps_down_to_the_standard_filter() {
+        let steps = |s: FilterSpec| std::iter::successors(Some(s), |s| s.shorter()).skip(1).map(|s| (s.kind, s.taps)).collect::<Vec<_>>();
+        use FilterKind::*;
+        assert_eq!(steps(spec(Linear, 1 << 24)), [(Linear, 1 << 20), (Linear, 1 << 16)]);
+        assert_eq!(steps(spec(Linear, 1 << 22)), [(Linear, 1 << 20), (Linear, 1 << 16)]);
+        assert_eq!(steps(spec(Linear, 1 << 18)), [(Linear, 1 << 16)]);
+        assert_eq!(steps(spec(Linear, 1 << 16)), []);
+        assert_eq!(steps(spec(Linear, 8192)), []);
+        // Minimum is built at most 2^20 long: it steps from there.
+        assert_eq!(steps(spec(Minimum, 1 << 24)), [(Minimum, 1 << 16)]);
+        assert_eq!(steps(spec(Minimum, 1 << 20)), [(Minimum, 1 << 16)]);
+        assert_eq!(steps(spec(Apodizing, 1 << 20)), []);
     }
 
     /// The response checks for 2^20 taps:

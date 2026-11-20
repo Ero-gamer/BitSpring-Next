@@ -361,6 +361,10 @@ impl NetPlayer {
         self.inner.playback.underruns()
     }
 
+    pub fn load(&self) -> Option<f32> {
+        self.inner.playback.load()
+    }
+
     pub fn is_buffering(&self) -> bool {
         self.inner.playback.is_buffering() || (!self.is_paused() && !self.inner.clock.lock().unwrap().started)
     }
