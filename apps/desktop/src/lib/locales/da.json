@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Albummet er en favorit",
   "sp.f.rating": "Bedømmelse (stjerner)",
   "sp.sort.rating": "højest bedømte først",
-  "sp.sort.favorited": "nyeste favoritter først"
+  "sp.sort.favorited": "nyeste favoritter først",
+  "fav.tracksIn": "Favoritnumre: {n}"
 }

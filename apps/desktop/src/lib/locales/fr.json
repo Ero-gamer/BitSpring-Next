@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Album favori",
   "sp.f.rating": "Note (étoiles)",
   "sp.sort.rating": "mieux notés d’abord",
-  "sp.sort.favorited": "derniers favoris d’abord"
+  "sp.sort.favorited": "derniers favoris d’abord",
+  "fav.tracksIn": "Morceaux favoris : {n}"
 }

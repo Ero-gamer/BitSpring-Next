@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "專輯已收藏",
   "sp.f.rating": "評分（星）",
   "sp.sort.rating": "評分最高優先",
-  "sp.sort.favorited": "最近收藏優先"
+  "sp.sort.favorited": "最近收藏優先",
+  "fav.tracksIn": "收藏的歌曲：{n}"
 }

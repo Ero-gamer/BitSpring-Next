@@ -834,5 +834,6 @@
   "sp.f.albumFavorite": "الألبوم مفضّل",
   "sp.f.rating": "التقييم (نجوم)",
   "sp.sort.rating": "الأعلى تقييمًا أولًا",
-  "sp.sort.favorited": "أحدث المفضّلة أولًا"
+  "sp.sort.favorited": "أحدث المفضّلة أولًا",
+  "fav.tracksIn": "المقاطع المفضّلة: {n}"
 }

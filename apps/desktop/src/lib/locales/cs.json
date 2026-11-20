@@ -811,5 +811,6 @@
   "sp.f.albumFavorite": "Album je oblíbené",
   "sp.f.rating": "Hodnocení (hvězdičky)",
   "sp.sort.rating": "nejlépe hodnocené první",
-  "sp.sort.favorited": "naposledy oblíbené první"
+  "sp.sort.favorited": "naposledy oblíbené první",
+  "fav.tracksIn": "Oblíbené skladby: {n}"
 }

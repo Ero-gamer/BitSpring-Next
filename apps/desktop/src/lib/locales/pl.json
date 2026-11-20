@@ -811,5 +811,6 @@
   "sp.f.albumFavorite": "Album jest ulubiony",
   "sp.f.rating": "Ocena (gwiazdki)",
   "sp.sort.rating": "najwyżej oceniane najpierw",
-  "sp.sort.favorited": "ostatnio dodane do ulubionych najpierw"
+  "sp.sort.favorited": "ostatnio dodane do ulubionych najpierw",
+  "fav.tracksIn": "Ulubione utwory: {n}"
 }

@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Albüm favori",
   "sp.f.rating": "Puan (yıldız)",
   "sp.sort.rating": "önce en yüksek puanlılar",
-  "sp.sort.favorited": "önce son favoriler"
+  "sp.sort.favorited": "önce son favoriler",
+  "fav.tracksIn": "Favori parçalar: {n}"
 }

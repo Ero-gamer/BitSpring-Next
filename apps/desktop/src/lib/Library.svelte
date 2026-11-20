@@ -95,8 +95,18 @@
     return m;
   });
 
+  /** How many favourite tracks each album has (only albums that have any). */
+  let favTracksIn = $derived.by(() => {
+    const m = new Map<string, number>();
+    for (const t of tracks) if (marks.fav(t.path)) m.set(t.albumId, (m.get(t.albumId) ?? 0) + 1);
+    return m;
+  });
+  /** Under the heart filter an album shows for its own heart or for a heart on any of its
+   *  tracks: whoever marked a track looks for it under "favourites" wherever they are. */
+  const favAlbum = (a: Album) => marks.album(a.id) || favTracksIn.has(a.id);
+
   let visibleAlbums = $derived.by(() => {
-    let list = albums.filter((a) => (!hiResOnly || a.hiRes) && (!favOnly || marks.album(a.id)));
+    let list = albums.filter((a) => (!hiResOnly || a.hiRes) && (!favOnly || favAlbum(a)));
     if (q) list = list.filter((a) => `${a.title} ${artistLabel(a.artist)} ${a.genre ?? ""} ${a.year ?? ""}`.toLowerCase().includes(q));
     const by: Record<AlbumSort, (a: Album, b: Album) => number> = {
       artist: (a, b) => byArtist(a.artist, b.artist) || collator.compare(a.year ?? "", b.year ?? ""),
@@ -357,7 +367,7 @@
       albums.find((a) => same(a.title, g.album) && (!g.artist || same(a.artist, g.artist))) ??
       null;
     if (album && !album.hiRes) hiResOnly = false;
-    if (album && !marks.album(album.id)) favOnly = false;
+    if (album && !favAlbum(album)) favOnly = false;
     if (g.kind === "album") {
       if (album) {
         openAlbum = album;
@@ -706,7 +716,7 @@
         {#if shelf.length}
           <div class="grid">
             {#each shelf as a (a.id)}
-              <AlbumTile album={a} playing={a.id === currentAlbumId} favorite={marks.album(a.id)} onopen={enterAlbum} />
+              <AlbumTile album={a} playing={a.id === currentAlbumId} favorite={marks.album(a.id)} favTracks={favTracksIn.get(a.id) ?? 0} onopen={enterAlbum} />
             {/each}
           </div>
         {:else}

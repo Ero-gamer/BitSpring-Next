@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "アルバムがお気に入り",
   "sp.f.rating": "評価（星）",
   "sp.sort.rating": "評価の高い順",
-  "sp.sort.favorited": "お気に入りに追加した順"
+  "sp.sort.favorited": "お気に入りに追加した順",
+  "fav.tracksIn": "お気に入りの曲：{n}"
 }

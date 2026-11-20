@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Az album kedvenc",
   "sp.f.rating": "Értékelés (csillag)",
   "sp.sort.rating": "legjobbra értékeltek előre",
-  "sp.sort.favorited": "legutóbbi kedvencek előre"
+  "sp.sort.favorited": "legutóbbi kedvencek előre",
+  "fav.tracksIn": "Kedvenc számok: {n}"
 }

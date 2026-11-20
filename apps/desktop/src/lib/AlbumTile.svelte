@@ -1,12 +1,13 @@
 <script lang="ts">
   import { artistLabel, coverUrl, resolution, type Album } from "./api";
-  import { t } from "./i18n.svelte";
+  import { num, t } from "./i18n.svelte";
   import Heart from "./Heart.svelte";
 
   let {
     album,
     playing = false,
     favorite = false,
+    favTracks = 0,
     src = undefined,
     onopen,
   }: {
@@ -14,6 +15,8 @@
     playing?: boolean;
     /** The listener's heart is on it. */
     favorite?: boolean;
+    /** How many of its tracks carry the listener's heart. */
+    favTracks?: number;
     /** Cover URL (streaming albums); library albums use the cover:// protocol. */
     src?: string | null;
     onopen: (a: Album) => void;
@@ -37,7 +40,14 @@
     <span class="fmt" class:hi={album.hiRes} class:lossy={album.format === "MP3" || album.format === "AAC" || album.format === "Vorbis"}>
       {(album.hiRes || album.maxBits) && album.maxRate ? resolution(album.maxBits, album.maxRate) : album.format}
     </span>
-    {#if favorite}<span class="fav" title={t("fav.album")}><Heart on size={13} /></span>{/if}
+    <!-- A filled heart: the album itself is a favourite. A number: that many of its tracks
+         are (beside an outlined heart where the album is not). -->
+    {#if favorite || favTracks}
+      {@const tip = [favorite && t("fav.album"), favTracks > 0 && t("fav.tracksIn", { n: num(favTracks) })].filter(Boolean).join(". ")}
+      <span class="fav" class:tracks-only={!favorite} title={tip} aria-label={tip}>
+        {#if favTracks}<span class="num">{num(favTracks)}</span>{/if}<Heart on={favorite} size={13} />
+      </span>
+    {/if}
   </span>
 </button>
 
@@ -117,8 +127,13 @@
   .fav {
     margin-inline-start: auto;
     align-self: center;
-    display: grid;
+    display: flex;
+    align-items: center;
+    gap: 3px;
     color: var(--porcelain);
+  }
+  .fav.tracks-only {
+    color: var(--mist);
   }
   .fmt {
     color: var(--mist);

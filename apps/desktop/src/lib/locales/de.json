@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Album ist Favorit",
   "sp.f.rating": "Bewertung (Sterne)",
   "sp.sort.rating": "beste Bewertung zuerst",
-  "sp.sort.favorited": "neueste Favoriten zuerst"
+  "sp.sort.favorited": "neueste Favoriten zuerst",
+  "fav.tracksIn": "Lieblingstitel: {n}"
 }

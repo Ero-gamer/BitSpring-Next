@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Albumi on suosikki",
   "sp.f.rating": "Arvio (tähdet)",
   "sp.sort.rating": "parhaiten arvioidut ensin",
-  "sp.sort.favorited": "uusimmat suosikit ensin"
+  "sp.sort.favorited": "uusimmat suosikit ensin",
+  "fav.tracksIn": "Suosikkikappaleita: {n}"
 }

@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Albumul este preferat",
   "sp.f.rating": "Evaluare (stele)",
   "sp.sort.rating": "cele mai bine evaluate întâi",
-  "sp.sort.favorited": "ultimele preferate întâi"
+  "sp.sort.favorited": "ultimele preferate întâi",
+  "fav.tracksIn": "Piese preferate: {n}"
 }

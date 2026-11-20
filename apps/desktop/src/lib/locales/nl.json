@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "Album is favoriet",
   "sp.f.rating": "Beoordeling (sterren)",
   "sp.sort.rating": "hoogst beoordeeld eerst",
-  "sp.sort.favorited": "nieuwste favorieten eerst"
+  "sp.sort.favorited": "nieuwste favorieten eerst",
+  "fav.tracksIn": "Favoriete nummers: {n}"
 }

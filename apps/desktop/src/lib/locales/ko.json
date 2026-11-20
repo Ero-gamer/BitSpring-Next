@@ -806,5 +806,6 @@
   "sp.f.albumFavorite": "앨범이 즐겨찾기임",
   "sp.f.rating": "평점(별)",
   "sp.sort.rating": "평점 높은 순",
-  "sp.sort.favorited": "최근 즐겨찾기 순"
+  "sp.sort.favorited": "최근 즐겨찾기 순",
+  "fav.tracksIn": "즐겨찾는 곡: {n}"
 }
