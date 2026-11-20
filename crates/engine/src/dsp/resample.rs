@@ -255,36 +255,41 @@ mod tests {
         assert!((peak as i64 - 2000).abs() <= 1, "peak at {peak}");
     }
 
-    /// FNV-1a over the bits of every coefficient, phase by phase.
-    fn bank_hash(r: &Resampler) -> u64 {
-        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        for b in r.bank.iter().flatten().flat_map(|c| c.to_bits().to_le_bytes()) {
-            h ^= b as u64;
-            h = h.wrapping_mul(0x0100_0000_01b3);
-        }
-        h
+    /// The polyphase bank as it was built before the stop-band edge became a setting: the
+    /// stop band from the lower Nyquist, so the cut-off midway between `passband` and 1.
+    fn bank_as_before(in_rate: u32, out_rate: u32, q: ResampleQuality) -> Vec<Vec<f64>> {
+        let g = gcd(in_rate as u64, out_rate as u64);
+        let (l, m) = ((out_rate as u64 / g) as usize, (in_rate as u64 / g) as usize);
+        let n = q.taps * l;
+        let fc = (q.passband + 1.0) / 2.0 * 0.5 * (1.0f64).min(l as f64 / m as f64) / l as f64;
+        let centre = (n / 2) as f64;
+        let i0_beta = bessel_i0(q.kaiser_beta);
+        let mut proto: Vec<f64> = (0..n)
+            .map(|i| {
+                let t = i as f64 - centre;
+                let sinc = if t == 0.0 { 2.0 * fc } else { (2.0 * PI * fc * t).sin() / (PI * t) };
+                let r = t / centre;
+                let w = bessel_i0(q.kaiser_beta * (1.0 - r * r).max(0.0).sqrt()) / i0_beta;
+                sinc * w
+            })
+            .collect();
+        let sum: f64 = proto.iter().sum();
+        proto.iter_mut().for_each(|c| *c *= l as f64 / sum);
+        (0..l).map(|p| (0..q.taps).map(|k| proto[k * l + p]).rev().collect()).collect()
     }
 
     /// `HIGH` builds exactly the coefficients it built before the stop-band edge became a
-    /// setting (hashes and samples captured from the earlier code): everything that already
-    /// resampled sounds the same, bit for bit.
+    /// setting: everything that already resampled sounds the same, bit for bit. (Compared
+    /// with the earlier formula worked out here, not with numbers written down: the last bit
+    /// of a sine differs from one platform's maths library to the next.)
     #[test]
     fn high_quality_is_unchanged() {
-        let pinned = [
-            (44_100, 48_000, 0x45f9_b47f_6392_9e5e_u64, 0x3f4e_a98d_d8c3_4928_u64, 0x3f96_b7ba_67f4_8820_u64),
-            (44_100, 88_200, 0x3757_d80a_eb90_86c8, 0xbf68_d67e_3278_9705, 0xbf14_102f_0cc0_52a1),
-            (352_800, 176_400, 0xa372_22b2_8e0f_1468, 0xbfce_8f5f_7739_9d18, 0),
-            (44_100, 352_800, 0x24a8_e837_5b40_cf8e, 0, 0xbf2a_32f5_5264_2d50),
-        ];
-        for (from, to, hash, at150, at333) in pinned {
-            let mut r = Resampler::new(from, to, 1, ResampleQuality::HIGH);
-            assert_eq!(bank_hash(&r), hash, "{from} → {to}");
-            let mut x = vec![0.0; 1000];
-            x[100] = 1.0;
-            x[300] = -0.5;
-            let mut out = Vec::new();
-            r.process(&x, &mut out);
-            assert_eq!((out[150].to_bits(), out[333].to_bits()), (at150, at333), "{from} → {to}");
+        for (from, to) in [(44_100, 48_000), (44_100, 88_200), (352_800, 176_400), (44_100, 352_800), (96_000, 44_100)] {
+            let r = Resampler::new(from, to, 1, ResampleQuality::HIGH);
+            let before = bank_as_before(from, to, ResampleQuality::HIGH);
+            assert_eq!(r.bank.len(), before.len(), "{from} → {to}");
+            let same = r.bank.iter().flatten().zip(before.iter().flatten()).all(|(a, b)| a.to_bits() == b.to_bits());
+            assert!(same, "{from} → {to}: the coefficients changed");
         }
     }
 
