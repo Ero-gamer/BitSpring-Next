@@ -1051,12 +1051,15 @@
     border-radius: 50%;
     color: var(--mist);
   }
-  .album-heart:hover,
   .album-heart.on {
     color: var(--porcelain);
   }
-  .album-heart:hover {
-    background: var(--slate-700);
+  /* hover only where there is a pointer: on a touch screen it sticks after a tap */
+  @media (hover: hover) {
+    .album-heart:hover {
+      color: var(--porcelain);
+      background: var(--slate-700);
+    }
   }
   .album-info h2 {
     min-width: 0;
