@@ -42,7 +42,7 @@
   "enhance.title": "Quer um som diferente? Fique à vontade",
   "enhance.lede": "As melhorias vêm desligadas. Ative qualquer uma e o indicador do player muda de “Bit-perfect” para “Processando” e mostra exatamente o que está sendo feito com o som.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Para 192, 384 ou 768 kHz. Ideal para DACs que soam melhor em taxas altas.",
+  "enhance.upsampling_detail": "Para 192, 384 ou 768 kHz. Ideal para DACs que soam melhor em taxas altas. Com opção de filtro: padrão, de fase linear ou mínima com até um milhão de coeficientes, ou apodizante.",
   "enhance.eq": "Equalizador",
   "enhance.eq_detail": "Carregue um perfil AutoEQ para seus fones. Os filtros são calculados com precisão de 64 bits.",
   "enhance.crossfeed": "Crossfeed",

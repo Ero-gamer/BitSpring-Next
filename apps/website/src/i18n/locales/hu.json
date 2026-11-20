@@ -42,7 +42,7 @@
   "enhance.title": "Más hangzást szeretnél? Csak nyugodtan",
   "enhance.lede": "A hangfeldolgozó funkciók alapból ki vannak kapcsolva. Ha bármelyiket bekapcsolod, a lejátszó jelzője „Bit-perfect” helyett „Feldolgozás” feliratra vált, és pontosan felsorolja, mi történik a hanggal.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "192, 384 vagy 768 kHz-re, azoknak a DAC-oknak, amelyek magas frekvencián jobban szólnak.",
+  "enhance.upsampling_detail": "192, 384 vagy 768 kHz-re, azoknak a DAC-oknak, amelyek magas frekvencián jobban szólnak. Választható szűrő: alap, akár egymillió együtthatós lineáris vagy minimális fázisú, illetve apodizáló.",
   "enhance.eq": "Hangszínszabályzó",
   "enhance.eq_detail": "Tölts be egy AutoEQ-profilt a fejhallgatódhoz. A szűrőket 64 bites pontossággal számolja.",
   "enhance.crossfeed": "Crossfeed",

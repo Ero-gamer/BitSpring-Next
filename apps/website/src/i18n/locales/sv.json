@@ -42,7 +42,7 @@
   "enhance.title": "Vill du ha ett annat ljud? Varsågod",
   "enhance.lede": "Förbättringarna är avstängda som standard. Slå på någon av dem så byter spelarens indikator från ”Bit-perfect” till ”Bearbetning” och visar exakt vad som görs med ljudet.",
   "enhance.upsampling": "Uppsampling",
-  "enhance.upsampling_detail": "Till 192, 384 eller 768 kHz, för DAC:ar som låter bättre vid höga frekvenser.",
+  "enhance.upsampling_detail": "Till 192, 384 eller 768 kHz, för DAC:ar som låter bättre vid höga frekvenser. Med valfritt filter: standard, linjär fas eller minimifas med upp till en miljon koefficienter, eller apodiserande.",
   "enhance.eq": "Equalizer",
   "enhance.eq_detail": "Ladda en AutoEQ-profil för dina hörlurar. Filtren beräknas med 64-bitars precision.",
   "enhance.crossfeed": "Crossfeed",

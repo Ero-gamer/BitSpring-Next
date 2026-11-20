@@ -42,7 +42,7 @@
   "enhance.title": "Envie d’un autre son ? Allez-y",
   "enhance.lede": "Les améliorations sont désactivées par défaut. Activez-en une et l’indicateur du lecteur passe de « Bit-perfect » à « Traitement », en détaillant ce qui est appliqué au son.",
   "enhance.upsampling": "Suréchantillonnage",
-  "enhance.upsampling_detail": "À 192, 384 ou 768 kHz, pour les DAC qui sonnent mieux à haute fréquence.",
+  "enhance.upsampling_detail": "À 192, 384 ou 768 kHz, pour les DAC qui sonnent mieux à haute fréquence. Avec le choix du filtre : standard, à phase linéaire ou minimale jusqu’à un million de coefficients, ou apodisant.",
   "enhance.eq": "Égaliseur",
   "enhance.eq_detail": "Chargez un profil AutoEQ pour votre casque. Les filtres sont calculés en précision 64 bits.",
   "enhance.crossfeed": "Crossfeed",

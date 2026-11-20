@@ -42,7 +42,7 @@
   "enhance.title": "Lust auf einen anderen Klang? Bitte sehr",
   "enhance.lede": "Alle Klangoptionen sind standardmäßig aus. Schaltest du eine ein, wechselt die Anzeige im Player von „Bit-perfect“ auf „Verarbeitung“ und zeigt genau, was mit dem Klang passiert.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Auf 192, 384 oder 768 kHz, für DACs, die bei hohen Raten besser klingen.",
+  "enhance.upsampling_detail": "Auf 192, 384 oder 768 kHz, für DACs, die bei hohen Raten besser klingen. Mit Filter nach Wahl: Standard, linear- oder minimalphasig mit bis zu einer Million Koeffizienten oder apodisierend.",
   "enhance.eq": "Equalizer",
   "enhance.eq_detail": "Lade ein AutoEQ-Profil für deinen Kopfhörer. Die Filter werden mit 64-Bit-Präzision berechnet.",
   "enhance.crossfeed": "Crossfeed",

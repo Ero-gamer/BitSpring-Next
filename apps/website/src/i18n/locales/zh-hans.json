@@ -42,7 +42,7 @@
   "enhance.title": "想换种声音？请便",
   "enhance.lede": "音效增强默认全部关闭。开启任意一项，播放器的指示器就会从“Bit-perfect”变为“处理中”，并列出对声音做了哪些处理。",
   "enhance.upsampling": "升频",
-  "enhance.upsampling_detail": "升至 192、384 或 768 kHz，适合在高采样率下表现更好的解码器。",
+  "enhance.upsampling_detail": "升至 192、384 或 768 kHz，适合在高采样率下表现更好的解码器。可选择滤波器：标准、最长 100 万抽头的线性相位或最小相位，或切趾。",
   "enhance.eq": "均衡器",
   "enhance.eq_detail": "为你的耳机载入 AutoEQ 配置文件。滤波器以 64 位精度计算。",
   "enhance.crossfeed": "交叉馈送",

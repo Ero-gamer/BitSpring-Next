@@ -42,7 +42,7 @@
   "enhance.title": "Chcete jiný zvuk? Prosím",
   "enhance.lede": "Vylepšení jsou ve výchozím stavu vypnutá. Zapněte kterékoli z nich a indikátor v přehrávači se přepne z „Bit-perfect“ na „Zpracování“ a vypíše, co přesně se se zvukem děje.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Na 192, 384 nebo 768 kHz, pro převodníky, které na vysokých frekvencích hrají lépe.",
+  "enhance.upsampling_detail": "Na 192, 384 nebo 768 kHz, pro převodníky, které na vysokých frekvencích hrají lépe. Filtr na výběr: standardní, s lineární nebo minimální fází o délce až milion koeficientů, nebo apodizační.",
   "enhance.eq": "Ekvalizér",
   "enhance.eq_detail": "Načtěte profil AutoEQ pro svá sluchátka. Filtry se počítají s 64bitovou přesností.",
   "enhance.crossfeed": "Crossfeed",

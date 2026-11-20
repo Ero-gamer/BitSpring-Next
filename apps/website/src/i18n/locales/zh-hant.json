@@ -42,7 +42,7 @@
   "enhance.title": "想換種聲音？請便",
   "enhance.lede": "音效強化預設全部關閉。開啟任何一項，播放器的指示器就會從「Bit-perfect」變成「處理中」，並列出對聲音做了哪些處理。",
   "enhance.upsampling": "升頻",
-  "enhance.upsampling_detail": "升至 192、384 或 768 kHz，適合在高取樣率下表現更好的 DAC。",
+  "enhance.upsampling_detail": "升至 192、384 或 768 kHz，適合在高取樣率下表現更好的 DAC。可選擇濾波器：標準、最長 100 萬抽頭的線性相位或最小相位，或切趾。",
   "enhance.eq": "等化器",
   "enhance.eq_detail": "為你的耳機載入 AutoEQ 設定檔。濾波器以 64 位元精度運算。",
   "enhance.crossfeed": "交叉饋送",
