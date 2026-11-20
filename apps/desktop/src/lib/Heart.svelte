@@ -10,7 +10,14 @@
 
   let { on = false, size = 16, beats = false }: { on?: boolean; size?: number; beats?: boolean } = $props();
 
-  const SHAPE = "M11 18.2L4.6 11.6A4 4 0 0 1 11 6.8a4 4 0 0 1 6.4 4.8z";
+  // The heart is "M11 18.2L4.6 11.6A4 4 0 0 1 11 6.8a4 4 0 0 1 6.4 4.8z" under a 1.5 line, but
+  // drawn as fills: FULL is that line's outer edge, HOLE its inner one, and the outlined heart
+  // is the ring between them. Not a stroke on purpose: in a track list, Android's WebView
+  // (seen on Chrome 124) answered the stroked curve by painting other things wrong, the
+  // header's Enhancers button gone and rows drawn a second time over the header.
+  const FULL = "M10.46 18.72L4.06 12.12L4 12.05A4.75 4.75 0 0 1 11 5.69A4.75 4.75 0 0 1 18 12.05L17.94 12.12L11.54 18.72A.75 .75 0 0 1 10.46 18.72Z";
+  const HOLE = "M11 17.12L5.17 11.11A3.25 3.25 0 0 1 10.4 7.25A.75 .75 0 0 0 11.6 7.25A3.25 3.25 0 0 1 16.83 11.11Z";
+  const RING = FULL + HOLE;
 
   let move = $state<"beat" | "give" | null>(null);
   let was = untrack(() => on);
@@ -23,8 +30,8 @@
 </script>
 
 <svg class:beat={move === "beat"} class:give={move === "give"} width={size} height={size} viewBox="0 0 22 22" aria-hidden="true" onanimationend={(e) => e.target === e.currentTarget && (move = null)}>
-  {#if move === "beat"}<path class="echo" d={SHAPE} fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />{/if}
-  <path d={SHAPE} fill={on ? "currentColor" : "none"} stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+  {#if move === "beat"}<path class="echo" d={RING} fill="currentColor" fill-rule="evenodd" />{/if}
+  <path d={on ? FULL : RING} fill="currentColor" fill-rule="evenodd" />
 </svg>
 
 <style>
