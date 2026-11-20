@@ -4,7 +4,7 @@
 // BitSpring works with any DAC and any headphones.
 import { isIOS } from "./api";
 import { MOCK_COVERS } from "./mockCovers";
-import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack, Lyrics, NowPlaying, Signal, Status, StoredPreset } from "./api";
+import type { Album, Device, DeviceEq, DspSettings, EqPreset, EqState, LibTrack, Lyrics, Mark, NowPlaying, Signal, Status, StoredPreset } from "./api";
 
 // ---- library ----------------------------------------------------------------------------------
 /** The engine's name for untagged music (api.ts UNKNOWN_ARTIST; not imported: api.ts imports this file). */
@@ -61,6 +61,16 @@ const mockChecks: Record<string, unknown> = {};
 const mockDynamics: Record<string, { dr: number; lra: number; lufs: number; peakDb: number }> = {};
 let mockDynamicsRev = 1;
 const mockRips: Record<string, unknown> = {};
+// A few marks to start with, so the hearts and stars have something to show.
+const mockMarks: { tracks: Record<string, Mark>; albums: Record<string, { at: number }> } = {
+  tracks: Object.fromEntries(libTracks.filter((_, i) => i % 7 === 2).map((t, i) => [t.path, { fav: i % 3 !== 1, rating: [5, 4, 0, 3][i % 4], at: 1_790_000_000 + i }])),
+  albums: Object.fromEntries(libAlbums.filter((_, i) => i % 4 === 1).map((a, i) => [a.id, { at: 1_790_000_000 + i }])),
+};
+let mockMarksRev = 1;
+function mockMark(path: string, m: Mark) {
+  if (m.fav || m.rating) mockMarks.tracks[path] = m;
+  else delete mockMarks.tracks[path];
+}
 let mockRipStart = 0;
 let mockRipTotal = 0;
 let mockAbx: { total: number; answers: { xIsA: boolean; saidA: boolean }[]; xIsA: boolean } | null = null;
@@ -400,6 +410,25 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
         albums[a.id] = { dr: Math.round(mean((d) => Math.round(d.dr))), lra: mean((d) => d.lra) + 1.5, lufs: mean((d) => d.lufs), peakDb: -0.1 };
       }
       return { rev: mockDynamicsRev, tracks: { ...mockDynamics }, albums } as T;
+    }
+    case "marks":
+      return { rev: mockMarksRev, tracks: { ...mockMarks.tracks }, albums: { ...mockMarks.albums } } as T;
+    case "mark_favorite": {
+      const path = args.path as string;
+      const m = mockMarks.tracks[path] ?? { fav: false, rating: 0, at: 0 };
+      mockMark(path, { ...m, fav: args.on as boolean, at: args.on ? Date.now() / 1000 : 0 });
+      return ++mockMarksRev as T;
+    }
+    case "mark_rating": {
+      const path = args.path as string;
+      const m = mockMarks.tracks[path] ?? { fav: false, rating: 0, at: 0 };
+      mockMark(path, { ...m, rating: Math.min(5, args.rating as number) });
+      return ++mockMarksRev as T;
+    }
+    case "mark_album": {
+      if (args.on) mockMarks.albums[args.id as string] = { at: Date.now() / 1000 };
+      else delete mockMarks.albums[args.id as string];
+      return ++mockMarksRev as T;
     }
     case "expand_paths":
       return (args.paths as string[]).map((path) => ({ path, title: null, artist: null })) as T;

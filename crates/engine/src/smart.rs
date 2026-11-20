@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 use serde::{Deserialize, Serialize};
 
 use crate::library::TrackInfo;
+use crate::marks::Mark;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,6 +57,12 @@ pub enum Field {
     Dr,
     /// Loudness range (LRA) in LU, where it has been measured.
     Lra,
+    /// The listener's heart on the track.
+    Favorite,
+    /// The listener's heart on the track's album.
+    AlbumFavorite,
+    /// Stars, 1 to 5 (0: not rated).
+    Rating,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -88,6 +95,10 @@ pub enum Sort {
     Added,
     /// Longest first.
     Duration,
+    /// Most stars first.
+    Rating,
+    /// What became a favourite most recently first.
+    Favorited,
     Random,
 }
 
@@ -97,6 +108,10 @@ pub struct Facts<'a> {
     pub quality: &'a dyn Fn(&TrackInfo) -> &'static str,
     /// Its dynamic range (DR) and loudness range (LRA, in LU), when measured.
     pub dynamics: &'a dyn Fn(&TrackInfo) -> (Option<f64>, Option<f64>),
+    /// The listener's marks on it: the heart and the stars.
+    pub marks: &'a dyn Fn(&TrackInfo) -> Mark,
+    /// Whether its album is a favourite.
+    pub album_favorite: &'a dyn Fn(&TrackInfo) -> bool,
     /// The time, in Unix seconds.
     pub now: u64,
 }
@@ -134,6 +149,14 @@ pub fn select(tracks: &[TrackInfo], rules: &SmartRules, facts: &Facts) -> Vec<us
         Sort::Year => picked.sort_by(|&a, &b| year(&tracks[a]).cmp(&year(&tracks[b])).then_with(|| album_order(&tracks[a], &tracks[b]))),
         Sort::Added => picked.sort_by(|&a, &b| tracks[b].mtime.cmp(&tracks[a].mtime).then_with(|| album_order(&tracks[a], &tracks[b]))),
         Sort::Duration => picked.sort_by(|&a, &b| tracks[b].duration.partial_cmp(&tracks[a].duration).unwrap_or(Ordering::Equal)),
+        Sort::Rating | Sort::Favorited => {
+            let marks: Vec<Mark> = tracks.iter().map(facts.marks).collect();
+            picked.sort_by(|&a, &b| {
+                let (ma, mb) = (marks[a], marks[b]);
+                // (Never a favourite has no time: 0, after everything.)
+                if rules.sort == Sort::Rating { mb.rating.cmp(&ma.rating) } else { mb.at.cmp(&ma.at) }.then_with(|| album_order(&tracks[a], &tracks[b]))
+            });
+        }
         Sort::Random => shuffle(&mut picked),
     }
     if let Some(n) = rules.limit {
@@ -196,6 +219,10 @@ fn matches(t: &TrackInfo, r: &Rule, facts: &Facts) -> bool {
         // compared as it is shown: rounded.)
         Field::Dr => number((facts.dynamics)(t).0.map(f64::round)),
         Field::Lra => number((facts.dynamics)(t).1),
+        // (Not rated counts as no stars, so "fewer than 3" takes those in as well.)
+        Field::Rating => number(Some(f64::from((facts.marks)(t).rating))),
+        Field::Favorite => flag((facts.marks)(t).fav),
+        Field::AlbumFavorite => flag((facts.album_favorite)(t)),
         Field::HiRes => flag(t.hi_res()),
         Field::Lossless => flag(t.lossless),
     }
@@ -259,8 +286,17 @@ mod tests {
         (None, None)
     }
 
+    fn unmarked(_: &TrackInfo) -> Mark {
+        Mark::default()
+    }
+
+    /// The facts of a library nobody checked, measured or marked.
+    fn bare<'a>(now: u64) -> Facts<'a> {
+        Facts { quality: &|_| "unchecked", dynamics: &unmeasured, marks: &unmarked, album_favorite: &|_| false, now }
+    }
+
     fn paths(lib: &[TrackInfo], r: &SmartRules) -> Vec<String> {
-        select(lib, r, &Facts { quality: &|_| "unchecked", dynamics: &unmeasured, now: NOW }).into_iter().map(|i| lib[i].path.clone()).collect()
+        select(lib, r, &bare(NOW)).into_iter().map(|i| lib[i].path.clone()).collect()
     }
 
     #[test]
@@ -300,7 +336,7 @@ mod tests {
         let l = lib();
         let r = rules(true, vec![(Field::Quality, Op::Is, "suspect")], Sort::Album);
         let word = |t: &TrackInfo| if t.path == "/a/1.flac" { "suspect" } else { "genuine" };
-        let picked: Vec<usize> = select(&l, &r, &Facts { quality: &word, dynamics: &unmeasured, now: NOW });
+        let picked: Vec<usize> = select(&l, &r, &Facts { quality: &word, ..bare(NOW) });
         assert_eq!(picked, [2]);
     }
 
@@ -316,7 +352,7 @@ mod tests {
             _ => (None, None),
         };
         let picked = |r: &SmartRules| -> Vec<String> {
-            select(&l, r, &Facts { quality: &|_| "unchecked", dynamics: &dynamics, now: NOW }).into_iter().map(|i| l[i].path.clone()).collect()
+            select(&l, r, &Facts { dynamics: &dynamics, ..bare(NOW) }).into_iter().map(|i| l[i].path.clone()).collect()
         };
         assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Less, "7")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
         assert_eq!(picked(&rules(true, vec![(Field::Dr, Op::Is, "6")], Sort::Album)), ["/b/1.flac", "/a/1.flac"]);
@@ -326,11 +362,40 @@ mod tests {
         assert!(paths(&l, &rules(true, vec![(Field::Dr, Op::Less, "99")], Sort::Album)).is_empty());
     }
 
+    /// "My favourites" and "four stars and up": the listener's marks as rules and as orders.
+    #[test]
+    fn hearts_and_stars_are_fields() {
+        let l = lib();
+        let marks = |t: &TrackInfo| match t.path.as_str() {
+            "/a/1.flac" => Mark { fav: true, rating: 3, at: 500 },
+            "/c/1.flac" => Mark { fav: true, rating: 5, at: 900 },
+            "/b/1.flac" => Mark { fav: false, rating: 4, at: 0 },
+            _ => Mark::default(),
+        };
+        let kind_of_blue = |t: &TrackInfo| t.album.as_deref() == Some("Kind of Blue");
+        let picked = |r: &SmartRules| -> Vec<String> {
+            select(&l, r, &Facts { marks: &marks, album_favorite: &kind_of_blue, ..bare(NOW) }).into_iter().map(|i| l[i].path.clone()).collect()
+        };
+        assert_eq!(picked(&rules(true, vec![(Field::Favorite, Op::IsTrue, "")], Sort::Album)), ["/c/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Favorite, Op::IsTrue, "")], Sort::Favorited)), ["/c/1.flac", "/a/1.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Favorite, Op::IsFalse, "")], Sort::Album)), ["/b/1.flac", "/b/2.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Rating, Op::Greater, "3")], Sort::Rating)), ["/c/1.flac", "/b/1.flac"]);
+        // Not rated is no stars.
+        assert_eq!(picked(&rules(true, vec![(Field::Rating, Op::Is, "0")], Sort::Album)), ["/b/2.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::Rating, Op::Less, "4")], Sort::Rating)), ["/a/1.flac", "/b/2.flac"]);
+        assert_eq!(picked(&rules(true, vec![(Field::AlbumFavorite, Op::IsTrue, "")], Sort::Album)), ["/b/1.flac", "/b/2.flac"]);
+        // Nothing marked: nothing is a favourite.
+        assert!(paths(&l, &rules(true, vec![(Field::Favorite, Op::IsTrue, "")], Sort::Album)).is_empty());
+    }
+
     #[test]
     fn rules_round_trip_as_json() {
         let r = rules(true, vec![(Field::AlbumArtist, Op::NotContains, "various")], Sort::Random);
         let json = serde_json::to_string(&r).unwrap();
         assert!(json.contains(r#""field":"albumArtist""#) && json.contains(r#""op":"notContains""#), "{json}");
         assert_eq!(serde_json::from_str::<SmartRules>(&json).unwrap(), r);
+        let r = rules(true, vec![(Field::AlbumFavorite, Op::IsTrue, ""), (Field::Rating, Op::Greater, "3")], Sort::Favorited);
+        let json = serde_json::to_string(&r).unwrap();
+        assert!(json.contains(r#""field":"albumFavorite""#) && json.contains(r#""sort":"favorited""#), "{json}");
     }
 }

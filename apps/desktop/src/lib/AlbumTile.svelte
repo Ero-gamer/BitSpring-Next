@@ -1,15 +1,19 @@
 <script lang="ts">
   import { artistLabel, coverUrl, resolution, type Album } from "./api";
   import { t } from "./i18n.svelte";
+  import Heart from "./Heart.svelte";
 
   let {
     album,
     playing = false,
+    favorite = false,
     src = undefined,
     onopen,
   }: {
     album: Album;
     playing?: boolean;
+    /** The listener's heart is on it. */
+    favorite?: boolean;
     /** Cover URL (streaming albums); library albums use the cover:// protocol. */
     src?: string | null;
     onopen: (a: Album) => void;
@@ -33,6 +37,7 @@
     <span class="fmt" class:hi={album.hiRes} class:lossy={album.format === "MP3" || album.format === "AAC" || album.format === "Vorbis"}>
       {(album.hiRes || album.maxBits) && album.maxRate ? resolution(album.maxBits, album.maxRate) : album.format}
     </span>
+    {#if favorite}<span class="fav" title={t("fav.album")}><Heart on size={13} /></span>{/if}
   </span>
 </button>
 
@@ -107,6 +112,13 @@
     align-items: baseline;
     font-size: var(--t-xs);
     color: var(--mist-dim);
+  }
+  /* the listener's heart, at the end of the line */
+  .fav {
+    margin-inline-start: auto;
+    align-self: center;
+    display: grid;
+    color: var(--porcelain);
   }
   .fmt {
     color: var(--mist);

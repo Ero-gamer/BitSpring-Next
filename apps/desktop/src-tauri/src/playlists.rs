@@ -141,7 +141,10 @@ fn smart_entries(app: &AppHandle, rules: &SmartRules, tracks: &[TrackInfo]) -> V
     let word = |t: &TrackInfo| quality.word(&t.path);
     let measured = app.state::<crate::loudness::Loudness>().dynamics_of(tracks);
     let dynamics = |t: &TrackInfo| measured.get(t.path.as_str()).map_or((None, None), |d| (d.dr, d.lra));
-    smart::select(tracks, rules, &smart::Facts { quality: &word, dynamics: &dynamics, now: now() })
+    let marked = app.state::<crate::marks::Marks>().all();
+    let marks = |t: &TrackInfo| marked.of(&t.path);
+    let album_favorite = |t: &TrackInfo| marked.album(&hifi_engine::library::album_id(t));
+    smart::select(tracks, rules, &smart::Facts { quality: &word, dynamics: &dynamics, marks: &marks, album_favorite: &album_favorite, now: now() })
         .into_iter()
         .map(|i| {
             let t = &tracks[i];

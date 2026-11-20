@@ -388,6 +388,25 @@ export interface Dynamics {
   peakDb: number | null;
 }
 
+/** What the listener marked a track with (hifi_engine::marks). */
+export interface Mark {
+  fav: boolean;
+  /** 1 to 5 stars; 0: not rated. */
+  rating: number;
+  /** When it became a favourite (Unix seconds). */
+  at: number;
+}
+
+/** Everything marked: favourite tracks and albums, ratings. */
+export interface Marks {
+  /** Changes with every mark made or taken away. */
+  rev: number;
+  /** By track path; a track that isn't here carries no mark. */
+  tracks: Record<string, Mark>;
+  /** Favourite albums, by id. */
+  albums: Record<string, { at: number }>;
+}
+
 export interface DynamicsUpdate {
   /** Changes whenever something new was measured. */
   rev: number;
@@ -432,10 +451,11 @@ export interface PlaylistSummary {
 
 export type SmartField =
   | "title" | "artist" | "album" | "albumArtist" | "genre" | "format" | "quality" | "dr" | "lra"
-  | "year" | "sampleRate" | "bits" | "duration" | "added" | "hiRes" | "lossless";
+  | "year" | "sampleRate" | "bits" | "duration" | "added" | "hiRes" | "lossless"
+  | "favorite" | "albumFavorite" | "rating";
 export type SmartOp =
   | "contains" | "notContains" | "is" | "isNot" | "startsWith" | "greater" | "less" | "withinDays" | "isTrue" | "isFalse";
-export type SmartSort = "album" | "artist" | "title" | "year" | "added" | "duration" | "random";
+export type SmartSort = "album" | "artist" | "title" | "year" | "added" | "duration" | "rating" | "favorited" | "random";
 export interface SmartRule {
   field: SmartField;
   op: SmartOp;
@@ -690,6 +710,11 @@ export const api = {
   abxStop: () => call<void>("abx_stop"),
   /** The dynamics measured so far, unless nothing changed since `rev`. */
   dynamics: (rev: number | null) => call<DynamicsUpdate>("dynamics", { rev }),
+  marks: () => call<Marks>("marks"),
+  /** Each answers with the marks' new `rev`. */
+  markFavorite: (path: string, on: boolean) => call<number>("mark_favorite", { path, on }),
+  markRating: (path: string, rating: number) => call<number>("mark_rating", { path, rating }),
+  markAlbum: (id: string, on: boolean) => call<number>("mark_album", { id, on }),
   /** Measure every library track not measured yet, in the background (false: stop). */
   loudnessAnalyze: (start: boolean) => call<void>("loudness_analyze", { start }),
   /** Write what was measured into the files' tags (ReplayGain), in the background (false: stop). */

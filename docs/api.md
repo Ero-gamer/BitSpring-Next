@@ -43,7 +43,7 @@ curl -H "Authorization: Bearer $TOKEN" http://192.168.1.20:48173/api/v1/state
 ### `GET /api/v1/info`
 
 ```json
-{ "app": "BitSpring", "version": "0.21.0", "api": 1 }
+{ "app": "BitSpring", "version": "0.21.1", "api": 1 }
 ```
 
 ### `GET /api/v1/state`
@@ -62,6 +62,8 @@ curl -H "Authorization: Bearer $TOKEN" http://192.168.1.20:48173/api/v1/state
     "year": "1959",
     "duration": 251.0,
     "albumId": "8c1f0a9be2d34f10",
+    "favorite": true,
+    "rating": 4,
     "cover": "/api/v1/cover/current?rev=7"
   },
   "signal": {
@@ -83,6 +85,8 @@ curl -H "Authorization: Bearer $TOKEN" http://192.168.1.20:48173/api/v1/state
 - `position`, `duration`: seconds.
 - `track` and `signal` are `null` when nothing is loaded. `albumId` is `null` for a file that
   isn't in the library; `cover` is `null` when the file has no cover.
+- `track.favorite` and `track.rating` (0 to 5 stars, 0: not rated) are the listener's marks
+  (since 0.21.1). A file that isn't in the library has none: `false` and `0`.
 - `signal.bitPerfect`: the samples reach the DAC untouched. `sourceRate` of a DSD file is its
   1-bit rate (2822400 for DSD64).
 - `repeat`: `off`, `all` (the queue) or `one` (the track).
@@ -103,6 +107,21 @@ curl -H "Authorization: Bearer $TOKEN" http://192.168.1.20:48173/api/v1/state
 `{ "albums": [...], "tracks": [...] }`: every album and track of the library. A track's `path`
 is what the queue commands take; an album's `tracks` are positions in the `tracks` list.
 
+### `GET /api/v1/favorites`
+
+Since 0.21.1. Everything the listener marked in the library: tracks by `path`, and the ids of
+favourite albums. A track is listed when it is a favourite, has a rating, or both.
+
+```json
+{
+  "tracks": {
+    "/Music/Miles Davis/Kind of Blue/01 So What.flac": { "favorite": true, "rating": 5 },
+    "/Music/Miles Davis/Kind of Blue/02 Freddie Freeloader.flac": { "favorite": false, "rating": 4 }
+  },
+  "albums": ["8c1f0a9be2d34f10"]
+}
+```
+
 ### `GET /api/v1/cover/<albumId>` and `GET /api/v1/cover/current`
 
 The cover image of an album, or of the track that plays now. `404` when there is none.
@@ -119,7 +138,8 @@ sends to a DAC.
 
 A [Server-Sent Events](https://developer.mozilla.org/docs/Web/API/Server-sent_events) stream.
 It sends the state (the same object as `GET state`) at once, and again whenever something
-changes: another track, play or pause, a seek, the queue, shuffle or repeat.
+changes: another track, play or pause, a seek, the queue, shuffle or repeat, the playing
+track's marks.
 
 ```
 event: state
@@ -154,6 +174,8 @@ with missing or impossible values gets `400`.
 | `/api/v1/queue/jump` | `{"index": 3}` | Plays that entry of the queue. |
 | `/api/v1/queue/play` | `{"paths": [...], "index": 0}` | Replaces the queue with these library tracks and plays from `index`. |
 | `/api/v1/queue/add` | `{"paths": [...]}` | Adds these library tracks to the end of the queue. |
+| `/api/v1/favorite` | `{"path": "...", "on": true}` | Makes a library track a favourite, or no longer one. Without `on`: the other one. Without `path`: the track that plays. With `"albumId": "..."` instead of `path`: the album. Answers `{"ok":true,"favorite":true}`. Since 0.21.1. |
+| `/api/v1/rating` | `{"path": "...", "rating": 4}` | Gives a library track 1 to 5 stars; 0 takes them away. Without `path`: the track that plays. Since 0.21.1. |
 
 ```bash
 curl -X POST -H "Authorization: Bearer $TOKEN" http://192.168.1.20:48173/api/v1/toggle
@@ -162,6 +184,8 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -d '{"position": 90}' http://192.
 
 Commands are carried out by the BitSpring window, the same way its own buttons are, so the
 state changes a moment after the answer. Read it from `state` or wait for the event.
+`favorite` and `rating` are the exception: the mark is saved before the answer comes. Both
+stay on the device, like the marks made in the app.
 
 ## Home Assistant
 

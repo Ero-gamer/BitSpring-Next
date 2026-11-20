@@ -1,11 +1,14 @@
 <script lang="ts" module>
-  export type SortKey = "number" | "title" | "artist" | "album" | "year" | "duration" | "format" | "dr";
+  export type SortKey = "number" | "title" | "artist" | "album" | "year" | "duration" | "format" | "dr" | "rating" | "fav";
 </script>
 
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { clock, khz, resolution, type Dynamics, type LibTrack } from "./api";
   import { collator as makeCollator, t } from "./i18n.svelte";
+  import Heart from "./Heart.svelte";
+  import Stars from "./Stars.svelte";
+  import { markable, marks, setFavorite, setRating } from "./marks.svelte";
 
   let {
     tracks,
@@ -43,6 +46,12 @@
 
   const drOf = (t: LibTrack) => dynamics[t.path]?.dr ?? null;
 
+  // The listener's marks close every list of files: the stars (when switched on in Settings)
+  // and the heart, next to the row's own buttons. A list of streaming tracks has neither.
+  let shownColumns = $derived<SortKey[]>(
+    tracks.some((tr) => markable(tr.path)) ? [...columns, ...(marks.ratings ? (["rating", "fav"] as const) : (["fav"] as const))] : columns,
+  );
+
   const collator = $derived(makeCollator());
   const artistOf = (t: LibTrack) => t.albumArtist ?? t.artist ?? "";
   /** Empty values (untagged files) sort last, whichever direction. */
@@ -67,6 +76,9 @@
       duration: (a, b) => a.duration - b.duration,
       format: (a, b) => (a.bits ?? 0) - (b.bits ?? 0) || a.sampleRate - b.sampleRate,
       dr: (a, b) => (drOf(a) ?? 0) - (drOf(b) ?? 0),
+      rating: (a, b) => marks.rating(a.path) - marks.rating(b.path),
+      // (Favourites together, in the order of the list they came from.)
+      fav: () => 0,
     };
     const value: Partial<Record<SortKey, (t: LibTrack) => string>> = {
       artist: artistOf,
@@ -74,6 +86,9 @@
       year: (t) => t.year ?? "",
       // (Not measured yet: last, like an empty tag.)
       dr: (t) => (drOf(t) == null ? "" : "x"),
+      // (No stars, no heart: after the ones that have them.)
+      rating: (t) => (marks.rating(t.path) ? "x" : ""),
+      fav: (t) => (marks.fav(t.path) ? "x" : ""),
     };
     const v = value[sortKey];
     return [...tracks].sort(
@@ -93,7 +108,8 @@
     if (sortKey === k) sortAsc = !sortAsc;
     else {
       sortKey = k;
-      sortAsc = k !== "duration" && k !== "format";
+      // Numbers start from the top: longest, best, most stars.
+      sortAsc = !["duration", "format", "rating"].includes(k);
     }
   }
 </script>
@@ -101,9 +117,16 @@
 <table class="tracks">
   <thead>
     <tr>
-      {#each columns as c (c)}
+      {#each shownColumns as c (c)}
         <th class={c} title={c === "dr" ? t("dyn.help") : undefined} aria-sort={sortable && sortKey === c ? (sortAsc ? "ascending" : "descending") : undefined}>
-          {#if sortable}
+          {#if c === "fav"}
+            <!-- the heart stands for its name; sorted by it, the favourites come first -->
+            {#if sortable}
+              <button onclick={() => ((sortKey = c), (sortAsc = true))} aria-label={t("col.fav")} title={t("col.fav")}><Heart size={13} on={sortKey === c} /></button>
+            {:else}
+              <span class="th" title={t("col.fav")}><Heart size={13} /></span>
+            {/if}
+          {:else if sortable}
             <button onclick={() => sortBy(c)}>
               {t(`col.${c}`)}{#if sortKey === c}<span class="arrow" aria-hidden="true">{sortAsc ? "▲" : "▼"}</span>{/if}
             </button>
@@ -119,7 +142,7 @@
     {#each sorted as tr, i (tr.path + i)}
       {@const off = dimmed?.(tr) ?? false}
       <tr class:current={tr.path === currentPath} class:off ondblclick={() => !off && onplay(sorted, i)} onclick={() => touch && !off && onplay(sorted, i)}>
-        {#each columns as c (c)}
+        {#each shownColumns as c (c)}
           <td class={c}>
             {#if c === "number"}
               {#if tr.path === currentPath}
@@ -147,6 +170,25 @@
             {:else if c === "dr"}
               {@const dr = drOf(tr)}
               <span class="num" class:none={dr == null}>{dr == null ? "–" : Math.round(dr)}</span>
+            {:else if c === "fav"}
+              {#if markable(tr.path)}
+                {@const on = marks.fav(tr.path)}
+                <button
+                  class="heart"
+                  class:on
+                  aria-pressed={on}
+                  aria-label={t(on ? "fav.removeNamed" : "fav.addNamed", { title: tr.title })}
+                  title={t(on ? "fav.remove" : "fav.add")}
+                  onclick={(e) => (e.stopPropagation(), setFavorite(tr.path, !on))}
+                  ondblclick={(e) => e.stopPropagation()}
+                >
+                  <Heart {on} size={15} />
+                </button>
+              {/if}
+            {:else if c === "rating"}
+              {#if markable(tr.path)}
+                <Stars value={marks.rating(tr.path)} label={t("rate.of", { title: tr.title })} onchange={(n) => setRating(tr.path, n)} />
+              {/if}
             {:else if c === "format"}
               <span class="fmt" class:hi={tr.hiRes} class:lossy={!tr.lossless}>
                 {tr.format}{tr.lossless && tr.sampleRate ? (tr.bits ? ` ${resolution(tr.bits, tr.sampleRate)}` : ` ${khz(tr.sampleRate)} ${t("unit.khz")}`) : ""}
@@ -268,6 +310,71 @@
   .none {
     color: var(--mist-dim);
   }
+  /* --- the listener's marks: stars, then the heart, beside the row's own buttons --- */
+  .rating {
+    width: 106px;
+  }
+  td.rating {
+    padding-block: 0;
+  }
+  .fav {
+    width: 34px;
+    text-align: center;
+  }
+  th.fav button,
+  th.fav .th {
+    display: grid;
+    place-items: center;
+    padding-inline: 0;
+    /* as tall as the headers made of words */
+    min-height: 37px;
+  }
+  td.fav {
+    padding: 0;
+    overflow: visible;
+  }
+  .heart {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 32px;
+    /* not a favourite: the outline waits out of sight until the row is pointed at */
+    color: transparent;
+  }
+  .heart.on {
+    color: var(--porcelain);
+  }
+  .heart:focus-visible {
+    color: var(--mist);
+    outline: 2px solid var(--porcelain);
+    outline-offset: -4px;
+    border-radius: var(--r-md);
+  }
+  .heart.on:focus-visible {
+    color: var(--porcelain);
+  }
+  @media (hover: hover) {
+    tr:hover .heart:not(.on) {
+      color: var(--mist-dim);
+    }
+    tr:hover .heart:not(.on):hover {
+      color: var(--porcelain);
+    }
+    /* the stars nobody gave show with the row, like the heart's outline */
+    tbody tr:not(:hover) td.rating :global(.stars:not(.rated):not(:focus-within)) {
+      visibility: hidden;
+    }
+  }
+  /* a touch screen has no pointer to reveal it: the outline is always there, faint */
+  @media (hover: none) {
+    .heart:not(.on) {
+      color: var(--slate-500);
+    }
+  }
+  /* the playing row is in the signal's colour; its marks stay the listener's own */
+  tr.current td .heart.on {
+    color: var(--porcelain);
+  }
   td.title {
     font-weight: 500;
   }
@@ -321,11 +428,18 @@
     .album,
     .year,
     .dr,
+    .rating,
     .format {
       display: none;
     }
     td {
       padding-block: 11px;
+    }
+    td.fav {
+      padding-block: 0;
+    }
+    .heart {
+      height: 42px;
     }
   }
 </style>

@@ -226,7 +226,11 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream, stop: &AtomicBool)
                 })
                 .collect();
             let output = state.current.lock().unwrap().as_ref().map(|c| c.device_uid.clone());
-            json_ok(conn, &json!({"status": status, "queue": queue, "index": index, "shuffle": shuffle, "repeat": repeat, "network": output.as_deref().is_some_and(hifi_engine::net::is_network_uid)}))?;
+            // The heart of what plays (null: not a library track, so it can't have one).
+            let favorite = crate::now_playing(app.state::<AppState>())
+                .filter(|n| known.contains_key(&n.path))
+                .map(|n| app.state::<crate::marks::Marks>().of(&n.path).fav);
+            json_ok(conn, &json!({"status": status, "queue": queue, "index": index, "shuffle": shuffle, "repeat": repeat, "favorite": favorite, "network": output.as_deref().is_some_and(hifi_engine::net::is_network_uid)}))?;
         }
         ("GET", "/api/now") => {
             let now = crate::now_playing(app.state::<AppState>());
@@ -267,6 +271,14 @@ fn handle(app: &AppHandle, token: &str, conn: &mut TcpStream, stop: &AtomicBool)
         }
         ("POST", "/api/do") => {
             let cmd: Value = serde_json::from_slice(&req.body).unwrap_or(Value::Null);
+            // The heart of what plays is kept here, not in the window: done at once.
+            if cmd["kind"] == "favorite" {
+                let done = crate::now_playing(app.state::<AppState>()).and_then(|n| crate::marks::remote_favorite(app, &n.path, cmd["on"].as_bool()));
+                return Ok(match done {
+                    Some(on) => json_ok(conn, &json!({"favorite": on}))?,
+                    None => http::respond(conn, "400 Bad Request", "application/json", &[], br#"{"error":"command"}"#)?,
+                });
+            }
             match checked(app, &cmd) {
                 Some(cmd) => {
                     let _ = app.emit("remote", cmd);

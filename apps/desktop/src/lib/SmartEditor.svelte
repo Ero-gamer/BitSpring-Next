@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { SmartField, SmartOp, SmartRule, SmartRules, SmartSort } from "./api";
   import { t } from "./i18n.svelte";
+  import { marks } from "./marks.svelte";
 
   let {
     name: startName,
@@ -18,6 +19,9 @@
     ["title", "text"],
     ["year", "number"],
     ["added", "days"],
+    ["favorite", "flag"],
+    ["albumFavorite", "flag"],
+    ["rating", "number"],
     ["hiRes", "flag"],
     ["lossless", "flag"],
     ["format", "text"],
@@ -37,7 +41,7 @@
     quality: ["is", "isNot"],
   };
   const QUALITY = ["genuine", "suspect", "unclear", "unchecked"];
-  const SORTS: SmartSort[] = ["album", "artist", "title", "year", "added", "duration", "random"];
+  const SORTS: SmartSort[] = ["album", "artist", "title", "year", "added", "duration", "favorited", "rating", "random"];
 
   // svelte-ignore state_referenced_locally
   let name = $state(startName);
@@ -52,6 +56,10 @@
   // svelte-ignore state_referenced_locally
   let limit = $state(start?.limit ?? 100);
 
+  // The stars are offered where the listener has them switched on — or already uses them here.
+  let fields = $derived(FIELDS.filter(([f]) => f !== "rating" || marks.ratings || rules.some((r) => r.field === "rating")));
+  let sorts = $derived(SORTS.filter((s) => s !== "rating" || marks.ratings || sort === "rating"));
+
   function setField(r: SmartRule, f: SmartField) {
     r.field = f;
     const k = kindOf(f);
@@ -59,6 +67,8 @@
     if (k === "quality") r.value = "suspect";
     else if (k === "days") r.value = r.value && /^\d+$/.test(r.value) ? r.value : "30";
     else if (k === "flag") r.value = "";
+    // "Rating" starts as "more than 3 stars": the list people come here for.
+    else if (f === "rating" && !/^[0-5]$/.test(r.value)) [r.op, r.value] = ["greater", "3"];
   }
 
   function add() {
@@ -100,7 +110,7 @@
         {@const k = kindOf(r.field)}
         <li>
           <select value={r.field} onchange={(e) => setField(r, e.currentTarget.value as SmartField)} aria-label={t("sp.field")}>
-            {#each FIELDS as [f] (f)}<option value={f}>{t(`sp.f.${f}`)}</option>{/each}
+            {#each fields as [f] (f)}<option value={f}>{t(`sp.f.${f}`)}</option>{/each}
           </select>
           <select bind:value={r.op} aria-label={t("sp.condition")}>
             {#each OPS[k] as o (o)}<option value={o}>{t(`sp.op.${o}`)}</option>{/each}
@@ -124,7 +134,7 @@
       <label>
         <span>{t("sp.sort")}</span>
         <select bind:value={sort}>
-          {#each SORTS as s (s)}<option value={s}>{t(`sp.sort.${s}`)}</option>{/each}
+          {#each sorts as s (s)}<option value={s}>{t(`sp.sort.${s}`)}</option>{/each}
         </select>
       </label>
       <label class="limit">

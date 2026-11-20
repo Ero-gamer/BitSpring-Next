@@ -247,6 +247,8 @@ impl Library {
                     again
                 };
                 lib.save(&app);
+                // Albums may have new ids (their tags were edited): the favourites follow.
+                crate::marks::after_scan(&app, &lib);
                 if !again {
                     break;
                 }

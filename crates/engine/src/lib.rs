@@ -13,6 +13,7 @@ pub mod fpu;
 pub mod library;
 pub mod lyrics;
 pub mod lossless;
+pub mod marks;
 pub mod net;
 pub mod output;
 pub mod player;
