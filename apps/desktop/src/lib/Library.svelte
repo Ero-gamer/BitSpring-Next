@@ -144,6 +144,12 @@
         : visibleAlbums,
   );
 
+  /** What the counter says: the list as it is shown, so a filter or a search is seen to work
+   *  (playlists are not the library's own list: there it stays the library's size). */
+  let shownCount = $derived(
+    view === "tracks" ? tn("lib.nTracks", visibleTracks.length) : view === "playlists" ? tn("lib.nAlbums", status?.albums ?? 0) : tn("lib.nAlbums", shelf.length),
+  );
+
   let currentAlbumId = $derived(tracks.find((t) => t.path === currentPath)?.albumId ?? null);
   let albumTracks = $derived(openAlbum ? openAlbum.tracks.map((i) => tracks[i]).filter(Boolean) : []);
 
@@ -487,7 +493,7 @@
         {#if status?.scanning}
           {t("lib.scanning", { done: num(status.scanning[0]), total: num(status.scanning[1]) })}
         {:else if status}
-          {tn("lib.nAlbums", status.albums)}
+          {shownCount}
         {/if}
       </button>
       {#if foldersOpen && status}
