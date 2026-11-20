@@ -8,6 +8,7 @@ pub mod fir;
 pub mod loudness;
 pub mod lossy;
 pub mod resample;
+pub mod upsample;
 
 use std::sync::Arc;
 

@@ -12,6 +12,8 @@ roxmltree = "0.21.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1"
 rustfft = "6.4.1"
+# Real-input FFTs on top of rustfft (MIT): half the work and memory of the long upsampling filters.
+realfft = "3.5.1"
 # CUE sheets name files in NFC; macOS file names are often NFD ("й" as "и" + breve).
 unicode-normalization = "0.1"
 # Writing tags (the tag editor). Reading stays with symphonia.
