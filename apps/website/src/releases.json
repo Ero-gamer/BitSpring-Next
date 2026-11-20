@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.22.0",
+    "name": "BitSpring 0.22.0",
+    "date": "2026-11-20T19:15:37Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.22.0",
+    "notes": "- **A choice of upsampling filter.** With upsampling switched on, Enhancers now offers four filters: the standard one, long linear-phase and minimum-phase filters, and an apodizing one. Each has a line saying what it does.\n- **Long filters: 64 thousand or a million taps.** They cut exactly at the recording's own limit (22.05 kHz for a CD) and are 150 dB down from there, with a transition 13 Hz wide at 64k taps and under 1 Hz at 1M. The standard filter is about 100 dB down with a transition 2 kHz wide. Linear phase rings equally before and after a transient; minimum phase has the same response and rings only after it.\n- **Apodizing filter.** Short, with its cut a little lower (20 to 21 kHz for a CD): it removes the ringing a mastering filter left near the limit and rings only after a transient.\n- **The signal path names the filter**: \"44.1 → 352.8 kHz, linear phase, 1M\". While a long filter plays, Enhancers shows the processor load, about 1% of one core on a recent computer.\n- **If the processor can't keep up**, the player moves to a shorter filter by itself, plays on from the same place and says so in Enhancers.\n- **Blind test of the filter.** \"Compare with the standard filter, blind\" under the filter: the playing track resampled to the rate the DAC already runs at, once with each filter, then A, B and an X that is one of them, and the odds that you were guessing. Do you hear a million taps?\n- Gapless playback and seeking work through the long filters as before. Phones get the 64k length.\n- Nothing changes until you ask: with upsampling off the player stays bit-perfect."
+  },
+  {
     "version": "0.21.1",
     "name": "BitSpring 0.21.1",
     "date": "2026-11-20T10:31:18Z",
