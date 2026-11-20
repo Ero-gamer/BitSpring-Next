@@ -2,6 +2,7 @@
 //! takes the untouched bit-perfect path and none of this code runs.
 
 pub mod crossfeed;
+pub mod dsd_encode;
 pub mod eq;
 pub mod eq_io;
 pub mod fir;
