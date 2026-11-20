@@ -23,11 +23,36 @@
   let ready = $derived(prepared !== null && !prepared.identical);
   let khz = (hz: number) => num(hz / 1000, { maximumFractionDigits: 1 });
 
+  /** A side's filter by its names in the panel: "Linear phase, 1M"; the standard one for none. */
+  function filterName(f: AbxPrepared["a"]["filter"]): string {
+    if (!f) return t("enh.filter.standard");
+    const name = t(`enh.filter.${f.kind}`);
+    if (f.kind === "apodizing") return name;
+    const length = f.taps === 65536 || f.taps === 1048576 ? t(`enh.len.${f.taps}`) : num(f.taps);
+    return `${name}, ${length}`;
+  }
+
+  /** `text` with `name` in it: a name that ends with an abbreviation's dot ("1 Mio.") ends
+   *  the sentence with that dot, not a second one. */
+  function ending(text: string, name: string): string {
+    return name.endsWith(".") ? text.replace(`${name}.`, name) : text;
+  }
+
   /** What was done to make the two comparable, in the order it matters to a listener. */
   let notes = $derived.by(() => {
     const p = prepared;
     if (!p) return [];
     const out: string[] = [];
+    if (request.kind === "filters") {
+      // The same track at the same rate, lined up and equally loud by construction: what
+      // differs is the filter, and any gain is the same on both.
+      const b = filterName(p.b.filter);
+      out.push(ending(t("abx.n.filters", { from: khz(p.a.rate), to: khz(p.rate), filter: b }), b));
+      if (p.a.gainDb < -0.01) out.push(t("abx.n.filtersGain", { db: num(-p.a.gainDb, { maximumFractionDigits: 1 }) }));
+      if (p.shortened) out.push(t("abx.n.short", { time: clock(p.seconds) }));
+      out.push(t("abx.n.fade"));
+      return out;
+    }
     if (request.kind === "processing") out.push(t("abx.n.processing"));
     if (p.a.resampled || p.b.resampled) {
       const side = p.a.resampled ? p.a : p.b;
@@ -156,14 +181,20 @@
     </header>
 
     <dl class="sides">
-      <div><dt>A</dt><dd>{request.kind === "files" ? request.aName : t("abx.asIs")}</dd></div>
-      <div><dt>B</dt><dd>{request.kind === "files" ? request.bName : t("abx.processed")}</dd></div>
+      {#if request.kind === "filters"}
+        <!-- Which filter is which is known from the start: the test is about X. -->
+        <div><dt>A</dt><dd>{t("abx.filter", { filter: filterName(null) })}</dd></div>
+        <div><dt>B</dt><dd>{prepared ? t("abx.filter", { filter: filterName(prepared.b.filter) }) : t("abx.longFilter")}</dd></div>
+      {:else}
+        <div><dt>A</dt><dd>{request.kind === "files" ? request.aName : t("abx.asIs")}</dd></div>
+        <div><dt>B</dt><dd>{request.kind === "files" ? request.bName : t("abx.processed")}</dd></div>
+      {/if}
     </dl>
 
     {#if error}
       <p class="state bad" role="alert">{t("abx.failed", { error })}</p>
     {:else if !prepared}
-      <p class="state" role="status">{t("abx.preparing")}</p>
+      <p class="state" role="status">{t(request.kind === "filters" ? "abx.preparingFilters" : "abx.preparing")}</p>
       <div class="wait" aria-hidden="true"></div>
     {:else if prepared.identical}
       <p class="state">{t("abx.identical")}</p>

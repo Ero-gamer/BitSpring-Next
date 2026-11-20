@@ -374,11 +374,27 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       mockAbx = { total: (args.trials as number) ?? 16, answers: [], xIsA: Math.random() < 0.5 };
       started = performance.now(); paused = false; pausedAt = 0; duration = 204;
       const files = args.kind === "files";
+      if (args.kind === "filters") {
+        // Like the app: the rate and the long filter of what plays now.
+        const sig = mockNow && mockNow.path === args.a ? mockNow.signal : null;
+        if (!sig?.upsampleFilter) throw { code: "abxNoFilter" };
+        duration = 95;
+        const side = (filter: { kind: string; taps: number } | null) => ({ rate: sig.sourceRate, bits: sig.sourceBits, resampled: true, gainDb: -0.4, filter });
+        return {
+          prepared: {
+            rate: sig.deviceRate,
+            a: side(null),
+            b: side({ kind: sig.upsampleFilter, taps: sig.upsampleTaps ?? 1024 }),
+            offsetMs: 0, likeness: 0.9999, seconds: 95, shortened: true, identical: false,
+          },
+          trials: mockAbx.total,
+        } as T;
+      }
       return {
         prepared: {
           rate: files ? 96000 : 44100,
-          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0 },
-          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0 },
+          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0, filter: null },
+          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0, filter: null },
           offsetMs: files ? 23 : 0.4, likeness: 0.97, seconds: 204, shortened: files, identical: false,
         },
         trials: mockAbx.total,

@@ -5,7 +5,10 @@ export type AbxRequest =
   /** Two files of the same music. */
   | { kind: "files"; a: string; b: string; title: string; aName: string; bName: string }
   /** One file as it is (A) against the same file through the processing (B). */
-  | { kind: "processing"; a: string; title: string };
+  | { kind: "processing"; a: string; title: string }
+  /** The playing track upsampled to the DAC's rate with the standard filter (A) and with the
+   *  long filter playing it (B). */
+  | { kind: "filters"; a: string; title: string };
 
 export const abx = $state({ request: null as AbxRequest | null });
 

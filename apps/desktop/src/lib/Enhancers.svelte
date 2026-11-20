@@ -54,6 +54,14 @@
     open = false;
     startAbx({ kind: "processing", a: track.path, title: track.title });
   }
+  // The long filter against the standard one: only while one plays this track (the test
+  // takes its rate and filter from what plays).
+  let canTestFilter = $derived(!!track && !/^(qobuz|tidal):/.test(track.path) && !!signal?.upsampleFilter);
+  function filterTest() {
+    if (!track) return;
+    open = false;
+    startAbx({ kind: "filters", a: track.path, title: track.title });
+  }
 
   const UPSAMPLE: (number | null)[] = [null, 192, 384, 768];
   const CROSSFEED: (Crossfeed | null)[] = [null, "light", "medium", "strong"];
@@ -199,6 +207,10 @@
               <p class="help notice" role="status">
                 {stepped.filter && stepped.taps ? shortened(stepped.taps) : t("enh.stepStandard")}
               </p>
+            {/if}
+            {#if canTestFilter}
+              <button class="load" onclick={filterTest}>{t("enh.abxFilter")}</button>
+              <p class="help">{t("enh.abxFilterHelp")}</p>
             {/if}
           </div>
         {/if}
