@@ -10,6 +10,11 @@
 //!
 //! The DoP track keeps the raw bits in RAM (1x the file size); the IOProc adds the markers on
 //! the fly, so they stay continuous through seeks and pauses.
+//!
+//! The other way round, PCM can go out as DSD too: the render thread encodes it
+//! ([`crate::dsp::dsd_encode`], when `DspSettings::dsd_out` is set and the DAC takes DoP at
+//! the wire rate) and the callback packs the words it makes exactly as it packs a DSD
+//! track's, under the same running markers.
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
