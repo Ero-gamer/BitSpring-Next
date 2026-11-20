@@ -223,6 +223,10 @@ impl Player {
     pub fn underruns(&self) -> u64 {
         each!(self, p => p.underruns())
     }
+    /// The processing's share of a core (see [`output::Playback::load`]).
+    pub fn load(&self) -> Option<f32> {
+        each!(self, p => p.load())
+    }
     pub fn is_buffering(&self) -> bool {
         each!(self, p => p.is_buffering())
     }

@@ -28,6 +28,7 @@ mod queue;
 mod remote;
 mod remote_api;
 mod ripcheck;
+mod upsampling;
 /// Qobuz and TIDAL: the real thing outside the App Store, a stand-in inside it.
 #[cfg_attr(all(feature = "streaming", not(target_os = "ios")), path = "stream_on.rs")]
 #[cfg_attr(not(all(feature = "streaming", not(target_os = "ios"))), path = "stream_off.rs")]
@@ -59,6 +60,7 @@ use hifi_engine::dsp::crossfeed::CrossfeedLevel;
 use hifi_engine::dsp::fir::ImpulseResponse;
 use hifi_engine::dsp::lossy::LossySettings;
 use hifi_engine::dsp::loudness::{Basis, LevelMode, LevelSettings};
+use hifi_engine::dsp::upsample;
 use hifi_engine::dsp::{Convolution, DspSettings, Upsample};
 use hifi_engine::dsd::{self, DsdMode};
 use hifi_engine::{Track, UserError, open_file_at, testsignal};
@@ -130,6 +132,10 @@ struct AppState {
     lined_up: Mutex<Vec<LinedUp>>,
     /// The queue entry (index, path) that failed to open ahead: not tried again every tick.
     line_up_failed: Mutex<Option<(usize, String)>>,
+    /// The last automatic step down of the upsampling filter (see `step_down_filter`), until
+    /// the UI sends settings of its own.
+    filter_step: Mutex<Option<upsampling::FilterStep>>,
+    filter_step_seq: AtomicU64,
 }
 
 /// A queue entry opened ahead of time, to join on after the current track (gapless).
@@ -276,6 +282,11 @@ struct SignalDto {
     layout: String,
     /// A multichannel source folded down to the device's speakers.
     downmix: Option<DownmixDto>,
+    /// The long upsampling filter that runs ("linear", "minimum", "apodizing"); None = the
+    /// standard resampler, or no upsampling.
+    upsample_filter: Option<String>,
+    /// Its length in taps (None for apodizing).
+    upsample_taps: Option<u32>,
     bit_perfect: bool,
 }
 
@@ -288,6 +299,7 @@ struct DownmixDto {
 
 impl From<&SignalPath> for SignalDto {
     fn from(p: &SignalPath) -> Self {
+        let (upsample_filter, upsample_taps) = upsampling::names(p.upsample_filter);
         Self {
             source_rate: p.source_rate,
             source_bits: p.source_bits,
@@ -314,6 +326,8 @@ impl From<&SignalPath> for SignalDto {
             dsd_note: None,
             layout: p.layout.clone(),
             downmix: p.downmix.as_ref().map(|d| DownmixDto { to: d.to.clone(), gain_db: d.gain_db }),
+            upsample_filter,
+            upsample_taps,
             bit_perfect: p.bit_perfect,
         }
     }
@@ -363,6 +377,10 @@ struct StatusDto {
     advance_error: Option<AdvanceError>,
     /// System volume 0…1 where the OS may scale our samples with it (iOS); else None.
     system_volume: Option<f32>,
+    /// The processing's share of one core (0 until measured); None on the direct path.
+    load: Option<f32>,
+    /// The upsampling filter was stepped down because the processor couldn't keep up.
+    filter_step: Option<upsampling::FilterStep>,
 }
 
 #[derive(Serialize)]
@@ -853,8 +871,18 @@ fn release_if_still_finished(state: &AppState) {
     }
 }
 
-/// How long before the end of a track the next one in the queue is opened and lined up.
+/// How long before the end of a track the next one in the queue is opened and lined up
+/// (more behind a long upsampling filter: see [`line_up_before`]).
 const LINE_UP_BEFORE: f64 = 20.0;
+
+/// [`LINE_UP_BEFORE`] for what plays now: a long filter makes the render thread run ahead of
+/// what is heard by the input it holds back, so the next track is wanted that much earlier.
+fn line_up_before(state: &AppState) -> f64 {
+    let playing = player_now(state).and_then(|g| g.as_ref().and_then(|p| p.path.upsample_filter.map(|f| (f, p.path.source_rate))));
+    // (Without the player's lock: the filter's figures may have to be fetched.)
+    let extra = playing.map_or(0.0, |(spec, rate)| upsampling::line_up_extra(Some(upsampling::startup_frames(spec)), rate));
+    LINE_UP_BEFORE + extra
+}
 
 /// The gapless half of the queue: notice when the player has moved on to a lined-up track by
 /// itself (and show it), and line up the next one as the current track nears its end.
@@ -863,7 +891,8 @@ fn follow_queue(state: &AppState) {
         let _one = state.play_lock.lock().unwrap();
         took_over(state);
     }
-    let Some(want) = wanted_next(state) else { return };
+    let before = line_up_before(state);
+    let Some(want) = wanted_next(state, before) else { return };
     let known = state.lined_up.lock().unwrap().iter().find(|l| l.index == want.index && l.path == want.path).map(|l| (l.track.clone(), l.refused));
     let track = match known {
         Some((_, true)) => return,
@@ -919,7 +948,7 @@ struct WantNext {
     dop: bool,
 }
 
-fn wanted_next(state: &AppState) -> Option<WantNext> {
+fn wanted_next(state: &AppState, before: f64) -> Option<WantNext> {
     // A track starting right now: look again next time.
     let _one = state.play_lock.try_lock().ok()?;
     let player = state.player.lock().unwrap();
@@ -949,7 +978,7 @@ fn wanted_next(state: &AppState) -> Option<WantNext> {
         }
         p.clear_next();
     }
-    if p.duration_secs() - p.position_secs() > LINE_UP_BEFORE {
+    if p.duration_secs() - p.position_secs() > before {
         return None;
     }
     Some(WantNext { index, path, device_uid, exclusive, dop })
@@ -1041,7 +1070,7 @@ fn channel_test(state: State<'_, AppState>, device_uid: String) -> CmdResult<Sig
 
 impl StatusDto {
     /// Nothing loaded.
-    fn idle(queue_index: Option<usize>, now_rev: u64, advance_error: Option<AdvanceError>, system_volume: Option<f32>) -> Self {
+    fn idle(queue_index: Option<usize>, now_rev: u64, advance_error: Option<AdvanceError>, system_volume: Option<f32>, filter_step: Option<upsampling::FilterStep>) -> Self {
         Self {
             active: false,
             position: 0.0,
@@ -1057,6 +1086,8 @@ impl StatusDto {
             now_rev,
             advance_error,
             system_volume,
+            load: None,
+            filter_step,
         }
     }
 }
@@ -1067,13 +1098,14 @@ fn status(state: State<'_, AppState>) -> StatusDto {
     let now_rev = state.now_rev.load(Ordering::Acquire);
     let advance_error = state.advance_error.lock().unwrap().clone();
     let system_volume = output::system_volume();
+    let filter_step = state.filter_step.lock().unwrap().clone();
     let Some(player) = player_now(&state) else {
         // A track is starting: the last answer, as waiting for audio (and not finished: what
         // was finished is being replaced).
         let last = state.last_status.lock().unwrap().clone();
         return match last {
-            Some(s) => StatusDto { buffering: true, finished: false, queue_index, now_rev, advance_error, system_volume, ..s },
-            None => StatusDto { buffering: true, ..StatusDto::idle(queue_index, now_rev, advance_error, system_volume) },
+            Some(s) => StatusDto { buffering: true, finished: false, queue_index, now_rev, advance_error, system_volume, filter_step, ..s },
+            None => StatusDto { buffering: true, ..StatusDto::idle(queue_index, now_rev, advance_error, system_volume, filter_step) },
         };
     };
     let s = match player.as_ref() {
@@ -1092,8 +1124,10 @@ fn status(state: State<'_, AppState>) -> StatusDto {
             now_rev,
             advance_error,
             system_volume,
+            load: p.load(),
+            filter_step,
         },
-        None => StatusDto::idle(queue_index, now_rev, advance_error, system_volume),
+        None => StatusDto::idle(queue_index, now_rev, advance_error, system_volume, filter_step),
     };
     drop(player);
     *state.last_status.lock().unwrap() = Some(s.clone());
@@ -1166,6 +1200,8 @@ async fn set_dsp(
     restore_highs: Option<bool>,
     level: Option<String>,
     peak_headroom: Option<bool>,
+    upsample_filter: Option<String>,
+    upsample_taps: Option<u32>,
 ) -> CmdResult<DspResult> {
     use tauri::Manager;
     let state = app.state::<AppState>();
@@ -1185,6 +1221,12 @@ async fn set_dsp(
         }
         None => None,
     };
+    // A long filter is designed once and kept; the longest minimum-phase one takes about half a
+    // second the first time: that too off the IPC thread, before the restart needs it.
+    let filter = upsampling::parse(upsample_filter.as_deref(), upsample_taps);
+    if let Some(spec) = filter.filter(|_| upsample_khz.is_some()) {
+        tauri::async_runtime::spawn_blocking(move || drop(upsample::filter(spec))).await.map_err(err)?;
+    }
     let ir_dto = ir.as_ref().map(|r| IrDto {
         name: r.name.clone(),
         channels: r.channels.len(),
@@ -1193,6 +1235,7 @@ async fn set_dsp(
     });
     *state.dsp.lock().unwrap() = DspSettings {
         upsample: upsample_khz.map_or(Upsample::Off, |k| Upsample::UpTo(k * 1000.0)),
+        upsample_filter: filter,
         eq: None,
         eq_bypass: false,
         convolution: ir.map(Convolution),
@@ -1208,6 +1251,8 @@ async fn set_dsp(
             headroom: peak_headroom.unwrap_or(false),
         },
     };
+    // The UI's own choice now: an earlier automatic step is no longer news.
+    *state.filter_step.lock().unwrap() = None;
     // What was lined up carries a gain from the old settings: it is opened again.
     state.lined_up.lock().unwrap().clear();
     let signal = restart(&state)?;
@@ -1260,6 +1305,51 @@ fn restart_locked(state: &AppState, at: Option<f64>) -> CmdResult<Option<SignalD
         now.signal = signal.clone();
     }
     Ok(Some(signal))
+}
+
+/// How often the queue thread asks whether the upsampling filter is too heavy.
+const FILTER_CHECK_EVERY: Duration = Duration::from_secs(3);
+
+/// The processor can't keep up with the long upsampling filter that plays: put the next
+/// cheaper one in the settings (2^20 → 2^16 taps → the standard resampler), restart in place
+/// with it, and record the step for the UI to show and adopt. Runs on the queue thread, so it
+/// works with no window to ask; never while a track is starting or restarting.
+fn step_down_filter(state: &AppState) {
+    let playing = {
+        let Ok(_one) = state.play_lock.try_lock() else { return };
+        let player = state.player.lock().unwrap();
+        let Some(p) = player.as_ref() else { return };
+        // A debug build run with BITSPRING_TRACE says what the filter is doing.
+        if cfg!(debug_assertions) && std::env::var_os("BITSPRING_TRACE").is_some() {
+            eprintln!("filter {:?}, {} → {} Hz, load {:?}, underruns {}, at {:.1} s", p.path.upsample_filter, p.path.source_rate, p.path.device_rate, p.load(), p.underruns(), p.position_secs());
+        }
+        if p.is_finished() || !upsampling::should_step_down(p.load(), p.underruns(), p.path.upsample_filter.is_some()) {
+            return;
+        }
+        p.path.upsample_filter
+    };
+    let Some(playing) = playing else { return };
+    let next = playing.shorter();
+    // Designed (or fetched) with no lock held.
+    if let Some(spec) = next {
+        drop(upsample::filter(spec));
+    }
+    let Ok(_one) = state.play_lock.try_lock() else { return };
+    // Still the same filter playing, and still the one the settings ask for? Settings sent
+    // meanwhile restart playback themselves.
+    let same = state.player.lock().unwrap().as_ref().is_some_and(|p| p.path.upsample_filter == Some(playing));
+    {
+        let mut dsp = state.dsp.lock().unwrap();
+        if !same || dsp.upsample_filter.map(|f| f.effective()) != Some(playing) {
+            return;
+        }
+        dsp.upsample_filter = next;
+    }
+    let (filter, taps) = upsampling::names(next);
+    let seq = state.filter_step_seq.fetch_add(1, Ordering::AcqRel) + 1;
+    *state.filter_step.lock().unwrap() = Some(upsampling::FilterStep { seq, filter, taps });
+    // (A failure shows as the next status's error, as for any restart.)
+    let _ = restart_locked(state, None);
 }
 
 /// The EQ settings changed: apply them to what plays — live when the engine can take them
@@ -1372,9 +1462,14 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::Builder::new().name("hifi-queue".into()).spawn(move || {
                 let mut ended: Option<std::time::Instant> = None;
+                let mut filter_checked = std::time::Instant::now();
                 loop {
                     std::thread::sleep(Duration::from_millis(40));
                     let state = handle.state::<AppState>();
+                    if filter_checked.elapsed() >= FILTER_CHECK_EVERY {
+                        filter_checked = std::time::Instant::now();
+                        step_down_filter(&state);
+                    }
                     follow_queue(&state);
                     if advance(&state) {
                         let since = *ended.get_or_insert_with(std::time::Instant::now);

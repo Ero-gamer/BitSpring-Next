@@ -18,11 +18,20 @@ pub struct ResampleQuality {
     pub kaiser_beta: f64,
     /// Pass band edge as a fraction of the lower Nyquist (0.91 → flat to ~20 kHz at 44.1k).
     pub passband: f64,
+    /// Stop band edge as a fraction of the lower Nyquist. 1.0 for a general-purpose filter:
+    /// nothing may pass above the lower Nyquist. Above 1.0 only when the input is known to be
+    /// empty from `2 − stopband` up (then the transition band can be that much wider).
+    pub stopband: f64,
 }
 
 impl ResampleQuality {
     /// Flat to 91% of Nyquist (20 kHz at 44.1k), ~100 dB down from Nyquist on.
-    pub const HIGH: Self = Self { taps: 160, kaiser_beta: 10.0, passband: 0.91 };
+    pub const HIGH: Self = Self { taps: 160, kaiser_beta: 10.0, passband: 0.91, stopband: 1.0 };
+    /// After the ×2 stage of [`super::upsample`] (upsampling only: output rate ≥ input): its
+    /// output holds nothing above half its own Nyquist, so the first image is at 1.5× that
+    /// Nyquist, and the band between is free for the transition. Flat to 0.5 (±4·10⁻⁸ dB), at
+    /// least 170 dB down from 1.5 (measured), in 32 taps: a fifth of `HIGH`'s work.
+    pub const AFTER_DOUBLING: Self = Self { taps: 32, kaiser_beta: 18.0, passband: 0.5, stopband: 1.5 };
 }
 
 fn gcd(a: u64, b: u64) -> u64 {
@@ -73,8 +82,8 @@ impl Resampler {
         let taps = q.taps;
         let n = taps * l;
         // A windowed sinc's cut-off is its −6 dB point, so put it midway through the transition
-        // band (pass-band edge → lower Nyquist), in cycles per sample of the virtual rate.
-        let fc = (q.passband + 1.0) / 2.0 * 0.5 * (1.0f64).min(l as f64 / m as f64) / l as f64;
+        // band (pass-band edge → stop-band edge), in cycles per sample of the virtual rate.
+        let fc = (q.passband + q.stopband) / 2.0 * 0.5 * (1.0f64).min(l as f64 / m as f64) / l as f64;
         // Centre on a whole virtual sample (index n/2) so the delay is an exact integer.
         let centre = (n / 2) as f64;
         let i0_beta = bessel_i0(q.kaiser_beta);
@@ -244,5 +253,120 @@ mod tests {
         let y = run(&x, 44_100, 88_200);
         let peak = y.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0;
         assert!((peak as i64 - 2000).abs() <= 1, "peak at {peak}");
+    }
+
+    /// The polyphase bank as it was built before the stop-band edge became a setting: the
+    /// stop band from the lower Nyquist, so the cut-off midway between `passband` and 1.
+    fn bank_as_before(in_rate: u32, out_rate: u32, q: ResampleQuality) -> Vec<Vec<f64>> {
+        let g = gcd(in_rate as u64, out_rate as u64);
+        let (l, m) = ((out_rate as u64 / g) as usize, (in_rate as u64 / g) as usize);
+        let n = q.taps * l;
+        let fc = (q.passband + 1.0) / 2.0 * 0.5 * (1.0f64).min(l as f64 / m as f64) / l as f64;
+        let centre = (n / 2) as f64;
+        let i0_beta = bessel_i0(q.kaiser_beta);
+        let mut proto: Vec<f64> = (0..n)
+            .map(|i| {
+                let t = i as f64 - centre;
+                let sinc = if t == 0.0 { 2.0 * fc } else { (2.0 * PI * fc * t).sin() / (PI * t) };
+                let r = t / centre;
+                let w = bessel_i0(q.kaiser_beta * (1.0 - r * r).max(0.0).sqrt()) / i0_beta;
+                sinc * w
+            })
+            .collect();
+        let sum: f64 = proto.iter().sum();
+        proto.iter_mut().for_each(|c| *c *= l as f64 / sum);
+        (0..l).map(|p| (0..q.taps).map(|k| proto[k * l + p]).rev().collect()).collect()
+    }
+
+    /// `HIGH` builds exactly the coefficients it built before the stop-band edge became a
+    /// setting: everything that already resampled sounds the same, bit for bit. (Compared
+    /// with the earlier formula worked out here, not with numbers written down: the last bit
+    /// of a sine differs from one platform's maths library to the next.)
+    #[test]
+    fn high_quality_is_unchanged() {
+        for (from, to) in [(44_100, 48_000), (44_100, 88_200), (352_800, 176_400), (44_100, 352_800), (96_000, 44_100)] {
+            let r = Resampler::new(from, to, 1, ResampleQuality::HIGH);
+            let before = bank_as_before(from, to, ResampleQuality::HIGH);
+            assert_eq!(r.bank.len(), before.len(), "{from} → {to}");
+            let same = r.bank.iter().flatten().zip(before.iter().flatten()).all(|(a, b)| a.to_bits() == b.to_bits());
+            assert!(same, "{from} → {to}: the coefficients changed");
+        }
+    }
+
+    /// Worst pass-band deviation (dB, to `passband`) and highest stop-band level (dB, from
+    /// `stopband` to the virtual Nyquist) of the prototype filter, from its coefficients.
+    fn worst_response(from: u32, to: u32, q: ResampleQuality) -> (f64, f64) {
+        let r = Resampler::new(from, to, 1, q);
+        let (l, taps) = (r.l, r.taps);
+        let mut h = vec![0.0; taps * l];
+        for (p, phase) in r.bank.iter().enumerate() {
+            for (k, &c) in phase.iter().rev().enumerate() {
+                h[k * l + p] = c;
+            }
+        }
+        // Frequencies as fractions of the input Nyquist: f cycles per virtual sample = x / (2l).
+        let gain = |x: f64| {
+            let w = PI * x / l as f64;
+            let (re, im) = h.iter().enumerate().fold((0.0, 0.0), |(re, im), (i, &c)| (re + c * (w * i as f64).cos(), im - c * (w * i as f64).sin()));
+            20.0 * (re.hypot(im) / l as f64).log10()
+        };
+        let steps = 4000;
+        let ripple = (0..=steps).map(|i| gain(q.passband * i as f64 / steps as f64).abs()).fold(0.0, f64::max);
+        let top = l as f64;
+        let stop = (0..=steps * 8).map(|i| gain(q.stopband + (top - q.stopband) * i as f64 / (steps * 8) as f64)).fold(-400.0, f64::max);
+        (ripple, stop)
+    }
+
+    /// A tone at 0.45 × the input Nyquist (what the ×2 stage lets through: everything below
+    /// half its Nyquist) through `AFTER_DOUBLING`: (its gain in dB, everything else in the
+    /// output — every image, folded or not — in dB below it). One second of output in the
+    /// middle, on which the tone and every image (whole numbers of Hz) make whole cycles, so a
+    /// projection onto the tone separates it exactly.
+    fn after_doubling(from: u32, to: u32, q: ResampleQuality) -> (f64, f64) {
+        let f = 0.45 * from as f64 / 2.0;
+        let x = sine(f, from as f64, from as usize * 3, 0.5);
+        let mut r = Resampler::new(from, to, 1, q);
+        let mut y = Vec::new();
+        r.process(&x, &mut y);
+        let n = to as usize;
+        let seg = &y[n..2 * n];
+        let w = 2.0 * PI * f / to as f64;
+        let (mut a, mut b) = (0.0, 0.0);
+        for (i, v) in seg.iter().enumerate() {
+            let t = (n + i) as f64;
+            a += v * (w * t).sin();
+            b += v * (w * t).cos();
+        }
+        let (a, b) = (2.0 * a / n as f64, 2.0 * b / n as f64);
+        let rest = seg.iter().enumerate().map(|(i, v)| {
+            let t = (n + i) as f64;
+            let e = v - a * (w * t).sin() - b * (w * t).cos();
+            e * e
+        });
+        let rest_rms = (rest.sum::<f64>() / n as f64).sqrt();
+        let amp = a.hypot(b);
+        (20.0 * (amp / 0.5).log10(), 20.0 * (amp / std::f64::consts::SQRT_2 / rest_rms).log10())
+    }
+
+    #[test]
+    fn after_doubling_keeps_the_band_and_rejects_every_image() {
+        for (from, to) in [(88_200, 176_400), (88_200, 352_800), (88_200, 705_600), (88_200, 96_000)] {
+            let q = ResampleQuality::AFTER_DOUBLING;
+            let (gain, rejection) = after_doubling(from, to, q);
+            let (ripple, stop) = worst_response(from, to, q);
+            println!("AFTER_DOUBLING {from} → {to}: tone at 0.45·fN {gain:+.2e} dB, all else {rejection:.1} dB down; filter: ±{ripple:.1e} dB to 0.5·fN, {:.1} dB from 1.5·fN", -stop);
+            assert!(gain.abs() <= 0.0001 && ripple <= 0.0001, "{from} → {to}: {gain} dB, ripple {ripple} dB");
+            assert!(rejection >= 150.0 && stop <= -150.0, "{from} → {to}: images only {rejection:.1} dB down, stop band {stop:.1} dB");
+        }
+        // Time-aligned like any other quality: an impulse at input frame 1000 peaks at 1000 × ratio.
+        let mut x = vec![0.0; 4_000];
+        x[1000] = 1.0;
+        for (to, want) in [(176_400, 2000.0), (352_800, 4000.0), (705_600, 8000.0), (96_000, 1000.0 * 96.0 / 88.2)] {
+            let mut r = Resampler::new(88_200, to, 1, ResampleQuality::AFTER_DOUBLING);
+            let mut y = Vec::new();
+            r.process(&x, &mut y);
+            let peak = y.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0;
+            assert!((peak as f64 - want).abs() <= 1.0, "88.2 → {to}: peak at {peak}, want {want}");
+        }
     }
 }

@@ -42,7 +42,7 @@
   "enhance.title": "Chcesz innego brzmienia? Proszę bardzo",
   "enhance.lede": "Ulepszenia są domyślnie wyłączone. Włącz dowolne, a wskaźnik w odtwarzaczu zmieni się z „Bit-perfect” na „Przetwarzanie” i pokaże dokładnie, co dzieje się z dźwiękiem.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Do 192, 384 lub 768 kHz, dla przetworników, które lepiej grają przy wysokich częstotliwościach.",
+  "enhance.upsampling_detail": "Do 192, 384 lub 768 kHz, dla przetworników, które lepiej grają przy wysokich częstotliwościach. Filtr do wyboru: standardowy, liniowofazowy lub minimalnofazowy o długości do miliona współczynników albo apodyzacyjny.",
   "enhance.eq": "Korektor",
   "enhance.eq_detail": "Wczytaj profil AutoEQ dla swoich słuchawek. Filtry są liczone z 64-bitową precyzją.",
   "enhance.crossfeed": "Crossfeed",

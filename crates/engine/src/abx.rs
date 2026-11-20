@@ -19,6 +19,10 @@
 //!
 //! Each then sits in memory as a track of its own, and the player swaps one for the other
 //! in mid-note ([`crate::output::Playback::swap`]).
+//!
+//! Filter against filter ([`of_filters`]) is the exception: both are the same file upsampled
+//! to the same rate, so they are lined up and equally loud by construction, and neither is
+//! searched for or matched.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -26,11 +30,12 @@ use std::sync::Arc;
 use anyhow::{Result, bail};
 use serde::Serialize;
 
-use crate::decode::{Track, TrackMeta};
+use crate::decode::{CHUNK_FRAMES, Track, TrackMeta};
 use crate::dsd::DsdMode;
 use crate::dsp::loudness::{Basis, CEILING, Level, LevelMode, LevelSettings, Meter};
 use crate::dsp::resample::{self, ResampleQuality, Resampler};
-use crate::dsp::{DspSettings, Upsample};
+use crate::dsp::upsample::{FilterKind, FilterSpec};
+use crate::dsp::{Chain, DspSettings, Upsample};
 use crate::UserError;
 
 /// The most audio held per side: longer music is compared over its beginning.
@@ -66,6 +71,24 @@ pub struct Side {
     pub resampled: bool,
     /// Turned down by this much to match the other (0 or negative), dB.
     pub gain_db: f64,
+    /// Filter against filter: the long filter it was upsampled with (None: the standard one,
+    /// or not that test). As the app names it: `{ kind: "linear", taps: 1048576 }`.
+    #[serde(serialize_with = "filter_json")]
+    pub filter: Option<FilterSpec>,
+}
+
+fn filter_json<S: serde::Serializer>(filter: &Option<FilterSpec>, s: S) -> std::result::Result<S::Ok, S::Error> {
+    #[derive(Serialize)]
+    struct Named {
+        kind: &'static str,
+        taps: usize,
+    }
+    let kind = |k| match k {
+        FilterKind::Linear => "linear",
+        FilterKind::Minimum => "minimum",
+        FilterKind::Apodizing => "apodizing",
+    };
+    filter.map(|f| Named { kind: kind(f.kind), taps: f.taps }).serialize(s)
 }
 
 /// What was done to make the two comparable — shown to the listener, so the test hides
@@ -117,8 +140,13 @@ impl Audio {
 /// Decode `path` (a library path: a file or a CUE track), up to `max_bytes` of samples.
 fn decode(path: &Path, max_bytes: usize) -> Result<Audio> {
     let track = crate::open_file(path, DsdMode::Pcm)?;
+    let max_frames = max_bytes / 4 / track.channels;
+    read(&track, max_frames)
+}
+
+/// The first `max_frames` of `track`, as it decodes.
+fn read(track: &Track, max_frames: usize) -> Result<Audio> {
     let ch = track.channels;
-    let max_frames = max_bytes / 4 / ch;
     let mut samples: Vec<f32> = Vec::new();
     let mut pos = 0;
     let mut shortened = false;
@@ -306,8 +334,8 @@ fn finish(mut a: Audio, mut b: Audio, a_before: (u32, Option<u32>), b_before: (u
     scale(&mut b, gb);
     let prepared = Prepared {
         rate,
-        a: Side { rate: a_before.0, bits: a_before.1, resampled: a_before.0 != rate, gain_db: db(ga) },
-        b: Side { rate: b_before.0, bits: b_before.1, resampled: b_before.0 != rate, gain_db: db(gb) },
+        a: Side { rate: a_before.0, bits: a_before.1, resampled: a_before.0 != rate, gain_db: db(ga), filter: None },
+        b: Side { rate: b_before.0, bits: b_before.1, resampled: b_before.0 != rate, gain_db: db(gb), filter: None },
         offset_ms: lag as f64 * 1000.0 / rate as f64,
         likeness,
         seconds: frames as f64 / rate as f64,
@@ -374,6 +402,129 @@ pub fn of_processing(path: &Path, dsp: &DspSettings) -> Result<Pair> {
     // B is the same file: what was done to it is the processing, not a conversion.
     pair.prepared.b.resampled = false;
     Ok(pair)
+}
+
+/// One file upsampled to `rate` twice, with filter `a` and with filter `b` (None: the standard
+/// one): "do I hear the long filter?". `rate` is the one the DAC already runs at, so it never
+/// switches. Each version is exactly what playback makes of the file with that filter.
+///
+/// Nothing is lined up and nothing is levelled: both chains make up for their own delay and
+/// pass the band at unity gain, and a correlation search could only shift one of them by
+/// what is being compared (a minimum-phase filter's phase near Nyquist). One gain for both,
+/// and only if the upsampled waveform peaks above full scale.
+pub fn of_filters(path: &Path, rate: u32, a: Option<FilterSpec>, b: Option<FilterSpec>) -> Result<Pair> {
+    of_filters_within(path, rate, a, b, MAX_BYTES)
+}
+
+fn of_filters_within(path: &Path, rate: u32, a: Option<FilterSpec>, b: Option<FilterSpec>, max_bytes: usize) -> Result<Pair> {
+    let track = crate::open_file(path, DsdMode::Pcm)?;
+    let from = track.sample_rate;
+    // Below twice the rate the long filter doesn't run: playback would use the standard one.
+    if from == 0 || (rate as u64) < 2 * from as u64 {
+        bail!(UserError::AbxFilterRate { from, to: rate });
+    }
+    for spec in [a, b] {
+        let input = if spec.is_some() { 2 * from } else { from };
+        if input != rate && resample::phases(input, rate) > resample::MAX_PHASES {
+            bail!(UserError::Resample { from, to: rate });
+        }
+    }
+    let ch = track.channels;
+    // What fits once upsampled; longer music is compared by its beginning.
+    let fits = (max_bytes / 4 / ch) as u64 * from as u64 / rate as u64;
+    let audio = read(&track, fits as usize)?;
+    drop(track);
+    let frames = (audio.frames() as u64 * rate as u64 / from as u64) as usize;
+    // The two at once: each is a few seconds of work for a long filter.
+    let ((pa, na), (pb, nb)) = std::thread::scope(|s| {
+        let pa = s.spawn(|| upsampled(&audio, rate, a, frames));
+        let pb = upsampled(&audio, rate, b, frames);
+        (pa.join().expect("upsampling A"), pb)
+    });
+    let frames = na.min(nb);
+    let (pa, pb) = (cut(pa, frames * ch), cut(pb, frames * ch));
+    let peak = |p: &[Box<[f32]>]| p.iter().flat_map(|c| c.iter()).fold(0f32, |m, v| m.max(v.abs())) as f64;
+    let top = peak(&pa).max(peak(&pb));
+    // Upsampling rebuilds the waveform between the samples, and it can rise above full scale
+    // there: both down together, so neither clips and they stay equally loud.
+    let gain = if top > 1.0 { CEILING / top } else { 1.0 };
+    let (mut ab, mut aa, mut bb) = (0f64, 0f64, 0f64);
+    for (x, y) in pa.iter().flat_map(|c| c.iter()).zip(pb.iter().flat_map(|c| c.iter())) {
+        let (x, y) = (*x as f64, *y as f64);
+        ab += x * y;
+        aa += x * x;
+        bb += y * y;
+    }
+    let identical = pa == pb;
+    let side = |filter: Option<FilterSpec>| Side { rate: from, bits: audio.bits, resampled: true, gain_db: db(gain), filter: filter.map(FilterSpec::effective) };
+    let prepared = Prepared {
+        rate,
+        a: side(a),
+        b: side(b),
+        offset_ms: 0.0,
+        likeness: if aa > 0.0 && bb > 0.0 { ab / (aa * bb).sqrt() } else { 0.0 },
+        seconds: frames as f64 / rate as f64,
+        shortened: audio.shortened,
+        identical,
+    };
+    // The chunks become the tracks as they are: the two never sit in memory twice.
+    let track = |mut chunks: Vec<Box<[f32]>>| {
+        if gain != 1.0 {
+            chunks.iter_mut().for_each(|c| c.iter_mut().for_each(|s| *s = (*s as f64 * gain) as f32));
+        }
+        let mut t = Track::from_chunks(rate, ch, Some(24), chunks, frames, TrackMeta::default());
+        t.layout = audio.layout.clone();
+        Arc::new(t)
+    };
+    Ok(Pair { a: track(pa), b: track(pb), prepared })
+}
+
+/// `audio` through the playback chain for `spec` at `rate`, as the render thread runs it:
+/// blocks of 2048 frames, flush-to-zero, the tail let out to the end, f32 out. The first
+/// `frames` frames (or all there are), in a track's chunks (see [`Track::from_chunks`]).
+fn upsampled(audio: &Audio, rate: u32, spec: Option<FilterSpec>, frames: usize) -> (Vec<Box<[f32]>>, usize) {
+    let _ftz = crate::fpu::FlushDenormals::on();
+    let ch = audio.channels;
+    let size = CHUNK_FRAMES * ch;
+    let settings = DspSettings { upsample: Upsample::UpTo(rate as f64), upsample_filter: spec, ..Default::default() };
+    let mut chain = Chain::new(&settings, None, None, audio.rate, rate, ch);
+    let want = frames * ch;
+    let mut chunks: Vec<Box<[f32]>> = Vec::with_capacity(want.div_ceil(size));
+    let mut at = 0;
+    let mut keep = |out: &[f64]| {
+        let mut out = &out[..out.len().min(want - at)];
+        while !out.is_empty() {
+            if at % size == 0 {
+                chunks.push(vec![0f32; size].into_boxed_slice());
+            }
+            let (c, o) = (at / size, at % size);
+            let n = (size - o).min(out.len());
+            chunks[c][o..o + n].iter_mut().zip(&out[..n]).for_each(|(d, &v)| *d = v as f32);
+            out = &out[n..];
+            at += n;
+        }
+    };
+    for block in audio.samples.chunks(2048 * ch) {
+        keep(chain.process(block, 1.0, false));
+    }
+    loop {
+        keep(chain.process(&[], 1.0, true));
+        if !chain.finishing() {
+            break;
+        }
+    }
+    (chunks, at / ch)
+}
+
+/// `chunks` holding only the first `len` samples (the rest zero, as a track's last chunk is).
+fn cut(mut chunks: Vec<Box<[f32]>>, len: usize) -> Vec<Box<[f32]>> {
+    let size = chunks.first().map_or(1, |c| c.len());
+    chunks.truncate(len.div_ceil(size));
+    let full = chunks.len().saturating_sub(1) * size;
+    if let Some(last) = chunks.last_mut() {
+        last[len - full..].fill(0.0);
+    }
+    chunks
 }
 
 #[cfg(test)]
@@ -514,6 +665,206 @@ mod tests {
         std::fs::write(&mono, bytes).unwrap();
         let e = of_files(&a, &mono).err().unwrap();
         assert_eq!(UserError::of(&e), UserError::AbxChannels);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    fn long(kind: FilterKind, taps: usize) -> Option<FilterSpec> {
+        Some(FilterSpec { kind, taps })
+    }
+
+    /// The left channel of a stereo track.
+    fn left(t: &Track) -> Vec<f32> {
+        samples(t).iter().step_by(2).copied().collect()
+    }
+
+    fn argmax(x: &[f32]) -> usize {
+        x.iter().enumerate().max_by(|a, b| a.1.abs().total_cmp(&b.1.abs())).unwrap().0
+    }
+
+    /// Amplitude of `freq` over one second of `y` from `from`: a whole number of cycles of
+    /// every whole-Hz frequency, so the projection picks out exactly that one.
+    fn amp(y: &[f32], from: usize, freq: f64, fs: u32) -> f64 {
+        let w = std::f64::consts::TAU * freq / fs as f64;
+        let (mut a, mut b) = (0.0, 0.0);
+        for (i, &v) in y[from..from + fs as usize].iter().enumerate() {
+            let t = (from + i) as f64;
+            a += v as f64 * (w * t).sin();
+            b += v as f64 * (w * t).cos();
+        }
+        2.0 * a.hypot(b) / fs as f64
+    }
+
+    fn tones(rate: u32, secs: f64, parts: &[(f64, f64)]) -> Vec<f64> {
+        (0..(rate as f64 * secs) as usize).map(|i| parts.iter().map(|&(f, a)| a * (std::f64::consts::TAU * f * i as f64 / rate as f64).sin()).sum()).collect()
+    }
+
+    /// Both versions are as long as each other and in time with each other: an impulse at
+    /// input frame n is at output frame n·ratio in both (a minimum-phase filter starts there).
+    #[test]
+    fn filter_versions_line_up_by_construction() {
+        let d = tmpdir("filters-time");
+        let mut x = vec![0.0; 44_100];
+        x[20_000] = 0.5;
+        let path = flac(&d, "impulse.flac", 44_100, 16, &x);
+        for (rate, b) in [(352_800, long(FilterKind::Linear, 65_536)), (88_200, long(FilterKind::Linear, 65_536)), (88_200, long(FilterKind::Minimum, 65_536))] {
+            let ratio = (rate / 44_100) as usize;
+            let pair = of_filters(&path, rate, None, b).unwrap();
+            let p = &pair.prepared;
+            assert_eq!(pair.a.frames(), pair.b.frames());
+            assert_eq!(pair.a.frames(), 44_100 * ratio);
+            assert_eq!((pair.a.sample_rate, pair.b.sample_rate, p.rate), (rate, rate, rate));
+            assert_eq!((p.offset_ms, p.a.gain_db, p.b.gain_db), (0.0, 0.0, 0.0));
+            assert!(p.a.resampled && p.b.resampled && !p.identical && !p.shortened);
+            assert_eq!((p.a.filter, p.b.filter), (None, b));
+            let (ya, yb) = (left(&pair.a), left(&pair.b));
+            let at = 20_000 * ratio;
+            assert_eq!(argmax(&ya), at, "standard filter → {rate}");
+            if b.unwrap().kind == FilterKind::Linear {
+                println!("impulse at input 20000 → {rate}: standard peaks at {}, linear at {} (want {at})", argmax(&ya), argmax(&yb));
+                assert_eq!(argmax(&yb), at, "linear → {rate}");
+            } else {
+                let peak = yb.iter().fold(0f32, |m, v| m.max(v.abs()));
+                let before = yb[..at].iter().fold(0f32, |m, v| m.max(v.abs()));
+                println!("impulse at input 20000 → {rate}: minimum phase starts at {at}, {:.1} dB before it", 20.0 * (before as f64 / peak as f64).log10());
+                assert!(before < peak * 1e-6 && yb[at].abs() > 1e-6, "minimum phase: {before} before frame {at}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// What is compared is the filter: 21.9 kHz, which the standard filter takes away and the
+    /// long one keeps, differs; 1 kHz, deep in both pass bands, is the same.
+    #[test]
+    fn only_what_the_filters_treat_differently_differs() {
+        let d = tmpdir("filters-band");
+        let b = long(FilterKind::Linear, 65_536);
+        let path = flac(&d, "top.flac", 44_100, 24, &tones(44_100, 3.0, &[(19_000.0, 0.3), (21_900.0, 0.3)]));
+        let pair = of_filters(&path, 176_400, None, b).unwrap();
+        let (ya, yb) = (left(&pair.a), left(&pair.b));
+        let db = |a: f64| 20.0 * (a / 0.3).log10();
+        let (a19, a21, b19, b21) = (amp(&ya, 176_400, 19_000.0, 176_400), amp(&ya, 176_400, 21_900.0, 176_400), amp(&yb, 176_400, 19_000.0, 176_400), amp(&yb, 176_400, 21_900.0, 176_400));
+        let diff = ya.iter().zip(&yb).skip(176_400).take(176_400).map(|(x, y)| ((x - y) as f64).powi(2)).sum::<f64>() / 176_400.0;
+        println!("19 kHz: standard {:+.4} dB, long {:+.4} dB; 21.9 kHz: standard {:+.1} dB, long {:+.4} dB; difference {:.1} dB below the signal", db(a19), db(b19), db(a21), db(b21), 10.0 * (diff / 0.09).log10());
+        assert!(db(b19).abs() < 0.001 && db(b21).abs() < 0.001, "the long filter keeps both");
+        assert!(db(a21) < -20.0, "the standard filter keeps 21.9 kHz at {:.1} dB", db(a21));
+        assert!(pair.prepared.likeness < 0.999 && !pair.prepared.identical);
+
+        let path = flac(&d, "mid.flac", 44_100, 24, &tones(44_100, 3.0, &[(1_000.0, 0.5)]));
+        let pair = of_filters(&path, 176_400, None, b).unwrap();
+        let (ya, yb) = (left(&pair.a), left(&pair.b));
+        // (The middle second: where the tone starts and stops, the two ring differently.)
+        let worst = ya.iter().zip(&yb).skip(176_400).take(176_400).map(|(x, y)| (x - y).abs()).fold(0f32, f32::max);
+        println!("1 kHz at 0.5: the two differ by at most {worst:.2e}");
+        assert!(worst < 1e-6, "1 kHz differs by {worst}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Full-scale samples whose waveform rises above full scale between them: both versions
+    /// come down by the same amount, and neither clips.
+    #[test]
+    fn an_overshoot_turns_both_down_together() {
+        let d = tmpdir("filters-peak");
+        // fs/4 at 45°: every sample at ±1, the wave between them at ±√2 (+3 dB).
+        let x: Vec<f64> = (0..3 * 44_100).map(|i| std::f64::consts::SQRT_2 * (std::f64::consts::FRAC_PI_2 * i as f64 + std::f64::consts::FRAC_PI_4).sin()).map(|v: f64| v.clamp(-1.0, 1.0)).collect();
+        let path = flac(&d, "loud.flac", 44_100, 16, &x);
+        let pair = of_filters(&path, 176_400, None, long(FilterKind::Minimum, 65_536)).unwrap();
+        let p = &pair.prepared;
+        let peak = |t: &Track| samples(t).iter().fold(0f32, |m, v| m.max(v.abs()));
+        println!("overshoot: both at {:.2} dB, peaks {:.4} and {:.4}", p.a.gain_db, peak(&pair.a), peak(&pair.b));
+        assert_eq!(p.a.gain_db, p.b.gain_db);
+        assert!(p.a.gain_db < -3.0 && p.a.gain_db > -4.0, "{}", p.a.gain_db);
+        assert!(peak(&pair.a) <= 1.0 && peak(&pair.b) <= 1.0);
+        assert!(peak(&pair.a).max(peak(&pair.b)) as f64 >= CEILING - 1e-4);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Each version is what playback makes of the file with that filter, bit for bit: the
+    /// same chain, fed the same way.
+    #[test]
+    fn each_version_is_what_playback_plays() {
+        let d = tmpdir("filters-chain");
+        let path = flac(&d, "music.flac", 44_100, 16, &music(44_100, 4.0));
+        let input = {
+            let t = crate::open_file(&path, DsdMode::Pcm).unwrap();
+            t.wait_for(usize::MAX, std::time::Duration::from_secs(10));
+            t.to_vec()
+        };
+        let chain = |spec: Option<FilterSpec>, rate: u32| {
+            let _ftz = crate::fpu::FlushDenormals::on();
+            let dsp = DspSettings { upsample: Upsample::UpTo(rate as f64), upsample_filter: spec, ..Default::default() };
+            let mut c = Chain::new(&dsp, None, None, 44_100, rate, 2);
+            let mut out: Vec<f32> = Vec::new();
+            for block in input.chunks(2048 * 2) {
+                out.extend(c.process(block, 1.0, false).iter().map(|&v| v as f32));
+            }
+            loop {
+                out.extend(c.process(&[], 1.0, true).iter().map(|&v| v as f32));
+                if !c.finishing() {
+                    return out;
+                }
+            }
+        };
+        for (rate, b) in [(176_400, long(FilterKind::Linear, 65_536)), (96_000, long(FilterKind::Minimum, 65_536)), (88_200, long(FilterKind::Apodizing, 0))] {
+            let pair = of_filters(&path, rate, None, b).unwrap();
+            assert_eq!(pair.prepared.b.gain_db, 0.0);
+            for (version, spec) in [(&pair.a, None), (&pair.b, b)] {
+                let got = samples(version);
+                let want = chain(spec, rate);
+                assert!(want.len() >= got.len() && got.len() == 2 * (4 * rate as usize));
+                assert!(got[..] == want[..got.len()], "{spec:?} → {rate} isn't what playback plays");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn filters_need_twice_the_rate_and_a_ratio_the_resampler_takes() {
+        let d = tmpdir("filters-rate");
+        let path = flac(&d, "a.flac", 44_100, 16, &music(44_100, 1.0));
+        let b = long(FilterKind::Linear, 65_536);
+        for rate in [44_100, 48_000, 88_199] {
+            assert_eq!(UserError::of(&of_filters(&path, rate, None, b).err().unwrap()), UserError::AbxFilterRate { from: 44_100, to: rate });
+        }
+        assert_eq!(UserError::of(&of_filters(&path, 88_201, None, b).err().unwrap()), UserError::Resample { from: 44_100, to: 88_201 });
+        // The same filter twice is nothing to hear.
+        assert!(of_filters(&path, 88_200, b, b).unwrap().prepared.identical);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Longer music than fits once upsampled is compared by its beginning, and said to be.
+    #[test]
+    fn long_music_is_cut_to_what_fits_once_upsampled() {
+        let d = tmpdir("filters-long");
+        let path = flac(&d, "a.flac", 44_100, 16, &music(44_100, 5.0));
+        // Two seconds' worth at 176.4 kHz, stereo.
+        let room = 2 * 176_400 * 2 * 4;
+        let p = of_filters_within(&path, 176_400, None, long(FilterKind::Linear, 65_536), room).unwrap().prepared;
+        assert!(p.shortened && (p.seconds - 2.0).abs() < 1e-9, "{p:?}");
+        let p = of_filters_within(&path, 176_400, None, long(FilterKind::Linear, 65_536), 3 * room).unwrap().prepared;
+        assert!(!p.shortened && (p.seconds - 5.0).abs() < 1e-9, "{p:?}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_filters_are_named_as_the_app_names_them() {
+        let side = |filter| Side { rate: 44_100, bits: Some(16), resampled: true, gain_db: 0.0, filter };
+        let json = serde_json::to_string(&side(long(FilterKind::Linear, 1 << 20))).unwrap();
+        assert!(json.ends_with(r#""filter":{"kind":"linear","taps":1048576}}"#), "{json}");
+        assert!(serde_json::to_string(&side(None)).unwrap().ends_with(r#""filter":null}"#));
+    }
+
+    /// Preparation for a minute of music to 352.8 kHz with the longest linear filter (run
+    /// with --release --ignored; the memory is the process's peak, from `time -l`).
+    #[test]
+    #[ignore]
+    fn preparing_a_minute_with_the_longest_filter() {
+        let d = tmpdir("filters-minute");
+        let path = flac(&d, "a.flac", 44_100, 16, &music(44_100, 60.0));
+        let spec = long(FilterKind::Linear, 1 << 20);
+        drop(crate::dsp::upsample::filter(spec.unwrap()));
+        let t = std::time::Instant::now();
+        let pair = of_filters(&path, 352_800, None, spec).unwrap();
+        println!("60 s → 352.8 kHz, standard against Linear 2^20: {:.2} s, {} MB of tracks", t.elapsed().as_secs_f64(), (2 * pair.a.frames() * 2 * 4) >> 20);
         let _ = std::fs::remove_dir_all(&d);
     }
 

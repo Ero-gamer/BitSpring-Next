@@ -433,6 +433,12 @@ html[data-look="glass"] .seg {
 html[data-look="glass"] .seg button {
   border-radius: 999px;
 }
+/* the upsampling filter list: the same ground as the rows, but its two-line choices keep
+   their rounded corners (a capsule would cut into the text) */
+html[data-look="glass"] .enh .radios {
+  background: var(--glass-quiet);
+  border: 1px solid var(--glass-edge);
+}
 
 /* Menus and popovers grow out of the button that opened them, coming into focus as they do. */
 @keyframes glass-in {

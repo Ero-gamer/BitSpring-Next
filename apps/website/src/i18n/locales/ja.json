@@ -42,7 +42,7 @@
   "enhance.title": "音を変えたい？ご自由に",
   "enhance.lede": "サウンド調整は初期設定ですべてオフ。どれかをオンにすると、プレーヤーのインジケーターが「Bit-perfect」から「処理中」に切り替わり、音に何をしているかを正確に一覧表示します。",
   "enhance.upsampling": "アップサンプリング",
-  "enhance.upsampling_detail": "192、384、768 kHzへ。高いレートで真価を発揮するDACのために。",
+  "enhance.upsampling_detail": "192、384、768 kHzへ。高いレートで真価を発揮するDACのために。フィルターは標準、最大100万タップのリニアフェイズまたはミニマムフェイズ、アポダイジングから選べます。",
   "enhance.eq": "イコライザー",
   "enhance.eq_detail": "お使いのヘッドホンのAutoEQプロファイルを読み込めます。フィルターは64bit精度で計算。",
   "enhance.crossfeed": "クロスフィード",

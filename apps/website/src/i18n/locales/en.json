@@ -42,7 +42,7 @@
   "enhance.title": "Want a different sound? Go ahead",
   "enhance.lede": "Enhancers are off by default. Turn any of them on and the player's indicator switches from \"Bit-perfect\" to \"Processing\" and lists exactly what is being done to the sound.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "To 192, 384 or 768 kHz, for DACs that sound better at high rates.",
+  "enhance.upsampling_detail": "To 192, 384 or 768 kHz, for DACs that sound better at high rates. With a choice of filter: standard, linear or minimum phase up to a million taps, or apodizing.",
   "enhance.eq": "Equalizer",
   "enhance.eq_detail": "Load an AutoEQ profile for your headphones. Filters are computed with 64-bit precision.",
   "enhance.crossfeed": "Crossfeed",

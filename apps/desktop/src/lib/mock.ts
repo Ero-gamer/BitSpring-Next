@@ -12,6 +12,10 @@ const UNKNOWN_ARTIST = "Unknown artist";
 /** ?store: look like an App Store / Microsoft Store build (no streaming, no self-updating). */
 const storeBuild = new URLSearchParams(location.search).has("store");
 let mockCrash = new URLSearchParams(location.search).has("crash");
+/** ?stepdown: a few seconds into a track with a long upsampling filter, the pretend processor falls behind and the filter steps down once. */
+let mockStepDown = new URLSearchParams(location.search).has("stepdown");
+let mockStep: { seq: number; filter: DspSettings["upsampleFilter"]; taps: number | null } | null = null;
+let mockStepSeq = 0;
 const LIB: [string, string, string | null, string | null, string, number, number | null, string | null, string[]][] = [
   ["Ada Marlow", "Paper Moons", "2017", "Folk", "ALAC", 48000, 24, "#6b5d2e", ["Kite Strings", "Harbour", "Paper Moons"]],
   ["Echo Field", "Signal Path", "2020", "Electronic", "MP3", 44100, null, "#16233a", ["Carrier", "Sideband", "Noise Floor"]],
@@ -92,7 +96,7 @@ const devices: Device[] = [
   { uid: "cast:shield", name: "Living Room TV", transport: "Network", channels: 2, rates: [44100, 48000, 88200, 96000], nominalRate: 0, isDefault: false, bitPerfectCapable: true, maxDop: null, network: true, model: "SHIELD Android TV", protocol: "Chromecast" },
 ];
 
-let dsp: DspSettings = { upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true };
+let dsp: DspSettings = { upsampleKhz: null, upsampleFilter: null, upsampleTaps: 65536, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true };
 /** The pretend library analysis: when it started (null: not running) and how much was done before. */
 let measuring: number | null = null;
 let measured = 0;
@@ -170,7 +174,7 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
       eq: dop ? null : eqOn(), eqLinear: false, convolution: dop ? null : convName(), crossfeed: dop ? null : dsp.crossfeed,
       sourceLossy: false, headroomDb: null, headroomMeasured: true, restoreFromHz: null,
       ...(dop ? { levelDb: null, levelBasis: null, levelLimited: false } : mockLevel()),
-      dsdRate, dop, dsdNote, layout: "Stereo", downmix: null, bitPerfect: dop,
+      dsdRate, dop, dsdNote, layout: "Stereo", downmix: null, upsampleFilter: null, upsampleTaps: null, bitPerfect: dop,
     };
   }
   const src = 44100;
@@ -178,7 +182,11 @@ function mockSignal(dev: Device, exclusive: boolean, path = "", dopWanted = fals
   const surround = /surround|5\.1/i.test(path);
   const up = dsp.upsampleKhz ? Math.min(dsp.upsampleKhz * 1000, air ? 48000 : 352800) : null;
   const rate = up ?? (air ? 48000 : src);
+  // Like the engine: the long filter runs where upsampling at least doubles the rate.
+  const long = up !== null && rate >= 2 * src ? dsp.upsampleFilter : null;
+  const phoneTaps = phone.has("android") || phone.has("ios") ? 65536 : dsp.upsampleTaps;
   return {
+    upsampleFilter: long, upsampleTaps: long && long !== "apodizing" ? phoneTaps : null,
     sourceRate: src, sourceBits: 16, deviceRate: rate, dacBits: 32, dacFloat: air, integerMode: !air,
     exclusive, transport: dev.transport, resampled: rate !== src,
     eq: eqOn(), eqLinear: eqSnapshot().presets.find((p) => p.name === eqOn())?.phase === "linear", convolution: convName(), crossfeed: dsp.crossfeed,
@@ -366,11 +374,27 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
       mockAbx = { total: (args.trials as number) ?? 16, answers: [], xIsA: Math.random() < 0.5 };
       started = performance.now(); paused = false; pausedAt = 0; duration = 204;
       const files = args.kind === "files";
+      if (args.kind === "filters") {
+        // Like the app: the rate and the long filter of what plays now.
+        const sig = mockNow && mockNow.path === args.a ? mockNow.signal : null;
+        if (!sig?.upsampleFilter) throw { code: "abxNoFilter" };
+        duration = 95;
+        const side = (filter: { kind: string; taps: number } | null) => ({ rate: sig.sourceRate, bits: sig.sourceBits, resampled: true, gainDb: -0.4, filter });
+        return {
+          prepared: {
+            rate: sig.deviceRate,
+            a: side(null),
+            b: side({ kind: sig.upsampleFilter, taps: sig.upsampleTaps ?? 1024 }),
+            offsetMs: 0, likeness: 0.9999, seconds: 95, shortened: true, identical: false,
+          },
+          trials: mockAbx.total,
+        } as T;
+      }
       return {
         prepared: {
           rate: files ? 96000 : 44100,
-          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0 },
-          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0 },
+          a: { rate: files ? 96000 : 44100, bits: files ? 24 : 16, resampled: false, gainDb: 0, filter: null },
+          b: { rate: 44100, bits: 16, resampled: files, gainDb: files ? -1.3 : 0, filter: null },
           offsetMs: files ? 23 : 0.4, likeness: 0.97, seconds: 204, shortened: files, identical: false,
         },
         trials: mockAbx.total,
@@ -485,11 +509,24 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
         if (next < mockQueue.length) await mock("play_file", { path: mockQueue[next], deviceUid: lastDevice.uid, exclusive: lastExclusive, dop: lastDop, index: next });
       }
       const processing = !!(dsp.upsampleKhz || eqOn() || dsp.convolution || dsp.crossfeed);
+      const long = duration > 0 && lastDevice ? mockSignal(lastDevice, lastExclusive, lastPath, lastDop) : null;
+      const filter = long?.upsampleFilter ?? null;
+      // A long filter's pretend cost: a share of a core that wobbles a little.
+      const cost = filter === "apodizing" ? 0.004 : long?.upsampleTaps === 1048576 ? (filter === "minimum" ? 0.019 : 0.016) : 0.007;
+      if (mockStepDown && filter && now() > 4 && mockNow) {
+        mockStepDown = false;
+        const next = filter !== "apodizing" && long?.upsampleTaps === 1048576 ? { filter, taps: 65536 } : { filter: null, taps: null };
+        dsp = { ...dsp, upsampleFilter: next.filter, upsampleTaps: next.taps === 65536 ? 65536 : dsp.upsampleTaps };
+        mockStep = { seq: ++mockStepSeq, ...next };
+        mockNow = { ...mockNow, signal: mockSignal(lastDevice!, lastExclusive, lastPath, lastDop) };
+      }
       const s: Status = {
         active: duration > 0, position: Math.min(now(), duration), duration, paused,
         finished: now() >= duration && duration > 0, peakDb: processing ? -3.4 : null, underruns: 0,
         buffering: false, buffered: duration, error: null,
         queueIndex: mockIndex, nowRev: mockRev, advanceError: null, systemVolume: isIOS ? 0.8 : null,
+        load: processing && duration > 0 ? (filter ? cost : 0.002) * (1 + 0.08 * Math.sin(performance.now() / 900)) : null,
+        filterStep: mockStep,
       };
       return s as T;
     }
@@ -514,8 +551,12 @@ export async function mock<T>(cmd: string, args: Record<string, unknown> = {}): 
     case "set_fades":
       return undefined as T;
     case "set_dsp": {
+      mockStep = null;
       dsp = {
-        upsampleKhz: args.upsampleKhz as number | null, crossfeed: args.crossfeed as DspSettings["crossfeed"],
+        upsampleKhz: args.upsampleKhz as number | null,
+        upsampleFilter: (["linear", "minimum", "apodizing"].includes(args.upsampleFilter as string) ? args.upsampleFilter : null) as DspSettings["upsampleFilter"],
+        upsampleTaps: args.upsampleTaps === 1048576 ? 1048576 : 65536,
+        crossfeed: args.crossfeed as DspSettings["crossfeed"],
         convolution: args.convolution as string | null, headroom: !!args.headroom, restoreHighs: !!args.restoreHighs,
         level: (args.level as DspSettings["level"]) ?? null, peakHeadroom: !!args.peakHeadroom,
       };

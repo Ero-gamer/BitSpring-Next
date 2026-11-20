@@ -59,8 +59,17 @@ export interface Signal {
   layout: string;
   /** A multichannel source folded down to the device's speakers (gainDb keeps it from clipping). */
   downmix: { to: string; gainDb: number } | null;
+  /** The long upsampling filter that runs; null: the standard resampler, or no upsampling. */
+  upsampleFilter: UpsampleFilter | null;
+  /** Its length in taps (null for apodizing, which has one length). */
+  upsampleTaps: number | null;
   bitPerfect: boolean;
 }
+
+/** The long upsampling filters (null in settings: the standard one). */
+export type UpsampleFilter = "linear" | "minimum" | "apodizing";
+/** The two lengths offered, in taps: 64k and 1M. */
+export type UpsampleTaps = 65536 | 1048576;
 
 export type Crossfeed = "light" | "medium" | "strong";
 
@@ -90,7 +99,7 @@ export type EngineError =
         | "formatRefused" | "exclusiveDisabled" | "dopVolume" | "profileEmpty" | "noAppFolder" | "folderNotOnDevice"
         | "playlistNotFound" | "playlistNoTracks" | "playlistFormat" | "streamingOff" | "signInCancelled"
         | "eqFormat" | "eqEmpty" | "eqNotFound" | "irEmpty" | "installNotAllowed"
-        | "abxChannels" | "abxNetwork" | "abxNothing" | "abxNotFile";
+        | "abxChannels" | "abxNetwork" | "abxNothing" | "abxNotFile" | "abxNoFilter";
     }
   | { code: "audioSetup" | "outputFailed" | "profileUnreadable" | "playlistUnreadable" | "writeFailed" | "irUnreadable" | "updateFailed" | "catalogUnavailable"; detail: string }
   | { code: "irChannels"; channels: number }
@@ -100,7 +109,7 @@ export type EngineError =
   | { code: "noRates"; device: string }
   | { code: "rateRefused"; khz: number }
   | { code: "rateStuck"; khz: number; current: number }
-  | { code: "resample"; from: number; to: number }
+  | { code: "resample" | "abxFilterRate"; from: number; to: number }
   | { code: "dopRefused"; device: string; dsd: string; khz: number }
   | { code: "openFailed"; device: string; detail: string }
   | { code: "otherFormat"; device: string; khz: number }
@@ -172,6 +181,10 @@ export interface IrInfo {
 
 export interface DspSettings {
   upsampleKhz: number | null;
+  /** Upsample through a long filter where the DAC runs at twice the source's rate or more; null: the standard one. */
+  upsampleFilter: UpsampleFilter | null;
+  /** Its length (Linear and Minimum only; phones always get the shorter). */
+  upsampleTaps: UpsampleTaps;
   crossfeed: Crossfeed | null;
   /** Impulse response file to convolve with. */
   convolution: string | null;
@@ -255,6 +268,17 @@ export interface Status {
   advanceError: AdvanceError | null;
   /** iOS: system volume 0…1 (below 1 iOS may scale the samples). Null elsewhere. */
   systemVolume: number | null;
+  /** The processing's share of one core (0 until measured); null on the direct path. */
+  load: number | null;
+  /** The processor couldn't keep up: the backend stepped the upsampling filter down and plays on with it. */
+  filterStep: FilterStep | null;
+}
+
+/** An automatic step down of the upsampling filter. `seq` grows with each; `filter: null` = the standard one now. */
+export interface FilterStep {
+  seq: number;
+  filter: UpsampleFilter | null;
+  taps: number | null;
 }
 
 export interface LibraryStatus {
@@ -349,6 +373,8 @@ export interface AbxSide {
   resampled: boolean;
   /** Turned down by this much to match the other (0 or negative), dB. */
   gainDb: number;
+  /** Filter against filter: the long filter it was upsampled with (null: the standard one). */
+  filter: { kind: UpsampleFilter; taps: number } | null;
 }
 
 /** What was done to make the two comparable. */
@@ -700,7 +726,7 @@ export const api = {
   /** Check an album against the CUETools Database: one request, carrying the disc's track lengths. */
   ripCheck: (paths: string[]) => call<RipResult>("rip_check", { paths }),
   /** Prepare a blind test and start playing A (takes a while: both sides are decoded). */
-  abxStart: (kind: "files" | "processing", a: string, b: string | null, deviceUid: string, exclusive: boolean, trials: number) =>
+  abxStart: (kind: "files" | "processing" | "filters", a: string, b: string | null, deviceUid: string, exclusive: boolean, trials: number) =>
     call<{ prepared: AbxPrepared; trials: number }>("abx_start", { kind, a, b, deviceUid, exclusive, trials }),
   abxListen: (which: AbxWhich) => call<void>("abx_listen", { which }),
   abxSetTrials: (trials: number) => call<number>("abx_set_trials", { trials }),
@@ -906,7 +932,8 @@ export function errorText(e: unknown): string {
       case "rateStuck":
         return t("error.rateStuck", { rate: num(err.khz), current: num(err.current) });
       case "resample":
-        return t("error.resample", { from: num(err.from, { useGrouping: false }), to: num(err.to, { useGrouping: false }) });
+      case "abxFilterRate":
+        return t(`error.${err.code}`, { from: num(err.from, { useGrouping: false }), to: num(err.to, { useGrouping: false }) });
       case "dopRefused":
         return t("error.dopRefused", { device: deviceLabel(err.device), dsd: err.dsd, rate: num(err.khz) });
       case "otherFormat":

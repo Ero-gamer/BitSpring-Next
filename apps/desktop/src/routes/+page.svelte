@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { trackSafeArea } from "$lib/safeArea";
-  import { api, clock, isNetworkUid, inTauri, isMac, isIOS, isAndroid, isLinux, khz, dsdName, artistLabel, errorText, AUDIO_EXTENSIONS, type Device, type DspSettings, type LibraryGoto, type EqState, type IrInfo, type NowPlaying, type PlaylistEntry, type Status, type StreamingStatus, type RemoteCommand } from "$lib/api";
+  import { api, clock, isNetworkUid, inTauri, isMac, isIOS, isAndroid, isLinux, khz, dsdName, artistLabel, errorText, AUDIO_EXTENSIONS, type Device, type DspSettings, type FilterStep, type UpsampleFilter, type LibraryGoto, type EqState, type IrInfo, type NowPlaying, type PlaylistEntry, type Status, type StreamingStatus, type RemoteCommand } from "$lib/api";
   import { i18n, sentences, t } from "$lib/i18n.svelte";
   import Settings from "$lib/Settings.svelte";
   import Heart from "$lib/Heart.svelte";
@@ -63,7 +63,7 @@
   let repeat = $state<Repeat>(load("repeat", "off"));
   let canNext = $derived(index < queue.length - 1 || (repeat === "all" && queue.length > 0));
   let now = $state<NowPlaying | null>(null);
-  let status = $state<Status>({ active: false, position: 0, duration: 0, paused: false, finished: false, peakDb: null, underruns: 0, buffering: false, buffered: 0, error: null, queueIndex: null, nowRev: 0, advanceError: null, systemVolume: null });
+  let status = $state<Status>({ active: false, position: 0, duration: 0, paused: false, finished: false, peakDb: null, underruns: 0, buffering: false, buffered: 0, error: null, queueIndex: null, nowRev: 0, advanceError: null, systemVolume: null, load: null, filterStep: null });
   /** The backend's nowRev we are showing; when it moves, the queue went on by itself. */
   let knownRev = 0;
   let lastOutputError: string | null = null;
@@ -71,7 +71,11 @@
   const savedDsp = load<Partial<DspSettings> & { eqPath?: string | null }>("dsp", {});
   const legacyEqPath = savedDsp.eqPath ?? null;
   delete savedDsp.eqPath;
-  let dsp = $state<DspSettings>({ upsampleKhz: null, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true, ...savedDsp });
+  let dsp = $state<DspSettings>({ upsampleKhz: null, upsampleFilter: null, upsampleTaps: 65536, crossfeed: null, convolution: null, headroom: true, restoreHighs: false, level: null, peakHeadroom: true, ...savedDsp });
+  /** The backend's last automatic filter step taken over (its seq). */
+  let stepSeen: number | null = null;
+  /** The filter that step left on, until the user picks one: the panel says why it changed. */
+  let filterStepped = $state<{ filter: UpsampleFilter | null; taps: number | null } | null>(null);
   let ir = $state<IrInfo | null>(null);
   let eqState = $state<EqState | null>(null);
   /** The EQ preset that plays on the picked output (null = EQ off there). */
@@ -390,6 +394,7 @@
 
   /** Apply processing settings; a playing track continues in place with the new chain. */
   async function applyDsp(next: DspSettings) {
+    if (next.upsampleFilter !== dsp.upsampleFilter || next.upsampleTaps !== dsp.upsampleTaps) filterStepped = null;
     try {
       const res = await api.setDsp(next);
       dsp = next;
@@ -458,9 +463,28 @@
     api.setPlayModes(shuffle, repeat).catch(() => {});
   });
 
+  /** The processor couldn't keep up and the backend moved to a cheaper upsampling filter, already
+   *  playing: take it into the settings as they are kept (not sent back: nothing to restart). */
+  function adoptFilterStep(step: FilterStep | null) {
+    if (!step || step.seq === stepSeen) return;
+    stepSeen = step.seq;
+    const next: DspSettings = { ...dsp, upsampleFilter: step.filter, upsampleTaps: step.taps === 1048576 ? 1048576 : step.taps === 65536 ? 65536 : dsp.upsampleTaps };
+    dsp = next;
+    save("dsp", next);
+    filterStepped = { filter: step.filter, taps: step.taps };
+    // The track restarted with it: show its new signal path.
+    api
+      .nowPlaying()
+      .then((n) => {
+        if (n && now && !testing && n.path === now.path) now = { ...now, signal: n.signal };
+      })
+      .catch(() => {});
+  }
+
   /** Fetch the status; when the backend has moved on to another track by itself, show it. */
   async function catchUp() {
     status = await api.status();
+    adoptFilterStep(status.filterStep);
     if (status.nowRev === knownRev || loading) return;
     knownRev = status.nowRev;
     const n = await api.nowPlaying();
@@ -550,8 +574,13 @@
   onMount(() => {
     refreshDevices();
     refreshStreaming();
-    // Restore last session's processing (also loads and validates the impulse response).
-    applyDsp(untrack(() => dsp));
+    // Restore last session's processing (also loads and validates the impulse response) — with
+    // a filter step the backend took while no page was there to see it.
+    api
+      .status()
+      .then((s) => adoptFilterStep(s.filterStep))
+      .catch(() => {})
+      .finally(() => applyDsp(untrack(() => dsp)));
     if (!untrack(() => fades)) api.setFades(false).catch(() => {});
     loadRemote();
     loadEq();
@@ -667,7 +696,7 @@
       <button class:sel={screen === "eq"} aria-current={screen === "eq" ? "page" : undefined} data-label={t("nav.eq")} onclick={() => (screen = "eq")}>{t("nav.eq")}</button>
     </nav>
     <div class="controls">
-      <Enhancers settings={dsp} {eqName} {ir} track={now && !testing ? { path: now.path, title: now.title } : null} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
+      <Enhancers settings={dsp} {eqName} {ir} track={now && !testing ? { path: now.path, title: now.title } : null} signal={now && !testing ? now.signal : null} load={status.load} stepped={filterStepped} onchange={applyDsp} onopeneq={() => (screen = "eq")} />
       <DevicePicker {devices} bind:selected bind:exclusive bind:dopDevices onrefresh={() => refreshDevices(true)} onchanneltest={channelTest} />
       <RemoteButton />
       <button class="trigger gear" class:open={screen === "settings"} onclick={toggleSettings} aria-pressed={screen === "settings"} aria-label={t("settings.label")} title={t("settings.label")}>

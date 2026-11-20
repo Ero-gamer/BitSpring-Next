@@ -42,7 +42,7 @@
   "enhance.title": "Haluatko erilaisen äänen? Ole hyvä",
   "enhance.lede": "Parannukset ovat oletuksena pois päältä. Kytke mikä tahansa niistä päälle, niin soittimen ilmaisin vaihtuu tilasta ”Bit-perfect” tilaan ”Käsittely” ja näyttää tarkalleen, mitä äänelle tehdään.",
   "enhance.upsampling": "Ylinäytteistys",
-  "enhance.upsampling_detail": "Taajuuteen 192, 384 tai 768 kHz. DAC:eille, jotka soivat paremmin korkeilla taajuuksilla.",
+  "enhance.upsampling_detail": "Taajuuteen 192, 384 tai 768 kHz. DAC:eille, jotka soivat paremmin korkeilla taajuuksilla. Suodattimen voi valita: vakio, lineaari- tai minimivaiheinen jopa miljoonan kertoimen pituisena tai apodisoiva.",
   "enhance.eq": "Taajuuskorjain",
   "enhance.eq_detail": "Lataa kuulokkeillesi AutoEQ-profiili. Suodattimet lasketaan 64-bittisellä tarkkuudella.",
   "enhance.crossfeed": "Crossfeed",

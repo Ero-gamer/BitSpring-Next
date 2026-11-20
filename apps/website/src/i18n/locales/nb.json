@@ -42,7 +42,7 @@
   "enhance.title": "Vil du ha en annen lyd? Vær så god",
   "enhance.lede": "Forbedringene er slått av som standard. Slå på en av dem, så bytter spillerens indikator fra «Bit-perfect» til «Behandling» og viser nøyaktig hva som gjøres med lyden.",
   "enhance.upsampling": "Oppsampling",
-  "enhance.upsampling_detail": "Til 192, 384 eller 768 kHz, for DAC-er som låter bedre på høye frekvenser.",
+  "enhance.upsampling_detail": "Til 192, 384 eller 768 kHz, for DAC-er som låter bedre på høye frekvenser. Med valgfritt filter: standard, lineær fase eller minimumsfase med opptil én million koeffisienter, eller apodiserende.",
   "enhance.eq": "Equalizer",
   "enhance.eq_detail": "Last inn en AutoEQ-profil for hodetelefonene dine. Filtrene beregnes med 64-bits presisjon.",
   "enhance.crossfeed": "Crossfeed",

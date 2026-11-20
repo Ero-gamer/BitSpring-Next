@@ -81,6 +81,11 @@ pub enum UserError {
     AbxNothing,
     /// Blind test: only files can be compared (not a streaming track).
     AbxNotFile,
+    /// Blind test of the filters: a long filter runs only from twice the track's rate
+    /// (`from`, Hz) up, and `to` is lower.
+    AbxFilterRate { from: u32, to: u32 },
+    /// Blind test of the filters: no long upsampling filter is playing this track.
+    AbxNoFilter,
     /// The playlist isn't there (deleted elsewhere).
     PlaylistNotFound,
     /// A playlist file or pasted text couldn't be read or understood.
@@ -194,6 +199,8 @@ impl fmt::Display for UserError {
             AbxNetwork => write!(f, "a blind test needs a device connected to this computer, not a network player"),
             AbxNothing => write!(f, "no processing is switched on, so there is nothing to compare"),
             AbxNotFile => write!(f, "only files can be compared in a blind test"),
+            AbxFilterRate { from, to } => write!(f, "a long filter runs only from twice the track's rate: {to} Hz is less than twice {from} Hz"),
+            AbxNoFilter => write!(f, "no long upsampling filter is playing this track, so there is nothing to compare it with"),
             PlaylistNoTracks => write!(f, "the playlist has no tracks"),
             PlaylistFormat => write!(f, "unknown playlist format: use .m3u8, .pls, .xspf or .csv"),
             WriteFailed { detail } => write!(f, "couldn't write the file: {detail}"),

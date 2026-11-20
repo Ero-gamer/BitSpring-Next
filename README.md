@@ -37,6 +37,10 @@ them, and off means bit-perfect again.
 - **Sound shaping when you ask for it:** parametric EQ with AutoEQ headphone profiles and Equalizer
   APO / EasyEffects import, crossfeed, and upsampling to 192, 384 or 768 kHz. Turn any of them on
   and the indicator switches from *Bit-perfect* to *Processing* and lists what is being done.
+- **Upsampling filters of your choice:** the standard one, or a long linear-phase or
+  minimum-phase filter of 64 thousand or a million taps (150 dB down from the recording's own
+  limit, a transition under 1 Hz wide), or a short apodizing one. If the processor can't keep up,
+  the player moves to a shorter filter and says so.
 - **Volume levelling** by track or by album: one fixed gain per track towards −18 LUFS, nothing
   compressed. The player reads ReplayGain tags, measures the files that have none (EBU R128), and
   can write the result into their tags. Off by default.
@@ -44,9 +48,9 @@ them, and off means bit-perfect again.
   "hi-res" is really a CD or an MP3 inside a bigger file. It also measures the dynamic range (DR
   and loudness range), and for an album ripped from CD it can compare the audio with other
   people's rips of the same disc in the CUETools Database.
-- **Blind test (ABX).** Do you hear the hi-res edition, or the equalizer? The player lines the two
-  up, matches their loudness, switches without telling which is which, and gives the odds that
-  you were guessing.
+- **Blind test (ABX).** Do you hear the hi-res edition, the equalizer, or the long upsampling
+  filter? The player lines the two up, matches their loudness, switches without telling which is
+  which, and gives the odds that you were guessing.
 - **Local API** for Home Assistant, a Stream Deck or your own scripts, on the same local server
   as the phone remote: off until you switch it on. See [docs/api.md](docs/api.md).
 - **Nothing to sign up for:** no account, no ads, no in-app purchases, nothing collected.

@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use hifi_engine::abx::{self, Prepared};
+use hifi_engine::dsp::upsample::FilterSpec;
 use hifi_engine::output::PlayOptions;
 use hifi_engine::player::Player;
 use hifi_engine::{Track, UserError};
@@ -137,8 +138,10 @@ fn play(state: &AppState, s: &Session, at: f64) -> CmdResult<()> {
 }
 
 /// Prepare a test and start playing A. `kind`: "files" (`a` against `b`, two files of the
-/// same music) or "processing" (`a` as it is against `a` through the processing that is
-/// switched on for this output). Takes a while: both are decoded whole.
+/// same music), "processing" (`a` as it is against `a` through the processing that is
+/// switched on for this output) or "filters" (`a`, the track playing, upsampled to the rate
+/// the DAC runs at with the standard filter and with the long one playing it). Takes a
+/// while: both are decoded whole (and upsampled), off the IPC thread.
 #[tauri::command]
 pub async fn abx_start(
     app: tauri::AppHandle,
@@ -160,8 +163,11 @@ pub async fn abx_start(
         return Err(UserError::AbxNotFile);
     }
     let dsp = crate::dsp_for(&state, device.uid());
-    let pair = tauri::async_runtime::spawn_blocking(move || match (kind.as_str(), b) {
-        ("files", Some(b)) => abx::of_files(&PathBuf::from(a), &PathBuf::from(b)),
+    let filters = if kind == "filters" { Some(playing_filter(&state, &a, &device_uid)?) } else { None };
+    let pair = tauri::async_runtime::spawn_blocking(move || match (kind.as_str(), b, filters) {
+        ("files", Some(b), _) => abx::of_files(&PathBuf::from(a), &PathBuf::from(b)),
+        // A: the standard filter; B: the long one, as it plays now.
+        ("filters", _, Some((rate, long))) => abx::of_filters(&PathBuf::from(a), rate, None, Some(long)),
         _ => abx::of_processing(&PathBuf::from(a), &dsp),
     })
     .await
@@ -185,6 +191,19 @@ pub async fn abx_start(
     }
     *slot = Some(session);
     Ok(AbxInfo { prepared: pair.prepared, trials: total })
+}
+
+/// The rate the DAC runs at and the long filter, for filter against filter: taken from what
+/// plays now (not from the settings, which may have changed since, or been stepped down), so
+/// the test is about what was just heard, and the DAC stays at its rate. Only for `path`
+/// playing on `device_uid` behind a long filter.
+fn playing_filter(state: &AppState, path: &str, device_uid: &str) -> CmdResult<(u32, FilterSpec)> {
+    let ours = state.current.lock().unwrap().as_ref().is_some_and(|c| c.path.as_os_str() == path && c.device_uid == device_uid);
+    let playing = state.player.lock().unwrap().as_ref().filter(|p| !p.is_finished()).and_then(|p| Some((p.path.device_rate.round() as u32, p.path.upsample_filter?)));
+    match playing {
+        Some(found) if ours => Ok(found),
+        _ => Err(UserError::AbxNoFilter),
+    }
 }
 
 /// Listen to A, B or X — from where the music is, or from its start once it has run out.
@@ -280,6 +299,14 @@ mod tests {
         let r = s.result().unwrap();
         assert_eq!((r.correct, r.total), (2, 3));
         assert!((r.p - 0.5).abs() < 1e-12);
+    }
+
+    /// Filter against filter takes its rate and filter from what plays: with nothing playing
+    /// there is nothing to take them from.
+    #[test]
+    fn filters_need_a_long_filter_playing() {
+        let state = AppState::default();
+        assert_eq!(playing_filter(&state, "/music/a.flac", "dac").unwrap_err(), UserError::AbxNoFilter);
     }
 
     #[test]

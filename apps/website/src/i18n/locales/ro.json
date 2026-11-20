@@ -42,7 +42,7 @@
   "enhance.title": "Vrei alt sunet? Nicio problemă",
   "enhance.lede": "Îmbunătățirile sunt dezactivate implicit. Activează oricare dintre ele, iar indicatorul playerului trece de la „Bit-perfect” la „Procesare” și arată exact ce se face cu sunetul.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "La 192, 384 sau 768 kHz, pentru DAC-urile care sună mai bine la frecvențe mari.",
+  "enhance.upsampling_detail": "La 192, 384 sau 768 kHz, pentru DAC-urile care sună mai bine la frecvențe mari. Filtru la alegere: standard, cu fază liniară sau minimă de până la un milion de coeficienți ori apodizant.",
   "enhance.eq": "Egalizator",
   "enhance.eq_detail": "Încarcă un profil AutoEQ pentru căștile tale. Filtrele sunt calculate cu precizie pe 64 de biți.",
   "enhance.crossfeed": "Crossfeed",

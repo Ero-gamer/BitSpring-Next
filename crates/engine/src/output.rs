@@ -22,6 +22,7 @@ use crate::dsp::lossy::LossyPlan;
 use crate::dsp::loudness::Level;
 use crate::dsp::eq::{EqPreset, EqStage, IirPlan, Phase};
 use crate::dsp::fir::{FirControl, FirDesigner};
+use crate::dsp::upsample::FilterSpec;
 use crate::dsp::{Chain, DspSettings, Upsample};
 use crate::rate::{RateDecision, RateRange, choose_device_rate, upsample_target};
 use crate::ring::Ring;
@@ -129,6 +130,9 @@ pub struct SignalPath {
     pub transport: Transport,
     /// Sample rate converted on the way (upsampling, or a DAC that can't do the source rate).
     pub resampled: bool,
+    /// The long upsampling filter, when it runs for this playback (see
+    /// [`crate::dsp::long_filter`]): its kind and its length as built. None = the standard one.
+    pub upsample_filter: Option<FilterSpec>,
     /// Name of the EQ preset applied, if any.
     pub eq: Option<String>,
     /// The EQ runs in linear phase.
@@ -380,6 +384,8 @@ pub(crate) fn signal_path(
         exclusive,
         transport,
         resampled: plan.resampled,
+        // As the chain decides it, from the rate the device actually runs at.
+        upsample_filter: if plan.processing { crate::dsp::long_filter(&opts.dsp, track.sample_rate, device_rate.round() as u32) } else { None },
         eq: opts.dsp.eq.as_ref().map(|p| p.name.clone()),
         eq_linear: opts.dsp.eq.as_ref().is_some_and(|p| p.phase == Phase::Linear),
         convolution: opts.dsp.convolution.as_ref().map(|c| c.0.name.clone()),
@@ -538,6 +544,9 @@ struct RingState {
     /// Render thread is waiting for the decoder (a stream still downloading): silence then is
     /// buffering, not a dropout of ours.
     starved: AtomicBool,
+    /// The render thread's processing time over the audio it handled, as f32 bits (see
+    /// [`Playback::load`]).
+    load: AtomicU32,
     /// The parametric EQ, run by the callback on what it pops from the ring.
     eq: Option<EqStage>,
     /// The render thread's FIR stage (linear-phase EQ, curves, convolution).
@@ -611,6 +620,7 @@ impl Playback {
                 peak: AtomicU32::new(0),
                 underruns: AtomicU64::new(0),
                 starved: AtomicBool::new(false),
+                load: AtomicU32::new(0),
                 eq: eq.map(|e| EqStage::new(e, fs, channels, opts.dsp.eq_bypass)),
                 fir: fir.as_ref().map(|(c, _)| c.clone()),
             });
@@ -830,6 +840,14 @@ impl Playback {
         self.shared.ring.as_ref().map_or(0, |rs| rs.underruns.load(Ordering::Relaxed))
     }
 
+    /// How hard the processing works: the render thread's time in the chain over the duration
+    /// of the audio it went through, refreshed about once a second of audio. 0.02 = 2% of one
+    /// core; 1.0 or more = it can't keep up (dropouts follow once the buffer runs dry). 0 until
+    /// the first second is through; None on the direct, unprocessed path.
+    pub fn load(&self) -> Option<f32> {
+        self.shared.ring.as_ref().map(|rs| f32::from_bits(rs.load.load(Ordering::Relaxed)))
+    }
+
     pub fn set_paused(&self, paused: bool) {
         self.shared.paused.store(paused, Ordering::Relaxed);
     }
@@ -1001,6 +1019,7 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
     let mut folded: Vec<f32> = Vec::new();
     let mut sent = 0usize;
     let nap = || std::thread::sleep(Duration::from_millis(2));
+    let mut load = Load::default();
 
     while !rs.quit.load(Ordering::Acquire) {
         // SAFETY: `cur` stays in a slot (and so owned by the Playback) until we move it on.
@@ -1076,6 +1095,12 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
         if input.is_empty() {
             if !complete {
                 rs.starved.store(true, Ordering::Relaxed);
+            } else if !flushed && chain.finishing() {
+                // The tail is on its way out, a block at a time (a long upsampling filter's
+                // can be many seconds): nothing joins on any more.
+                flushed = tail(&mut chain, &rs, &mut load, &mut out);
+                sent = 0;
+                continue;
             } else if !flushed {
                 let next = slots.next.load(Ordering::Acquire);
                 if next.is_null() {
@@ -1087,11 +1112,8 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
                         rs.tail_out.store(false, Ordering::Release);
                         continue;
                     }
-                    let processed = chain.process(&[], 1.0, true);
-                    out.clear();
-                    out.extend(processed.iter().map(|&v| v as f32));
+                    flushed = tail(&mut chain, &rs, &mut load, &mut out);
                     sent = 0;
-                    flushed = true;
                     continue;
                 }
                 if rs.boundary.load(Ordering::Acquire) == NO_BOUNDARY {
@@ -1116,16 +1138,55 @@ fn render_loop(slots: Arc<Slots>, rs: Arc<RingState>, mut chain: Chain, start_fr
         rs.starved.store(false, Ordering::Relaxed);
         src += input.len() / track.channels;
         let gain = if leveled { track.gain() as f64 } else { 1.0 };
+        let t = Instant::now();
         let processed = if route.folds() {
             route.fold_block(input, &mut folded);
             chain.process(&folded, gain, false)
         } else {
             chain.process(input, gain, false)
         };
+        load.add(&rs, t.elapsed(), input.len() / track.channels, processed.len() / rs.channels);
         out.clear();
         // Not clamped yet: the callback's EQ may still lower the level (its preamp).
         out.extend(processed.iter().map(|&v| v as f32));
         sent = 0;
+    }
+}
+
+/// One step of letting the chain's tail out at the end, into `out`. True once it is all out.
+fn tail(chain: &mut Chain, rs: &RingState, load: &mut Load, out: &mut Vec<f32>) -> bool {
+    let t = Instant::now();
+    let processed = chain.process(&[], 1.0, true);
+    load.add(rs, t.elapsed(), 0, processed.len() / rs.channels);
+    out.clear();
+    out.extend(processed.iter().map(|&v| v as f32));
+    !chain.finishing()
+}
+
+/// The render thread's tally for [`Playback::load`]: time in the chain, and the audio that
+/// went in and came out, since it was last published.
+#[derive(Default)]
+struct Load {
+    busy: Duration,
+    frames_in: usize,
+    frames_out: usize,
+}
+
+impl Load {
+    /// Count one `chain.process` call: `took`, `frames_in` source frames, `frames_out` device
+    /// frames. Published once a second of audio has come out. The work is set against the
+    /// longer of what went in and what came out: a long filter takes seconds of input before
+    /// its first output (and after each seek), and lets its tail out with no input at the end.
+    fn add(&mut self, rs: &RingState, took: Duration, frames_in: usize, frames_out: usize) {
+        self.busy += took;
+        self.frames_in += frames_in;
+        self.frames_out += frames_out;
+        let out_secs = self.frames_out as f64 / rs.device_rate;
+        if out_secs >= 1.0 {
+            let secs = out_secs.max(self.frames_in as f64 / rs.source_rate);
+            rs.load.store(((self.busy.as_secs_f64() / secs) as f32).to_bits(), Ordering::Relaxed);
+            *self = Self::default();
+        }
     }
 }
 
@@ -1873,6 +1934,195 @@ mod tests {
                 std::thread::sleep(Duration::from_millis(1));
             }
             assert!(!p.queue_next(ramp(48_000, 0, 1_000)));
+        }
+    }
+
+    /// Upsampling through the long filter (44.1 kHz tracks on a device at 88.2 kHz): a stage
+    /// that holds back up to `startup_frames()` of input and lets its output out in bursts,
+    /// through the join, the seek and the ring the rest of the path was built around.
+    mod long_filter {
+        use super::*;
+        use crate::decode::TrackMeta;
+        use crate::dsp::upsample::FilterKind;
+
+        const SRC: u32 = 44_100;
+        const DEV: u32 = 88_200;
+        /// 10 ms at 88.2 kHz.
+        const FADE: usize = 882;
+
+        fn spec(taps: usize) -> FilterSpec {
+            FilterSpec { kind: FilterKind::Linear, taps }
+        }
+
+        /// Frames `from..from + frames` of one stereo sine (997 Hz and 19 kHz).
+        fn sine(from: usize, frames: usize) -> Arc<Track> {
+            let samples: Vec<f32> = (from..from + frames)
+                .flat_map(|i| {
+                    let t = i as f64 / SRC as f64;
+                    let v = 0.3 * (2.0 * std::f64::consts::PI * 997.0 * t).sin() + 0.2 * (2.0 * std::f64::consts::PI * 19_000.0 * t).sin();
+                    [v as f32, -v as f32]
+                })
+                .collect();
+            Arc::new(Track::from_samples(SRC, 2, Some(24), &samples, TrackMeta::default()))
+        }
+
+        fn opts(filter: Option<FilterSpec>, fades: bool) -> PlayOptions {
+            let dsp = DspSettings { upsample: Upsample::UpTo(DEV as f64), upsample_filter: filter, ..Default::default() };
+            PlayOptions { dsp, fades, ..Default::default() }
+        }
+
+        fn plan(start_frame: usize) -> Plan {
+            Plan { target: DEV as f64, start_frame, lossy: None, resampled: true, processing: true, dop: false, route: stereo_route() }
+        }
+
+        fn start(track: Arc<Track>, filter: Option<FilterSpec>, start_frame: usize, fades: bool) -> Playback {
+            Playback::new(track, &opts(filter, fades), &plan(start_frame), DEV as f64).unwrap()
+        }
+
+        /// One callback of 512 stereo F32 frames, once the ring can serve it (or has nothing
+        /// more coming); returns the left channel.
+        fn callback(p: &Playback, wait: bool) -> Vec<f32> {
+            let rs = p.shared().ring.as_ref().unwrap();
+            let deadline = Instant::now() + Duration::from_secs(20);
+            while wait && rs.ring.available() < 512 * 2 && !rs.render_done.load(Ordering::Acquire) {
+                assert!(Instant::now() < deadline, "the render thread stalled");
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            let mut data = vec![0u8; 512 * 8];
+            p.shared().render(&mut [OutBuf { data: &mut data, channels: 2, format: OutFormat::F32 }]);
+            data.chunks_exact(8).map(|f| f32::from_le_bytes(f[..4].try_into().unwrap())).collect()
+        }
+
+        fn worst(a: &[f32], b: &[f32]) -> f32 {
+            a.iter().zip(b).fold(0f32, |m, (x, y)| m.max((x - y).abs()))
+        }
+
+        /// Two tracks cut from one sine play exactly as the sine as one track, and the heard
+        /// track changes on the very frame the second begins.
+        fn join_through(taps: usize, a_frames: usize, b_frames: usize) {
+            let whole = start(sine(0, a_frames + b_frames), Some(spec(taps)), 0, true);
+            let total = 2 * (a_frames + b_frames);
+            let mut want = Vec::new();
+            while want.len() < total {
+                want.extend(callback(&whole, true));
+            }
+            drop(whole);
+
+            let (a, b) = (sine(0, a_frames), sine(a_frames, b_frames));
+            let p = start(a.clone(), Some(spec(taps)), 0, true);
+            assert!(p.queue_next(b.clone()), "lined up before the render thread reaches A's end");
+            let mut out = Vec::new();
+            while out.len() < total {
+                out.extend(callback(&p, true));
+                let heard_b = Arc::ptr_eq(&p.heard(), &b);
+                assert_eq!(heard_b, out.len() >= 2 * a_frames, "at {}", out.len());
+                if heard_b {
+                    let at = (out.len() - 2 * a_frames) as f64 / DEV as f64;
+                    assert!((p.position_secs() - at.min(p.duration_secs())).abs() < 1e-6);
+                }
+            }
+            let err = worst(&out[..total], &want[..total]);
+            let load = p.load().unwrap();
+            println!("join through Linear {taps}: largest difference from one track {err:e}, load {:.4}, underruns {}", load, p.underruns());
+            assert!(err <= 1e-6, "differs from one track by {err}");
+            assert_eq!(p.switches(), 1);
+            assert_eq!(p.underruns(), 0);
+            assert!(load > 0.0 && load < 1.0, "load {load}");
+            while !p.is_finished() {
+                callback(&p, true);
+            }
+        }
+
+        #[test]
+        fn a_join_through_the_long_filter_is_seamless() {
+            join_through(65_536, 3 * SRC as usize + 777, 2 * SRC as usize);
+        }
+
+        /// The same with 2^20 taps (6.3 s of input held back before the first output):
+        /// `cargo test --release -p hifi-engine -- --ignored join_through_the_longest`
+        #[test]
+        #[ignore]
+        fn a_join_through_the_longest_filter_is_seamless() {
+            join_through(1 << 20, 10 * SRC as usize + 777, 3 * SRC as usize);
+        }
+
+        /// After a seek the chain starts over at the new frame: what comes out (once it has
+        /// faded in) is what a playback started there plays.
+        #[test]
+        fn a_seek_lands_where_a_fresh_start_would() {
+            let track = sine(0, 5 * SRC as usize);
+            let p = start(track.clone(), Some(spec(65_536)), 0, true);
+            for _ in 0..200 {
+                callback(&p, true);
+            }
+            let rs = p.shared().ring.as_ref().unwrap();
+            let generation = rs.flush_gen.load(Ordering::Acquire);
+            assert!(p.seek(3.0));
+            // The render thread takes the seek and waits for the callback to drop the ring,
+            // which it does once the old sound has faded out.
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while rs.flush_gen.load(Ordering::Acquire) == generation {
+                assert!(Instant::now() < deadline);
+                std::thread::sleep(Duration::from_millis(1));
+            }
+            while rs.flush_ack.load(Ordering::Acquire) != rs.flush_gen.load(Ordering::Acquire) {
+                callback(&p, false);
+            }
+            let mut after = Vec::new();
+            while after.len() < DEV as usize {
+                after.extend(callback(&p, true));
+            }
+            let fresh = start(track, Some(spec(65_536)), 3 * SRC as usize, true);
+            let mut want = Vec::new();
+            while want.len() < DEV as usize {
+                want.extend(callback(&fresh, true));
+            }
+            let (fading, settled) = (worst(&after[..FADE], &want[..FADE]), worst(&after[FADE..], &want[FADE..]));
+            println!("seek through Linear 65536: vs a fresh start there, largest difference {fading:e} in the fade-in, {settled:e} after");
+            assert!(settled <= 1e-6, "lands elsewhere: {settled}");
+            assert!((p.position_secs() - (3.0 + DEV as f64 / DEV as f64)).abs() < 0.02, "at {}", p.position_secs());
+            assert_eq!(p.underruns(), 0);
+        }
+
+        #[test]
+        fn load_is_measured_on_the_processed_path_only() {
+            for (filter, name) in [(Some(spec(65_536)), "Linear 65536"), (Some(spec(1 << 20)), "Linear 2^20"), (None, "standard")] {
+                let p = start(sine(0, 4 * SRC as usize), filter, 0, false);
+                while !p.is_finished() {
+                    callback(&p, true);
+                }
+                let load = p.load().unwrap();
+                println!("44.1 → 88.2 kHz stereo, {name}: load {load:.4} ({:.0}× real time)", 1.0 / load);
+                assert!(load > 0.0 && load < 1.0, "{name}: {load}");
+            }
+            let plan = Plan { target: SRC as f64, start_frame: 0, lossy: None, resampled: false, processing: false, dop: false, route: stereo_route() };
+            let direct = Playback::new(sine(0, 1_000), &PlayOptions::default(), &plan, SRC as f64).unwrap();
+            assert_eq!(direct.load(), None);
+        }
+
+        #[test]
+        fn the_signal_path_names_the_filter_only_when_it_runs() {
+            let track = sine(0, 1_000);
+            let path = |filter: Option<FilterSpec>, upsample: Upsample, device: f64, processing: bool| {
+                let dsp = DspSettings { upsample, upsample_filter: filter, ..Default::default() };
+                let opts = PlayOptions { dsp, ..Default::default() };
+                let plan = Plan { target: device, processing, resampled: device != SRC as f64, ..plan(0) };
+                signal_path(&track, &opts, &plan, device, None, OutFormat::F32, true, Transport::Usb).upsample_filter
+            };
+            let up = Upsample::UpTo(384_000.0);
+            assert_eq!(path(Some(spec(65_536)), up, 352_800.0, true), Some(spec(65_536)));
+            // As built: rounded up to a power of two.
+            assert_eq!(path(Some(spec(50_000)), up, 88_200.0, true), Some(spec(65_536)));
+            // The device settled below twice the source rate, or at it.
+            assert_eq!(path(Some(spec(65_536)), up, 48_000.0, true), None);
+            assert_eq!(path(Some(spec(65_536)), up, 44_100.0, false), None);
+            // Upsampling off (resampling only because the DAC needs it), or no filter chosen.
+            assert_eq!(path(Some(spec(65_536)), Upsample::Off, 88_200.0, true), None);
+            assert_eq!(path(None, up, 88_200.0, true), None);
+            // A track joining on keeps it.
+            let dsp = DspSettings { upsample: up, upsample_filter: Some(spec(65_536)), ..Default::default() };
+            let full = signal_path(&track, &PlayOptions { dsp, ..Default::default() }, &plan(0), 88_200.0, None, OutFormat::F32, true, Transport::Usb);
+            assert_eq!(full.for_next(&sine(0, 500)).upsample_filter, Some(spec(65_536)));
         }
     }
 

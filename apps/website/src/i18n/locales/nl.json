@@ -42,7 +42,7 @@
   "enhance.title": "Ander geluid? Ga je gang",
   "enhance.lede": "Verbeteringen staan standaard uit. Zet er een aan en de indicator in de speler springt van “Bit-perfect” naar “Verwerking” en laat precies zien wat er met het geluid gebeurt.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Naar 192, 384 of 768 kHz, voor DAC’s die beter klinken op hoge samplerates.",
+  "enhance.upsampling_detail": "Naar 192, 384 of 768 kHz, voor DAC’s die beter klinken op hoge samplerates. Met een filter naar keuze: standaard, lineaire of minimale fase met tot een miljoen coëfficiënten, of apodiserend.",
   "enhance.eq": "Equalizer",
   "enhance.eq_detail": "Laad een AutoEQ-profiel voor je koptelefoon. Filters worden berekend met 64-bits precisie.",
   "enhance.crossfeed": "Crossfeed",

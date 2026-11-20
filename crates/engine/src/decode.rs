@@ -26,7 +26,7 @@ use crate::dsp::loudness::Level;
 
 /// Frames per storage chunk. Chunks never move once allocated, so a reader holding a frame
 /// index below `ready` can always find its sample — the buffer grows without reallocating.
-const CHUNK_FRAMES: usize = 1 << 16;
+pub(crate) const CHUNK_FRAMES: usize = 1 << 16;
 
 /// Longest track we make room for (24 h) — caps what a forged header can make us allocate.
 const MAX_TRACK_SECS: usize = 24 * 3600;
@@ -367,6 +367,25 @@ impl Track {
     pub fn from_samples(sample_rate: u32, channels: usize, bits: Option<u32>, samples: &[f32], meta: TrackMeta) -> Self {
         let t = Self::new(sample_rate, channels, bits, false, meta, samples.len() / channels.max(1));
         t.push(samples);
+        t.finish(None);
+        t
+    }
+
+    /// A finished track of `frames` frames made of `chunks` as they are, without a copy: each
+    /// exactly [`CHUNK_FRAMES`] frames long, the last one padded with zeros. For audio built in
+    /// memory a chunk at a time (the blind test's upsampled versions, hundreds of MB).
+    pub(crate) fn from_chunks(sample_rate: u32, channels: usize, bits: Option<u32>, chunks: Vec<Box<[f32]>>, frames: usize, meta: TrackMeta) -> Self {
+        let t = Self::new(sample_rate, channels, bits, false, meta, frames);
+        assert!(frames <= chunks.len() * CHUNK_FRAMES && chunks.len() <= t.chunks.len());
+        let mut peak = 0f32;
+        for (slot, c) in t.chunks.iter().zip(chunks) {
+            assert_eq!(c.len(), CHUNK_FRAMES * t.channels);
+            peak = c.iter().fold(peak, |m, v| m.max(v.abs()));
+            // (Freed in `free_chunk` as the same type and length it was allocated as.)
+            slot.store(Box::into_raw(c) as *mut u8, Ordering::Release);
+        }
+        t.peak.store(peak.to_bits(), Ordering::Relaxed);
+        t.ready.store(frames, Ordering::Release);
         t.finish(None);
         t
     }

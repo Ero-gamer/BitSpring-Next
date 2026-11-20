@@ -42,7 +42,7 @@
   "enhance.title": "다른 소리를 원하세요? 얼마든지",
   "enhance.lede": "사운드 조정은 기본적으로 모두 꺼져 있습니다. 하나라도 켜면 플레이어 표시기가 “Bit-perfect”에서 “처리 중”으로 바뀌고, 소리에 어떤 처리를 하는지 정확히 보여 줍니다.",
   "enhance.upsampling": "업샘플링",
-  "enhance.upsampling_detail": "192, 384 또는 768 kHz로. 높은 샘플레이트에서 더 좋은 소리를 내는 DAC를 위해.",
+  "enhance.upsampling_detail": "192, 384 또는 768 kHz로. 높은 샘플레이트에서 더 좋은 소리를 내는 DAC를 위해. 필터는 표준, 최대 100만 탭의 선형 위상 또는 최소 위상, 아포다이징 중에서 고를 수 있습니다.",
   "enhance.eq": "이퀄라이저",
   "enhance.eq_detail": "헤드폰에 맞는 AutoEQ 프로필을 불러오세요. 필터는 64비트 정밀도로 계산합니다.",
   "enhance.crossfeed": "크로스피드",

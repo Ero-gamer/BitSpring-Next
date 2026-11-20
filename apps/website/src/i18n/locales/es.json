@@ -42,7 +42,7 @@
   "enhance.title": "¿Quieres otro sonido? Adelante",
   "enhance.lede": "Las mejoras vienen desactivadas. Activa cualquiera y el indicador del reproductor pasa de «Bit-perfect» a «Procesando» y muestra exactamente qué se le está haciendo al sonido.",
   "enhance.upsampling": "Sobremuestreo",
-  "enhance.upsampling_detail": "A 192, 384 o 768 kHz, para los DAC que suenan mejor a frecuencias altas.",
+  "enhance.upsampling_detail": "A 192, 384 o 768 kHz, para los DAC que suenan mejor a frecuencias altas. Con filtro a elegir: estándar, de fase lineal o mínima con hasta un millón de coeficientes, o apodizante.",
   "enhance.eq": "Ecualizador",
   "enhance.eq_detail": "Carga un perfil AutoEQ para tus auriculares. Los filtros se calculan con precisión de 64 bits.",
   "enhance.crossfeed": "Crossfeed",

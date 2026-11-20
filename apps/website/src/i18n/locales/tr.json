@@ -42,7 +42,7 @@
   "enhance.title": "Farklı bir ses mi istiyorsun? Buyur",
   "enhance.lede": "İyileştirmeler varsayılan olarak kapalıdır. Herhangi birini açtığında çalardaki gösterge “Bit-perfect” yerine “İşleme” olur ve sese tam olarak ne yapıldığını listeler.",
   "enhance.upsampling": "Upsampling",
-  "enhance.upsampling_detail": "Yüksek hızlarda daha iyi ses veren DAC'lar için 192, 384 veya 768 kHz'e.",
+  "enhance.upsampling_detail": "Yüksek hızlarda daha iyi ses veren DAC'lar için 192, 384 veya 768 kHz'e. İsteğe bağlı filtre: standart, bir milyon katsayıya kadar doğrusal veya minimum faz ya da apodizasyon.",
   "enhance.eq": "Ekolayzır",
   "enhance.eq_detail": "Kulaklığın için bir AutoEQ profili yükle. Filtreler 64 bit hassasiyetle hesaplanır.",
   "enhance.crossfeed": "Crossfeed",
