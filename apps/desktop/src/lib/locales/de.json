@@ -683,7 +683,7 @@
   "q.d.mirror": "Oberhalb von {khz} kHz gibt es nur ein Spiegelbild der Musik darunter – die Spur, die ein einfacher Resampler hinterlässt. Diese {rate}-kHz-Datei wurde aus einer {from}-kHz-Datei erstellt: Sie klingt genauso und braucht nur mehr Platz.",
   "q.d.fromLossy": "Alles oberhalb von {khz} kHz ist scharf abgeschnitten, so wie es MP3- und AAC-Encoder tun. Eine verlustfreie Kopie bringt nicht zurück, was sie entfernt haben.",
   "q.d.padded": "Die untersten 8 Bit jedes Samples sind null: Das ist 16-Bit-Audio in einer 24-Bit-Datei.",
-  "q.d.lossy": "MP3, AAC und Vorbis lassen bewusst einen Teil des Klangs weg, hier gibt es also nichts aufzudecken.",
+  "q.d.lossy": "MP3, AAC, Vorbis und Opus lassen bewusst einen Teil des Klangs weg, hier gibt es also nichts aufzudecken.",
   "q.d.dsd": "DSD füllt den oberen Teil seines Bereichs bewusst mit Rauschen, daher greift diese Prüfung hier nicht.",
   "q.d.short": "Zu kurz oder zu leise für ein Urteil.",
   "q.d.wallAmbiguous": "Die Musik bricht bei {khz} kHz scharf ab. Das macht MP3 mit den besten Einstellungen, aber auch viele CD-Master.",

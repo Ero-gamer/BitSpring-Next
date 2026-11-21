@@ -683,7 +683,7 @@
   "q.d.mirror": "Yli {khz} kHz:n on vain peilikuva sen alapuolella olevasta musiikista – jälki, jonka yksinkertainen näytteenottotaajuuden muunnin jättää. Tämä {rate} kHz:n tiedosto on tehty {from} kHz:n tiedostosta: se kuulostaa samalta ja vie vain enemmän tilaa.",
   "q.d.fromLossy": "Kaikki yli {khz} kHz:n on leikattu jyrkästi pois, kuten MP3- ja AAC-enkooderit tekevät. Häviötön kopio ei tuo takaisin sitä, minkä ne poistivat.",
   "q.d.padded": "Jokaisen näytteen alimmat 8 bittiä ovat nollia: tämä on 16-bittistä ääntä 24-bittisessä tiedostossa.",
-  "q.d.lossy": "MP3, AAC ja Vorbis jättävät osan äänestä tarkoituksella pois, joten tässä ei ole mitään paljastettavaa.",
+  "q.d.lossy": "MP3, AAC, Vorbis ja Opus jättävät osan äänestä tarkoituksella pois, joten tässä ei ole mitään paljastettavaa.",
   "q.d.dsd": "DSD täyttää alueensa yläpään tarkoituksella kohinalla, joten tämä tarkistus ei koske sitä.",
   "q.d.short": "Liian lyhyt tai liian hiljainen arvioitavaksi.",
   "q.d.wallAmbiguous": "Musiikki katkeaa jyrkästi {khz} kHz:n kohdalla. Niin tekee parhailla asetuksilla tehty MP3, mutta myös moni CD-master.",

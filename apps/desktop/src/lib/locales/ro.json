@@ -683,7 +683,7 @@
   "q.d.mirror": "Peste {khz} kHz există doar o imagine în oglindă a muzicii de dedesubt, urma pe care o lasă un resampler simplu. Acest fișier de {rate} kHz a fost făcut dintr-unul de {from} kHz: sună la fel și doar ocupă mai mult spațiu.",
   "q.d.fromLossy": "Tot ce e peste {khz} kHz este tăiat brusc, așa cum fac encoderele MP3 și AAC. O copie fără pierderi nu poate aduce înapoi ce au eliminat ele.",
   "q.d.padded": "Cei mai puțin semnificativi 8 biți ai fiecărui eșantion sunt zero: este audio pe 16 biți stocat într-un fișier pe 24 de biți.",
-  "q.d.lossy": "MP3, AAC și Vorbis omit prin natura lor o parte din sunet, așa că aici nu e nimic de demascat.",
+  "q.d.lossy": "MP3, AAC, Vorbis și Opus omit prin natura lor o parte din sunet, așa că aici nu e nimic de demascat.",
   "q.d.dsd": "DSD își umple prin natura sa partea de sus a gamei cu zgomot, așa că această verificare nu se aplică.",
   "q.d.short": "Prea scurt sau prea încet pentru a judeca.",
   "q.d.wallAmbiguous": "Muzica se oprește brusc la {khz} kHz. Așa face MP3-ul la cele mai bune setări, dar și multe mastere CD.",

@@ -20,7 +20,7 @@ use symphonia::core::meta::MetadataOptions;
 
 use crate::decode::read_meta;
 
-pub const AUDIO_EXTENSIONS: [&str; 16] = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "caf", "mka", "dsf", "dff", "ape", "wv", "tta", "iso"];
+pub const AUDIO_EXTENSIONS: [&str; 17] = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "opus", "caf", "mka", "dsf", "dff", "ape", "wv", "tta", "iso"];
 
 pub fn is_audio(p: &Path) -> bool {
     p.extension()
@@ -118,15 +118,19 @@ pub fn scan_file(path: &Path) -> Result<(TrackInfo, Option<Cover>)> {
     let bits = audio.bits_per_sample.or_else(|| {
         (audio.codec == CODEC_ID_ALAC).then(|| alac_bit_depth(audio.extra_data.as_deref()?)).flatten()
     });
+    // Opus' length counts its encoder delay, which playback cuts (see `decode::open`).
+    let delay = if audio.codec == CODEC_ID_OPUS { crate::opus::delay(track.delay, audio) as u64 } else { 0 };
     let duration = match (track.num_frames, sample_rate) {
-        (Some(n), r) if r > 0 => n as f64 / r as f64,
+        (Some(n), r) if r > 0 => n.saturating_sub(delay) as f64 / r as f64,
         _ => 0.0,
     };
 
-    // MP4 containers hold either ALAC (lossless) or AAC; only the codec id tells them apart.
+    // MP4 containers hold either ALAC (lossless) or AAC, and Ogg or MKA may hold Opus; only
+    // the codec id tells them apart.
     let (format_name, lossless) = match ext.as_str() {
         _ if audio.codec == CODEC_ID_ALAC => ("ALAC", true),
         _ if audio.codec == CODEC_ID_AAC => ("AAC", false),
+        _ if audio.codec == CODEC_ID_OPUS => ("Opus", false),
         "flac" => ("FLAC", true),
         "wav" => ("WAV", true),
         "aif" | "aiff" => ("AIFF", true),

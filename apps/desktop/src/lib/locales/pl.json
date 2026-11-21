@@ -688,7 +688,7 @@
   "q.d.mirror": "Powyżej {khz} kHz jest tylko lustrzane odbicie muzyki znajdującej się niżej – ślad, jaki zostawia prosty resampler. Ten plik {rate} kHz powstał z pliku {from} kHz: brzmi tak samo, tylko zajmuje więcej miejsca.",
   "q.d.fromLossy": "Wszystko powyżej {khz} kHz jest ostro ucięte, tak jak robią to kodery MP3 i AAC. Bezstratna kopia nie przywróci tego, co one usunęły.",
   "q.d.padded": "Najmłodsze 8 bitów każdej próbki to zera: to 16-bitowy dźwięk zapisany w 24-bitowym pliku.",
-  "q.d.lossy": "MP3, AAC i Vorbis z założenia pomijają część dźwięku, więc nie ma tu czego demaskować.",
+  "q.d.lossy": "MP3, AAC, Vorbis i Opus z założenia pomijają część dźwięku, więc nie ma tu czego demaskować.",
   "q.d.dsd": "DSD z założenia wypełnia górę swojego zakresu szumem, więc ten test go nie dotyczy.",
   "q.d.short": "Zbyt krótkie lub zbyt ciche, by ocenić.",
   "q.d.wallAmbiguous": "Muzyka urywa się ostro na {khz} kHz. Tak robi MP3 przy najlepszych ustawieniach, ale tak samo wygląda wiele masterów CD.",

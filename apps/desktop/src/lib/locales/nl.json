@@ -683,7 +683,7 @@
   "q.d.mirror": "Boven {khz} kHz staat alleen een spiegelbeeld van de muziek eronder, het spoor dat een eenvoudige resampler achterlaat. Dit {rate} kHz-bestand is gemaakt van een {from} kHz-bestand: het klinkt hetzelfde en neemt alleen meer ruimte in.",
   "q.d.fromLossy": "Alles boven {khz} kHz is scherp afgesneden, zoals MP3- en AAC-encoders dat doen. Een verliesvrije kopie kan niet terugbrengen wat zij hebben weggehaald.",
   "q.d.padded": "De laagste 8 bits van elke sample zijn nul: dit is 16-bit audio in een 24-bit bestand.",
-  "q.d.lossy": "MP3, AAC en Vorbis laten bewust een deel van het geluid weg, dus hier valt niets te ontmaskeren.",
+  "q.d.lossy": "MP3, AAC, Vorbis en Opus laten bewust een deel van het geluid weg, dus hier valt niets te ontmaskeren.",
   "q.d.dsd": "DSD vult de bovenkant van zijn bereik bewust met ruis, dus deze controle is hier niet van toepassing.",
   "q.d.short": "Te kort of te zacht om te beoordelen.",
   "q.d.wallAmbiguous": "De muziek stopt abrupt bij {khz} kHz. Dat doet MP3 op de beste instellingen, maar ook veel CD-masters.",

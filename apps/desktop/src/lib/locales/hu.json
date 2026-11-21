@@ -683,7 +683,7 @@
   "q.d.mirror": "{khz} kHz fölött csak az alatta lévő zene tükörképe van – ezt a nyomot hagyja egy egyszerű mintavételező. Ez a {rate} kHz-es fájl egy {from} kHz-es fájlból készült: ugyanúgy szól, csak több helyet foglal.",
   "q.d.fromLossy": "{khz} kHz felett minden élesen le van vágva, ahogy az MP3- és AAC-kódolók teszik. Egy veszteségmentes másolat nem hozza vissza, amit eltávolítottak.",
   "q.d.padded": "Minden minta legalsó 8 bitje nulla: ez 24 bites fájlban tárolt 16 bites hang.",
-  "q.d.lossy": "Az MP3, az AAC és a Vorbis eleve kihagyja a hang egy részét, így itt nincs mit leleplezni.",
+  "q.d.lossy": "Az MP3, az AAC, a Vorbis és az Opus eleve kihagyja a hang egy részét, így itt nincs mit leleplezni.",
   "q.d.dsd": "A DSD eleve zajjal tölti ki a tartománya tetejét, ezért ez az ellenőrzés nem vonatkozik rá.",
   "q.d.short": "Túl rövid vagy túl halk a megítéléshez.",
   "q.d.wallAmbiguous": "A zene élesen megszakad {khz} kHz-nél. Ezt teszi a legjobb beállítású MP3, de sok CD-master is.",
