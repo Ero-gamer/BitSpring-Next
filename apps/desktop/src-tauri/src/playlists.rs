@@ -188,14 +188,15 @@ fn known(tracks: &[TrackInfo]) -> Known<'_> {
 }
 
 /// Playable here and now. A network path counts only if the library scanned it: one from an
-/// imported playlist is never looked up (see `playlist::is_network_path`).
+/// imported playlist is never looked up (see `playlist::is_network_path`). A track of a CUE or
+/// SACD image (`…/Image.flac#cue:…`, `…#sacd:2`) is there when its image file is.
 fn available(uri: &str, library: &Known) -> bool {
     if is_stream(uri) {
         crate::stream::ENABLED
     } else if playlist::is_network_path(uri) {
         library.contains(uri)
     } else {
-        Path::new(uri).is_file()
+        Path::new(hifi_engine::source_file(uri)).is_file()
     }
 }
 
@@ -598,6 +599,23 @@ mod tests {
         assert_eq!(shown.entries[0].entry.uri.as_deref(), Some(file.to_string_lossy().as_ref()));
         // A file that is really gone is marked, as before.
         assert!(!shown.entries[1].available);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A track of a CUE image is its image file plus a range: it plays while that file is there.
+    #[test]
+    fn a_cue_track_is_available_while_its_image_is() {
+        let dir = std::env::temp_dir().join(format!("bitspring-cue-playlist-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let image = dir.join("Image_CD.flac");
+        std::fs::write(&image, b"not really audio").unwrap();
+        let track = format!("{}#cue:78213-96135", image.display());
+        let sacd = format!("{}#sacd:2", image.display());
+        let none = Known::new();
+        assert!(available(&track, &none));
+        assert!(available(&sacd, &none));
+        std::fs::remove_file(&image).unwrap();
+        assert!(!available(&track, &none), "the image is gone");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
