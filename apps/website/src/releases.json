@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.22.1",
+    "name": "BitSpring 0.22.1",
+    "date": "2026-11-22T08:29:22Z",
+    "url": "https://github.com/crash2bash/bitspring/releases/tag/v0.22.1",
+    "notes": "- **Playlists with tracks from a CUE image now play.** A playlist made of tracks from an album image with a CUE sheet (one FLAC or WAV file for the whole CD) showed every one of them as unavailable, so Play, Shuffle and Add to queue stayed greyed out. The same happened to tracks of a SACD image. They now count as there while the image file is, and nothing about your playlists needs redoing."
+  },
+  {
     "version": "0.22.0",
     "name": "BitSpring 0.22.0",
     "date": "2026-11-20T19:15:37Z",
