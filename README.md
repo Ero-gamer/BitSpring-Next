@@ -32,8 +32,9 @@ them, and off means bit-perfect again.
   and later, and ALSA straight to the sound card on Linux.
 - **Every track at its own sample rate**, from CD to 768 kHz, with gapless playback. If the DAC
   can't do a rate, the player resamples carefully and says so.
-- **The formats you have:** FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC and Ogg
-  Vorbis. DSD (DSF, DFF, SACD ISO) plays natively over DoP, or as PCM if the DAC can't take it.
+- **The formats you have:** FLAC, ALAC, WAV, AIFF, CAF, MKA, APE, WavPack, TTA, MP3, AAC, Ogg
+  Vorbis and Opus. DSD (DSF, DFF, SACD ISO) plays natively over DoP, or as PCM if the DAC can't
+  take it.
 - **Sound shaping when you ask for it:** parametric EQ with AutoEQ headphone profiles and Equalizer
   APO / EasyEffects import, crossfeed, and upsampling to 192, 384 or 768 kHz. Turn any of them on
   and the indicator switches from *Bit-perfect* to *Processing* and lists what is being done.
@@ -109,4 +110,4 @@ npm run build:appstore        # Mac App Store build (sandboxed, no streaming or 
 ## License
 
 [MIT](LICENSE). Third-party libraries keep their own licenses (mostly MIT and Apache-2.0; the
-Symphonia decoders are MPL-2.0).
+Symphonia decoders are MPL-2.0, the Opus decoder, libopus, BSD-3-Clause).

@@ -707,7 +707,7 @@
   "q.d.mirror": "Au-dessus de {khz} kHz, il n'y a qu'une image miroir de la musique située en dessous, la trace que laisse un rééchantillonneur simple. Ce fichier {rate} kHz a été créé à partir d'un fichier {from} kHz : il sonne pareil et prend seulement plus de place.",
   "q.d.fromLossy": "Tout ce qui dépasse {khz} kHz est coupé net, comme le font les encodeurs MP3 et AAC. Une copie sans perte ne peut pas rendre ce qu’ils ont supprimé.",
   "q.d.padded": "Les 8 bits de poids faible de chaque échantillon sont à zéro : c’est de l’audio 16 bits stocké dans un fichier 24 bits.",
-  "q.d.lossy": "MP3, AAC et Vorbis écartent par nature une partie du son, il n’y a donc rien à démasquer ici.",
+  "q.d.lossy": "MP3, AAC, Vorbis et Opus écartent par nature une partie du son, il n’y a donc rien à démasquer ici.",
   "q.d.dsd": "Le DSD remplit par nature le haut de sa plage avec du bruit, cette vérification ne s’y applique donc pas.",
   "q.d.short": "Trop court ou trop faible pour en juger.",
   "q.d.wallAmbiguous": "La musique s’arrête net à {khz} kHz. Le MP3 à ses meilleurs réglages fait cela, mais aussi beaucoup de masters CD.",

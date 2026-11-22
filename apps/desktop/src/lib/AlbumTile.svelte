@@ -37,7 +37,7 @@
   <span class="artist">{artistLabel(album.artist)}</span>
   <span class="meta">
     {#if album.year}<span class="num">{album.year}</span>{/if}
-    <span class="fmt" class:hi={album.hiRes} class:lossy={album.format === "MP3" || album.format === "AAC" || album.format === "Vorbis"}>
+    <span class="fmt" class:hi={album.hiRes} class:lossy={album.format === "MP3" || album.format === "AAC" || album.format === "Vorbis" || album.format === "Opus"}>
       {(album.hiRes || album.maxBits) && album.maxRate ? resolution(album.maxBits, album.maxRate) : album.format}
     </span>
     <!-- A filled heart: the album itself is a favourite. A number: that many of its tracks

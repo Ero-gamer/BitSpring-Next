@@ -707,7 +707,7 @@
   "q.d.mirror": "Over {khz} kHz finnes bare et speilbilde av musikken under, sporet en enkel resampler etterlater. Denne {rate} kHz-filen er laget av en fil på {from} kHz: den låter likt og tar bare mer plass.",
   "q.d.fromLossy": "Alt over {khz} kHz er skarpt avskåret, slik MP3- og AAC-kodere gjør. En tapsfri kopi kan ikke hente tilbake det de fjernet.",
   "q.d.padded": "De laveste 8 bitene i hver sample er null: dette er 16-bits lyd lagret i en 24-bits fil.",
-  "q.d.lossy": "MP3, AAC og Vorbis utelater med vilje en del av lyden, så det er ingenting å avsløre her.",
+  "q.d.lossy": "MP3, AAC, Vorbis og Opus utelater med vilje en del av lyden, så det er ingenting å avsløre her.",
   "q.d.dsd": "DSD fyller med vilje toppen av området sitt med støy, så denne sjekken gjelder ikke.",
   "q.d.short": "For kort eller for stille til å vurdere.",
   "q.d.wallAmbiguous": "Musikken stopper brått ved {khz} kHz. Det gjør MP3 med de beste innstillingene, og det gjør også mange CD-mastere.",

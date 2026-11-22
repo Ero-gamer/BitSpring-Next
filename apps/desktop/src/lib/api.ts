@@ -808,7 +808,7 @@ export const api = {
   stop: () => call<void>("stop"),
 };
 
-export const AUDIO_EXTENSIONS = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "caf", "mka", "dsf", "dff", "ape", "wv", "tta", "iso"];
+export const AUDIO_EXTENSIONS = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "opus", "caf", "mka", "dsf", "dff", "ape", "wv", "tta", "iso"];
 
 export function isAudioPath(p: string): boolean {
   const ext = p.split(".").pop()?.toLowerCase() ?? "";

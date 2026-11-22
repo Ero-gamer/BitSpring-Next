@@ -707,7 +707,7 @@
   "q.d.mirror": "Above {khz} kHz there is only a mirror image of the music below it, the trace a simple resampler leaves. This {rate} kHz file was made from a {from} kHz one: it sounds the same and only takes more space.",
   "q.d.fromLossy": "Everything above {khz} kHz is cut off sharply, the way MP3 and AAC encoders do it. A lossless copy can't bring back what they removed.",
   "q.d.padded": "The lowest 8 bits of every sample are zero: this is 16-bit audio stored in a 24-bit file.",
-  "q.d.lossy": "MP3, AAC and Vorbis leave out part of the sound by design, so there's nothing to unmask here.",
+  "q.d.lossy": "MP3, AAC, Vorbis and Opus leave out part of the sound by design, so there's nothing to unmask here.",
   "q.d.dsd": "DSD fills the top of its range with noise by design, so this check doesn't apply.",
   "q.d.short": "Too short or too quiet to judge.",
   "q.d.wallAmbiguous": "The music stops sharply at {khz} kHz. MP3 at its best settings does that, and so do many CD masters.",

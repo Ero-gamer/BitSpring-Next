@@ -707,7 +707,7 @@
   "q.d.mirror": "{khz} kHz'in üzerinde yalnızca altındaki müziğin ayna görüntüsü var; basit bir yeniden örnekleyicinin bıraktığı iz. Bu {rate} kHz dosya {from} kHz bir dosyadan yapılmış: aynı sesi verir, yalnızca daha fazla yer kaplar.",
   "q.d.fromLossy": "{khz} kHz'in üzerindeki her şey, MP3 ve AAC kodlayıcılarının yaptığı gibi keskin biçimde kesilmiş. Kayıpsız bir kopya, onların attığını geri getiremez.",
   "q.d.padded": "Her örneğin en düşük 8 biti sıfır: bu, 24 bitlik bir dosyada saklanan 16 bitlik ses.",
-  "q.d.lossy": "MP3, AAC ve Vorbis tasarımları gereği sesin bir kısmını dışarıda bırakır, yani burada ortaya çıkarılacak bir şey yok.",
+  "q.d.lossy": "MP3, AAC, Vorbis ve Opus tasarımları gereği sesin bir kısmını dışarıda bırakır, yani burada ortaya çıkarılacak bir şey yok.",
   "q.d.dsd": "DSD tasarımı gereği aralığının üst kısmını gürültüyle doldurur, bu yüzden bu denetim ona uygulanmaz.",
   "q.d.short": "Değerlendirmek için çok kısa veya çok sessiz.",
   "q.d.wallAmbiguous": "Müzik {khz} kHz'de keskin biçimde kesiliyor. En iyi ayarlarındaki MP3 bunu yapar, birçok CD master'ı da öyle.",

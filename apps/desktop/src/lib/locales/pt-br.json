@@ -707,7 +707,7 @@
   "q.d.mirror": "Acima de {khz} kHz há apenas uma imagem espelhada da música abaixo, o rastro que um reamostrador simples deixa. Este arquivo de {rate} kHz foi feito a partir de um de {from} kHz: soa igual e só ocupa mais espaço.",
   "q.d.fromLossy": "Tudo acima de {khz} kHz é cortado de forma abrupta, como fazem os codificadores MP3 e AAC. Uma cópia sem perdas não traz de volta o que eles removeram.",
   "q.d.padded": "Os 8 bits mais baixos de cada amostra são zero: é áudio de 16 bits guardado em um arquivo de 24 bits.",
-  "q.d.lossy": "MP3, AAC e Vorbis descartam parte do som por design, então não há nada a desmascarar aqui.",
+  "q.d.lossy": "MP3, AAC, Vorbis e Opus descartam parte do som por design, então não há nada a desmascarar aqui.",
   "q.d.dsd": "O DSD preenche o topo da sua faixa com ruído por design, então esta verificação não se aplica.",
   "q.d.short": "Curto ou baixo demais para avaliar.",
   "q.d.wallAmbiguous": "A música para abruptamente em {khz} kHz. O MP3 nas melhores configurações faz isso, e muitos masters de CD também.",

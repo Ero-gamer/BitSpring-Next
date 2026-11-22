@@ -15,6 +15,7 @@ pub mod lyrics;
 pub mod lossless;
 pub mod marks;
 pub mod net;
+pub mod opus;
 pub mod output;
 pub mod player;
 pub mod playlist;
