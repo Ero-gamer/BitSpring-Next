@@ -683,7 +683,7 @@
   "q.d.mirror": "Ovanför {khz} kHz finns bara en spegelbild av musiken under, det spår en enkel omsamplare lämnar. Den här {rate} kHz-filen är gjord av en fil på {from} kHz: den låter likadant och tar bara mer plats.",
   "q.d.fromLossy": "Allt över {khz} kHz är skarpt avskuret, så som MP3- och AAC-kodare gör. En förlustfri kopia kan inte återställa det de tog bort.",
   "q.d.padded": "De lägsta 8 bitarna i varje sampel är noll: det här är 16-bitarsljud lagrat i en 24-bitarsfil.",
-  "q.d.lossy": "MP3, AAC och Vorbis utelämnar en del av ljudet med avsikt, så det finns inget att avslöja här.",
+  "q.d.lossy": "MP3, AAC, Vorbis och Opus utelämnar en del av ljudet med avsikt, så det finns inget att avslöja här.",
   "q.d.dsd": "DSD fyller toppen av sitt omfång med brus med avsikt, så den här kontrollen gäller inte.",
   "q.d.short": "För kort eller för tyst för att bedöma.",
   "q.d.wallAmbiguous": "Musiken slutar tvärt vid {khz} kHz. Det gör MP3 med de bästa inställningarna, och det gör även många CD-masters.",

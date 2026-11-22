@@ -688,7 +688,7 @@
   "q.d.mirror": "Nad {khz} kHz je jen zrcadlový obraz hudby pod touto hranicí, stopa, kterou zanechává jednoduchý převzorkovač. Tento soubor {rate} kHz vznikl ze souboru {from} kHz: zní stejně, jen zabírá více místa.",
   "q.d.fromLossy": "Vše nad {khz} kHz je ostře oříznuté, přesně jak to dělají kodéry MP3 a AAC. Bezeztrátová kopie nevrátí to, co odstranily.",
   "q.d.padded": "Nejnižších 8 bitů každého vzorku je nulových: jde o 16bitový zvuk uložený v 24bitovém souboru.",
-  "q.d.lossy": "MP3, AAC a Vorbis ze své podstaty vynechávají část zvuku, takže tu není co odhalovat.",
+  "q.d.lossy": "MP3, AAC, Vorbis a Opus ze své podstaty vynechávají část zvuku, takže tu není co odhalovat.",
   "q.d.dsd": "DSD ze své podstaty vyplňuje horní část svého rozsahu šumem, takže se na něj tato kontrola nevztahuje.",
   "q.d.short": "Příliš krátké nebo příliš tiché na posouzení.",
   "q.d.wallAmbiguous": "Hudba ostře končí na {khz} kHz. Tak to dělá MP3 v nejlepším nastavení, ale stejně vypadá i mnoho CD masterů.",

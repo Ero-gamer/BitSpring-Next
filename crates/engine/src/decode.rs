@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result, anyhow, bail};
 use symphonia::core::audio::sample::Sample;
+use symphonia::core::codecs::audio::well_known::{CODEC_ID_AAC, CODEC_ID_OPUS};
 use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error as SymError;
 use symphonia::core::formats::probe::Hint;
@@ -635,11 +636,15 @@ struct Opened {
     track_id: u32,
     track: Track,
     trim: Trim,
+    /// Frames of `trim.skip` the container's timestamps already leave out (see `seek_decoder`).
+    ts_delay: usize,
+    /// Frames to decode before a seek point and drop, so the decoder is in step by then.
+    pre_roll: usize,
 }
 
 /// Encoder delay and padding to cut, so an album of AAC files plays gapless: an AAC encoder
 /// adds ~2112 frames of silence at the start ("priming") and pads the end to a whole frame.
-/// MP3 (LAME/Xing tag) and Vorbis/Opus are trimmed by symphonia itself.
+/// Opus' pre-skip is cut here too; MP3 (LAME/Xing tag) and Vorbis are trimmed by symphonia.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub(crate) struct Trim {
     /// Decoded frames to drop at the start.
@@ -780,6 +785,18 @@ fn mp4_edit(path: &Path) -> Option<Mp4Edit> {
     None
 }
 
+/// symphonia's decoders, and ours for what it only demuxes (Opus).
+fn codecs() -> &'static symphonia::core::codecs::registry::CodecRegistry {
+    use symphonia::core::codecs::registry::CodecRegistry;
+    static CODECS: std::sync::LazyLock<CodecRegistry> = std::sync::LazyLock::new(|| {
+        let mut r = CodecRegistry::new();
+        symphonia::default::register_enabled_codecs(&mut r);
+        r.register_audio_decoder::<crate::opus::OpusDecoder>();
+        r
+    });
+    &CODECS
+}
+
 fn open(source: Box<dyn MediaSource>, hint: &Hint, expected_frames: Option<usize>, edit: Option<Mp4Edit>, range: Option<Range>) -> Result<Opened> {
     let mss = MediaSourceStream::new(source, Default::default());
     let mut format = symphonia::default::get_probe()
@@ -796,13 +813,14 @@ fn open(source: Box<dyn MediaSource>, hint: &Hint, expected_frames: Option<usize
     let t = format.default_track(TrackType::Audio).ok_or_else(|| anyhow!("no audio track"))?;
     let track_id = t.id;
     let num_frames = t.num_frames.map(|n| n as usize);
+    let delay = t.delay;
     let params = t
         .codec_params
         .as_ref()
         .and_then(|p| p.audio())
         .ok_or_else(|| anyhow!("track has no audio codec parameters"))?
         .clone();
-    let decoder = symphonia::default::get_codecs()
+    let decoder = codecs()
         .make_audio_decoder(&params, &AudioDecoderOptions::default())
         .context("no decoder for this codec")?;
 
@@ -815,9 +833,27 @@ fn open(source: Box<dyn MediaSource>, hint: &Hint, expected_frames: Option<usize
         bail!("implausible channel count {channels}");
     }
     let lossy = crate::library::codec_is_lossy(params.codec);
+    // A lossy decoder needs the frame before to get its first output right (MDCT overlap).
+    // Opus predicts from much further back.
+    let pre_roll = match params.codec {
+        CODEC_ID_OPUS => crate::opus::PRE_ROLL,
+        _ if lossy => 4096,
+        _ => 0,
+    };
+    let mut ts_delay = 0;
     // AAC carries its delay in a tag or the edit list; symphonia doesn't apply either.
-    let trim = if params.codec == symphonia::core::codecs::audio::well_known::CODEC_ID_AAC && t_delay_unknown(&*format, track_id) {
+    let trim = if params.codec == CODEC_ID_AAC && t_delay_unknown(&*format, track_id) {
         smpb.and_then(|t| t.sane(sample_rate)).or_else(|| edit.and_then(|e| e.at(sample_rate))).unwrap_or_default()
+    } else if params.codec == CODEC_ID_OPUS {
+        // Opus' pre-skip: the Ogg demuxer states it but leaves it in (its timestamps and
+        // length count it). Matroska states it only in the OpusHead, and symphonia takes it
+        // off the timestamps there; it doesn't report the end padding either, so Opus in MKA
+        // keeps up to 20 ms of the encoder's silence at the end.
+        let skip = crate::opus::delay(delay, &params);
+        if delay.is_none() {
+            ts_delay = skip;
+        }
+        Trim { skip, keep: num_frames.map(|n| n.saturating_sub(skip)) }
     } else {
         Trim::default()
     };
@@ -834,7 +870,7 @@ fn open(source: Box<dyn MediaSource>, hint: &Hint, expected_frames: Option<usize
             track.layout = layout;
         }
     }
-    Ok(Opened { format, decoder, track_id, track, trim })
+    Ok(Opened { format, decoder, track_id, track, trim, ts_delay, pre_roll })
 }
 
 /// One CUE track of an image file: its part of the file, on top of what the codec trims.
@@ -866,17 +902,19 @@ impl Drop for FinishOnPanic<'_> {
 /// at and the trim that now applies (the frames before it to drop, and what is left to keep).
 /// None when the format can't seek: then decoding starts from the beginning.
 ///
-/// A lossy decoder needs the frame before to get its first output right (MDCT overlap), so it
-/// starts a little earlier and that pre-roll is dropped.
-fn seek_decoder(format: &mut dyn FormatReader, decoder: &mut dyn AudioDecoder, track_id: u32, rate: u32, lossy: bool, trim: Trim, secs: f64) -> Option<(usize, Trim)> {
+/// Decoding starts `pre_roll` frames earlier (see `open`), and those frames are dropped.
+///
+/// `ts_delay`: frames of `trim.skip` the container's timestamps already leave out.
+#[allow(clippy::too_many_arguments)]
+fn seek_decoder(format: &mut dyn FormatReader, decoder: &mut dyn AudioDecoder, track_id: u32, rate: u32, pre_roll: usize, trim: Trim, ts_delay: usize, secs: f64) -> Option<(usize, Trim)> {
     use symphonia::core::formats::{SeekMode, SeekTo};
     use symphonia::core::units::Time;
-    const PRE_ROLL: usize = 4096;
     let start = (secs * rate as f64) as usize;
-    // Track timestamps count the encoder delay too (when we trim it ourselves).
+    // Track timestamps count the encoder delay too (when we trim it ourselves), unless the
+    // container took it off them: below, frames count from the first decoded one.
     let wanted = start + trim.skip;
-    let from = wanted.saturating_sub(if lossy { PRE_ROLL } else { 0 });
-    let time = Time::try_from_secs_f64(from as f64 / rate as f64)?;
+    let from = wanted.saturating_sub(pre_roll);
+    let time = Time::try_from_secs_f64(from.saturating_sub(ts_delay) as f64 / rate as f64)?;
     let tb = format.tracks().iter().find(|t| t.id == track_id).and_then(|t| t.time_base);
     let to_frames = |ts: i64| -> i64 {
         match tb {
@@ -892,7 +930,7 @@ fn seek_decoder(format: &mut dyn FormatReader, decoder: &mut dyn AudioDecoder, t
         }
     };
     decoder.reset();
-    let actual = to_frames(seeked.actual_ts.get()).max(0) as usize;
+    let actual = (to_frames(seeked.actual_ts.get()) + ts_delay as i64).max(0) as usize;
     if actual > wanted {
         // Landed past the point (shouldn't): start where it landed.
         let start = actual.saturating_sub(trim.skip);
@@ -977,11 +1015,11 @@ fn open_stream_trimmed(source: Box<dyn MediaSource>, hint: Hint, expected_secs: 
         Local::File { edit, range, path, .. } => (*edit, *range, Some(path.clone())),
         Local::No => (None, None, None),
     };
-    let Opened { mut format, mut decoder, track_id, mut track, mut trim } = open(source, &hint, None, edit, range)?;
+    let Opened { mut format, mut decoder, track_id, mut track, mut trim, ts_delay, pre_roll } = open(source, &hint, None, edit, range)?;
     if let Local::File { start_secs, .. } = local {
         // Seek to the start: one asked for, or a CUE track's place in its image.
         if (start_secs > 0.0 || trim.skip >= track.sample_rate as usize)
-            && let Some((start, rest)) = seek_decoder(&mut *format, &mut *decoder, track_id, track.sample_rate, track.lossy, trim, start_secs)
+            && let Some((start, rest)) = seek_decoder(&mut *format, &mut *decoder, track_id, track.sample_rate, pre_roll, trim, ts_delay, start_secs)
         {
             trim = rest;
             track = track.starting_at(start);
@@ -1072,7 +1110,7 @@ fn hint_for(path: &Path) -> Hint {
 /// Decode a whole file before returning (CLI tools, tests).
 pub fn load_track(path: &Path) -> Result<Track> {
     let file = File::open(path).with_context(|| format!("open {}", path.display()))?;
-    let Opened { mut format, mut decoder, track_id, track, trim } = open(Box::new(file), &hint_for(path), None, file_edit(path), None)?;
+    let Opened { mut format, mut decoder, track_id, track, trim, .. } = open(Box::new(file), &hint_for(path), None, file_edit(path), None)?;
     run(&mut *format, &mut *decoder, track_id, &track, trim, || true);
     match track.error() {
         Some(e) if track.ready_frames() == 0 => Err(anyhow!(e)),
@@ -1084,7 +1122,7 @@ pub fn load_track(path: &Path) -> Result<Track> {
 #[cfg(test)]
 pub(crate) fn open_windowed(path: &Path, bytes: usize) -> Arc<Track> {
     let file = File::open(path).unwrap();
-    let Opened { mut format, mut decoder, track_id, track, trim } = open(Box::new(file), &hint_for(path), None, None, None).unwrap();
+    let Opened { mut format, mut decoder, track_id, track, trim, .. } = open(Box::new(file), &hint_for(path), None, None, None).unwrap();
     let t = Arc::new(track.windowed(bytes));
     let mine = t.clone();
     std::thread::spawn(move || run(&mut *format, &mut *decoder, track_id, &mine, trim, || Arc::strong_count(&mine) > 1));
@@ -1190,7 +1228,7 @@ pub(crate) mod tests {
         ramp_wav(&path, rate, rate as usize * 120); // 2 minutes = 46 MB as f32
         let file = File::open(&path).unwrap();
         // A small window for the test: 8 MB (≈ 22 s of 48 kHz stereo).
-        let Opened { mut format, mut decoder, track_id, track, trim } = open(Box::new(file), &hint_for(&path), None, None, None).unwrap();
+        let Opened { mut format, mut decoder, track_id, track, trim, .. } = open(Box::new(file), &hint_for(&path), None, None, None).unwrap();
         let t = Arc::new(track.windowed(8 << 20));
         let mine = t.clone();
         let decoding = std::thread::spawn(move || run(&mut *format, &mut *decoder, track_id, &mine, trim, || true));

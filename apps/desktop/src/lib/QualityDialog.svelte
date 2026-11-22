@@ -53,7 +53,7 @@
     startAbx({ kind: "files", a: track.path, b: other, title: track.title, aName: `${name(track.path.split("#cue:")[0])} (${format})`, bName: name(other) });
     onclose();
   }
-  const AUDIO = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "caf", "mka", "dsf", "dff", "ape", "wv", "tta"];
+  const AUDIO = ["flac", "wav", "aif", "aiff", "m4a", "alac", "mp3", "ogg", "opus", "caf", "mka", "dsf", "dff", "ape", "wv", "tta"];
   let format = $derived(
     track.lossless && track.bits ? `${track.format} ${resolution(track.bits, track.sampleRate)}` : `${track.format} ${khz(track.sampleRate)} ${t("unit.khz")}`,
   );
